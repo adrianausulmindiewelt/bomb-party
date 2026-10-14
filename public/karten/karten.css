@@ -88,11 +88,9 @@ input, select { background: #2b2a45; color: #fff; }
   bottom: 0;
   width: 0;
   height: 0;
-  animation: pov-idle-sway 4.6s ease-in-out infinite;
   transform-origin: 50% 100%;
 }
 #pov.my-turn {
-  animation: pov-my-turn 2.2s ease-in-out infinite;
 }
 
 @keyframes pov-idle-sway {
@@ -116,8 +114,6 @@ input, select { background: #2b2a45; color: #fff; }
   transform-origin: 50% 120%;
   transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.4, 1.1), filter 0.2s, box-shadow 0.2s;
   transform: translate(var(--x, 0), calc(var(--y, 0) - var(--lift, 0px))) rotate(var(--r, 0deg)) scale(var(--s, 1));
-  animation: card-idle-wave 3.6s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 0.16s);
 }
 
 @keyframes card-idle-wave {
@@ -145,7 +141,6 @@ input, select { background: #2b2a45; color: #fff; }
   --lift: 52px !important;
   --s: 1.25 !important;
   box-shadow: 0 0 0 3.5px #ffd23d, 0 0 28px var(--accent) !important;
-  animation: card-selected-bounce 1.5s ease-in-out infinite !important;
 }
 
 @keyframes card-selected-bounce {
@@ -155,8 +150,6 @@ input, select { background: #2b2a45; color: #fff; }
 
 #pov.my-turn #hand .card.playable:not(.dim) {
   box-shadow: 0 0 16px #ffd23d99, 0 6px 14px rgba(0,0,0,0.5);
-  animation: card-playable-bob 2s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 0.12s);
 }
 
 @keyframes card-playable-bob {
@@ -301,7 +294,6 @@ input, select { background: #2b2a45; color: #fff; }
 /* Farb-Resonanz Leuchten auf der Hand */
 #hand .card.resonant:not(.dim) {
   box-shadow: 0 0 24px var(--c), 0 0 0 3px #fff !important;
-  animation: card-resonant-pulse 1.8s ease-in-out infinite !important;
 }
 @keyframes card-resonant-pulse {
   0%, 100% {
@@ -499,10 +491,11 @@ input, select { background: #2b2a45; color: #fff; }
 /* ═════════ Audio-Steuerung ═════════ */
 #audio-controls {
   position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 1000;
+  top: 70px;
+  right: 15px;
+  z-index: 6; /* unter Chat-Fenster und Overlays, neben dem Chat-Knopf */
   display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 #audio-controls button {
@@ -919,8 +912,8 @@ input, select { background: #2b2a45; color: #fff; }
 
 @media (max-width: 600px) {
   #audio-controls {
-    top: 8px;
-    right: 8px;
+    top: 66px;
+    right: 16px;
     gap: 4px;
   }
   #audio-controls button {
