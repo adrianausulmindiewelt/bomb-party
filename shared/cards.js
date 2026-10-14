@@ -121,7 +121,7 @@ export const ROLES = {
   berserker: { name: 'Berserker',   emoji: '🪓', cards: +1, weight: 3, ability: 'berserk', text: 'Blutrausch: Muss er den Stapel nehmen, zerhackt er ihn: Die Hälfte verbrennt, nur der Rest landet auf der Hand!' },
   pazifist:  { name: 'Pazifist',    emoji: '🕊️', cards: -1, weight: 3, ability: 'pacifist', text: 'Diplomatischer Schutz: Solange du mehr als 3 Karten hast, prallen alle gezielten Zieh- und Tauschangriffe an dir ab.' },
   magier:    { name: 'Erzmagier',   emoji: '🧙‍♂️', cards: -1, weight: 3, ability: 'mage', text: 'Arkane Schatzkammer: Startet mit 3 Spezialkarten (statt 2)! Meister der arkanen Künste.' },
-  nekromant: { name: 'Nekromant',   emoji: '💀', cards: 0,  weight: 3, ability: 'necromancer', text: 'Seelenraub: Verbrennt ein Stapel oder eine Karte (Burn/Loch/Phönix), erntet er die Seelen und zieht 1 Karte vom Deck.' },
+  nekromant: { name: 'Nekromant',   emoji: '💀', cards: 0,  weight: 3, ability: 'necromancer', text: 'Seelen-Opfer: Verbrennt ein Stapel oder eine Karte (Burn/Loch/Phönix/Ruben), erntet er die Seelen und opfert 1 eigene Handkarte kostenlos!' },
   gluecksspieler: { name: 'Glücksspieler', emoji: '🎲', cards: 0, weight: 3, ability: 'gambler', text: 'Gezinkte Würfel: Darf jede ungerade Zahl auf eine gerade Zahl legen (und umgekehrt), völlig ungeachtet des Werts!' },
 };
 

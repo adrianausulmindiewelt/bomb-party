@@ -34,9 +34,13 @@
     </section>
 
     <section class="step">
-      <h2>2 · Deine Bomben-Karte 💣</h2>
-      <p class="hint">Zeichne sie selbst – und bau ihre Fähigkeit aus max. 2 Effekten.</p>
-      <div class="builder">
+      <h2>2 · Deine Bomben-Karte 💣 (optional)</h2>
+      <label class="custom-card-toggle" style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; padding: 6px 12px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);">
+        <input type="checkbox" id="enable-custom-card" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" />
+        <span>Eigene Bombe zeichnen & bauen</span>
+      </label>
+      <p id="custom-card-hint" class="hint">Standard: Du spielst direkt mit den offiziellen Club- & Charakterkarten.</p>
+      <div id="builder-wrap" class="builder" hidden>
         <div class="draw-wrap">
           <canvas id="draw" width="300" height="300"></canvas>
           <div class="draw-tools">
@@ -70,12 +74,28 @@
     <div id="felt-wrap"><div id="felt"></div></div>
     <div id="players"></div>
     <div id="center">
-      <div id="pile"></div>
+      <div id="last-action-pill" class="last-action-pill" hidden>
+        <span class="last-action-icon" id="last-action-icon">🃏</span>
+        <span class="last-action-text" id="last-action-text"></span>
+      </div>
+      <div class="table-stacks">
+        <div id="deck-wrap" class="deck-wrap" title="Nachziehstapel">
+          <div id="deck-card" class="card-stack-deck back-pattern">
+            <span class="deck-badge" id="deck-count">0</span>
+          </div>
+          <span class="stack-label">Nachziehen</span>
+        </div>
+        <div id="pile-wrap" class="pile-wrap">
+          <div id="pile"></div>
+          <span class="stack-label">Ablage</span>
+        </div>
+      </div>
       <div id="pile-info"></div>
       <div id="ticker"></div>
     </div>
     <ol id="log"></ol>
     <div id="actions">
+      <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
       <button id="start" class="primary" hidden>▶️ Spiel starten</button>
       <button id="take">🗑️ Stapel nehmen</button>
       <button id="play" class="primary">Legen ⬆️</button>
@@ -177,9 +197,22 @@
           <button class="tab-btn active" data-tab="club">🏛️ Club & Specials</button>
           <button class="tab-btn" data-tab="characters">🎭 Charaktere</button>
           <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
+          <button class="tab-btn" data-tab="custom">🎨 Spieler-Karten</button>
           <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
+          <button class="tab-btn" data-tab="elements">⚡ Farb-Kräfte & Resonanz</button>
         </div>
         <div id="almanach-content" class="almanach-grid"></div>
+      </div>
+    </div>
+    <div id="chain-banner" class="chain-banner" hidden>
+      <div class="chain-banner-badge" id="chain-badge">⛓️ CHAIN TRIGGER</div>
+      <div class="chain-banner-content">
+        <div class="chain-banner-icon" id="chain-icon">✨</div>
+        <div class="chain-banner-text">
+          <div class="chain-banner-actor" id="chain-actor">Spieler</div>
+          <div class="chain-banner-title" id="chain-title">Kartenname</div>
+          <div class="chain-banner-desc" id="chain-desc">Effektbeschreibung</div>
+        </div>
       </div>
     </div>
     <div id="toast"></div>
