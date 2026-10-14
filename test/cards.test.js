@@ -16,7 +16,7 @@ const num = (value, color = '#fff') => ({ id: Math.random(), kind: 'number', val
 test('Jede*r bekommt zum Start Specials (Standard: 2, Erzmagier: 3) und eine Rolle', () => {
   const r = table(5);
   for (const p of r.players) {
-    const expected = p.role === 'mage' ? 3 : (RULES.specialsStart || 2);
+    const expected = (p.role === 'magier' || p.role === 'mage') ? 3 : (RULES.specialsStart || 2);
     assert.equal(p.hand.filter((c) => c.kind === 'special').length, expected);
     assert.equal(p.hand.length, RULES.handSize + ROLES[p.role].cards);
   }
@@ -45,7 +45,9 @@ test('Man muss gleich hoch oder höher legen', () => {
 
 test('Wer nicht kann, nimmt den Stapel', () => {
   const r = table(2);
+  for (const pl of r.players) pl.role = 'buerger';
   const p = r.current();
+  p.hand = p.hand.filter((c) => c.ability !== 'phoenix');
   r.pile = [num(10), num(12)];
   r.top = 12;
   const before = p.hand.length;
@@ -127,7 +129,7 @@ const drawFx = (n, target = 'next') => ({ id: 'd' + Math.random(), kind: 'specia
 
 test('🥔 Kartoffel kann nicht abgelegt, nur weitergereicht werden – Ziel zieht 3', () => {
   const r = table(3);
-  for (const o of r.players) o.hand = [num(1)];
+  for (const o of r.players) { o.hand = [num(1)]; o.role = 'buerger'; }
   const p = r.current();
   const potato = sp('kartoffel');
   p.hand = [potato, num(3), num(4)];
@@ -142,6 +144,7 @@ test('🥔 Kartoffel kann nicht abgelegt, nur weitergereicht werden – Ziel zie
 
 test('🥔 Nicht zurück an die Person, von der man sie hat', () => {
   const r = table(3);
+  for (const o of r.players) { o.hand = [num(1)]; o.role = 'buerger'; }
   const p = r.current();
   const potato = { ...sp('kartoffel'), cameFrom: r.players.find((o) => o !== p).id };
   p.hand = [potato, num(3)];
@@ -150,7 +153,7 @@ test('🥔 Nicht zurück an die Person, von der man sie hat', () => {
 
 test('🥔 Wer sie hält, zieht dreifach und ist immun gegen Tausch', () => {
   const r = table(2);
-  for (const o of r.players) o.hand = [num(1)];
+  for (const o of r.players) { o.hand = [num(1)]; o.role = 'buerger'; }
   const p = r.current();
   const t = r.players.find((o) => o !== p);
   t.hand = [sp('kartoffel'), num(1)];
@@ -221,6 +224,7 @@ test('♊ Zwillings-Parade kontert Ziehen: Nachbar*innen ziehen je die Hälfte',
 test('♊ Aktiv: zwei Farben passen auf alles, bis man wieder dran ist', () => {
   const r = table(2);
   const p = r.current();
+  p.role = 'buerger';
   const tw = sp('zwillinge');
   p.hand = [tw, num(5)];
   r.top = 12;
@@ -246,6 +250,7 @@ test('😢 Trauriger Schelm: Ziel zieht so viele, wie man danach hält', () => {
 
 test('😆😢 Lachen und Weinen: beide Schelme zusammen', () => {
   const r = table(3);
+  for (const pl of r.players) pl.role = 'buerger';
   const p = r.current();
   const [a, b] = r.players.filter((o) => o !== p);
   a.hand = [num(1), num(2), num(3)]; b.hand = [num(4)];
@@ -299,6 +304,7 @@ test('💬 Chat: Text wird gekürzt, Spam gebremst', () => {
 });
 test('🛡️ Aegis der Nullifizierung blockt Ziehen vollständig ab', () => {
   const r = table(3);
+  for (const pl of r.players) pl.role = 'buerger';
   const p = r.current();
   const t = r.seatFrom(p, 1);
   t.hand = [sp('aegis'), num(1)];
@@ -348,6 +354,7 @@ test('🪞 Prismatischer Spiegel: wirft Zieh-Strafe auf den Angreifer zurück', 
 
 test('🕳️ Schwarzes Loch: verbrennt Stapel und lässt alle anderen 1 Handkarte opfern', () => {
   const r = table(3);
+  for (const o of r.players) o.role = 'buerger';
   const p = r.current();
   const [a, b] = r.players.filter((o) => o !== p);
   a.hand = [num(2), num(3)];
@@ -514,6 +521,7 @@ test('⚡ Junger Gott: erhält sofort einen Extra-Zug nach Ausspielen einer Spez
 
 test('🪶 Phönix-Asche: verbrennt den gesamten Tischstapel zu Asche beim Kassieren', () => {
   const r = table(2);
+  for (const pl of r.players) pl.role = 'buerger';
   const p = r.current();
   const phoenixCard = sp('phoenix');
   p.hand = [phoenixCard, num(3)];
@@ -936,6 +944,7 @@ test('👀 Stille Beobachterin (Ayleen - 13): Senkt Tischwert um 5 und legt heim
 
 test('🏎️ Turbo-Abreise (Niclas): Überspringt 2 Personen und zwingt sie zum Ziehen', () => {
   const r = table(3);
+  for (const o of r.players) o.role = 'buerger';
   const p0 = r.current();
   const others = r.players.filter((p) => p !== p0);
   others[0].hand = [num(1)];
@@ -951,6 +960,7 @@ test('🏎️ Turbo-Abreise (Niclas): Überspringt 2 Personen und zwingt sie zum
 
 test('🎆 Pyrotechnischer Knall (Ruben): Verbrennt Tischstapel und alle höchsten Zahlenkarten', () => {
   const r = table(3);
+  for (const o of r.players) o.role = 'buerger';
   const p0 = r.current();
   const others = r.players.filter((p) => p !== p0);
   p0.hand = [sp('ruben_firework'), num(3), num(11)];
@@ -967,6 +977,262 @@ test('🎆 Pyrotechnischer Knall (Ruben): Verbrennt Tischstapel und alle höchst
   assert.ok(!others[1].hand.some((c) => c.value === 8)); // 8 verbrannt
   assert.ok(r.log.some((msg) => msg.includes('Pyrotechnischer Knall')));
 });
+
+test('✨ Chain-Banner (Feature 1): chainEvent wird in view() übertragen und id inkrementiert', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const aegis = sp('aegis');
+  p0.hand = [aegis, num(7)];
+  r.play(p0.id, [aegis.id]);
+
+  const v = r.view(p0.id);
+  assert.ok(v.chainEvent, 'chainEvent existiert in view');
+  assert.equal(v.chainEvent.id, 1);
+  assert.equal(v.chainEvent.actor, p0.name);
+  assert.equal(v.chainEvent.title, 'Aegis der Nullifizierung');
+
+  // Zweiter Trigger inkrementiert id
+  const p1 = r.current();
+  p1.hand = [num(10, '#3dc6ff')];
+  r.top = 10;
+  r.pile = [num(10, '#3dc6ff')];
+  // Farb-Resonanz
+  const resCard = num(8, '#3dc6ff');
+  p1.hand = [resCard];
+  r.play(p1.id, [resCard.id]);
+
+  const v2 = r.view(p1.id);
+  assert.equal(v2.chainEvent.id, 2);
+  assert.equal(v2.chainEvent.title, 'Farb-Resonanz!');
+});
+
+test('🃏 Letzter Zug Indikator (Feature 3): lastAction wird bei Legen und Stapelnehmen aktualisiert', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.hand = [num(9, '#ff3d7f'), num(12, '#ff3d7f')];
+  r.top = 5;
+  r.play(p0.id, [p0.hand[0].id]);
+
+  let v = r.view(p0.id);
+  assert.ok(v.lastAction, 'lastAction ist gesetzt');
+  assert.ok(v.lastAction.text.includes(`${p0.name} legt 9`));
+
+  // Nächste Person nimmt den Stapel
+  const p1 = r.current();
+  const res = r.take(p1.id);
+  assert.equal(res.ok, true);
+  v = r.view(p1.id);
+  assert.ok(v.lastAction.text.includes('nimmt Stapel'));
+});
+
+test('💣 Optionale Bomben-Karten: Ohne selbstgebaute Karte spielt man nur mit offiziellen/Club-Karten', () => {
+  const r = new CardRoom('optional-room');
+  r.addPlayer('alice', { name: 'Alice', special: null });
+  r.addPlayer('bob', { name: 'Bob', special: null });
+  assert.equal(r.start('alice').ok, true);
+
+  for (const p of r.players) {
+    const specials = p.hand.filter((c) => c.kind === 'special');
+    assert.ok(specials.length >= 2, 'Spieler hat mindestens 2 Specials erhalten');
+  assert.ok(!specials.some((c) => c.key === 'custom'), 'Keine selbstgebaute Bombe im Spiel');
+  }
+});
+
+test('👑 hasRole(): erkennt zuverlässig deutsche Keys und englische abilities für alle Rollen', () => {
+  const r = new CardRoom('test-roles');
+  const p = { role: 'magier' };
+  assert.equal(r.hasRole(p, 'magier'), true);
+  assert.equal(r.hasRole(p, 'mage'), true);
+
+  p.role = 'gott';
+  assert.equal(r.hasRole(p, 'gott'), true);
+  assert.equal(r.hasRole(p, 'god'), true);
+
+  p.role = 'junggott';
+  assert.equal(r.hasRole(p, 'junggott'), true);
+  assert.equal(r.hasRole(p, 'demigod'), true);
+
+  p.role = 'gluecksspieler';
+  assert.equal(r.hasRole(p, 'gluecksspieler'), true);
+  assert.equal(r.hasRole(p, 'gambler'), true);
+
+  p.role = 'nekromant';
+  assert.equal(r.hasRole(p, 'nekromant'), true);
+  assert.equal(r.hasRole(p, 'necromancer'), true);
+});
+
+test('💀 Nekromant (Option A): erntet Seelen und opfert 1 Handkarte kostenlos, wenn verbrannt wird', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const necro = r.seatFrom(p0, 1);
+  p0.role = 'buerger';
+  necro.role = 'nekromant';
+  necro.hand = [num(3), num(12), num(7)];
+  r.triggerNecromancer();
+  assert.equal(necro.hand.length, 2);
+  // Höchste Zahlenkarte (12) wurde geopfert
+  assert.equal(necro.hand.some((c) => c.value === 12), false);
+  assert.deepEqual(necro.hand.map((c) => c.value), [3, 7]);
+  assert.equal(r.chainEvent?.title, 'Seelen-Opfer!');
+});
+
+test('🦸 Held*in: Darf bei ≤ 2 Handkarten jede beliebige Zahl auf jede Zahl legen', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'held';
+  p0.hand = [num(2), num(4)];
+  r.top = 14;
+  r.lower = false;
+  // 2 auf 14 ist normalerweise verboten, aber Held hat nur 2 Karten
+  assert.equal(r.whyNot([p0.hand[0]]), null);
+  assert.equal(r.play(p0.id, [p0.hand[0].id]).ok, true);
+});
+
+test('🎲 Glücksspieler: Darf ungerade auf gerade (und umgekehrt) legen', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'gluecksspieler';
+  p0.hand = [num(3), num(8)];
+  r.top = 10; // gerade
+  r.lower = false;
+  // 3 auf 10 ist niedriger, aber ungerade auf gerade -> erlaubt!
+  assert.equal(r.whyNot([p0.hand[0]]), null);
+
+  r.top = 7; // ungerade
+  // 8 auf 7 ist gerade auf ungerade -> erlaubt!
+  assert.equal(r.whyNot([p0.hand[1]]), null);
+});
+
+test('🧪 Alchemist: Wirft bei einem Paar automatisch die niedrigste Karte ab', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'alchemist';
+  p0.hand = [num(2), num(8), num(8), num(11)];
+  r.top = 5;
+  const res = r.play(p0.id, [p0.hand[1].id, p0.hand[2].id]);
+  assert.equal(res.ok, true);
+  // 8 & 8 gelegt, 2 (niedrigste) wurde kostenlos transmutiert
+  assert.equal(p0.hand.length, 1);
+  assert.equal(p0.hand[0].value, 11);
+  assert.equal(r.pile.some((c) => c.value === 2), true);
+});
+
+test('🕵️‍♂️ Spion: Sieht die Rollen aller Mitspieler*innen im view()', () => {
+  const r = table(3);
+  const spy = r.players[0];
+  const p1 = r.players[1];
+  const p2 = r.players[2];
+  spy.role = 'spion';
+  p1.role = 'dorfdepp';
+  p2.role = 'held';
+
+  const v = r.view(spy.id);
+  assert.equal(v.players.find((p) => p.id === p1.id).role?.key, 'dorfdepp');
+  assert.equal(v.players.find((p) => p.id === p2.id).role?.key, 'held');
+});
+
+test('🕊️ Pazifist: Wehrt gezielte Zieh- und Tauschangriffe ab, wenn Hand > 3', () => {
+  const r = table(2);
+  const attacker = r.current();
+  const paci = r.seatFrom(attacker, 1);
+  paci.role = 'pazifist';
+  paci.hand = [num(1), num(2), num(3), num(4)]; // 4 Karten (> 3)
+
+  // Gezielter Zieh-Angriff
+  r.draw(paci, 2, { from: attacker });
+  assert.equal(paci.hand.length, 4); // Kein Zuwachs!
+
+  // Gezielter Tausch-Angriff (swap)
+  attacker.hand = [num(10)];
+  r.runEffect(attacker, { type: 'swap', target: 'next' }, { skip: 0, again: false });
+  assert.equal(paci.hand.length, 4); // Keine getauschte Hand!
+  assert.equal(attacker.hand.length, 1);
+});
+
+test('🪓 Berserker & 🤪 Dorfdepp: halbieren bzw. cappen den Stapel auf 3', () => {
+  const r = table(3);
+  const dorf = r.players[0];
+  const berserk = r.players[1];
+  dorf.role = 'dorfdepp';
+  berserk.role = 'berserker';
+  dorf.hand = [num(99)];
+  berserk.hand = [num(99)];
+
+  // 10 Karten auf dem Stapel
+  r.turn = 0;
+  r.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
+  const res1 = r.take(dorf.id);
+  assert.equal(res1.ok, true);
+  assert.equal(dorf.hand.length, 4); // 1 vorher + max 3 = 4
+
+  r.turn = 1;
+  r.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
+  const res2 = r.take(berserk.id);
+  assert.equal(res2.ok, true);
+  assert.equal(berserk.hand.length, 6); // 1 vorher + 5 (Hälfte) = 6
+});
+
+test('🐦‍⬛ Pechvogel: Angreifer zieht 1 Karte mit', () => {
+  const r = table(2);
+  const attacker = r.current();
+  const pech = r.seatFrom(attacker, 1);
+  pech.role = 'pechvogel';
+  attacker.hand = [num(1)];
+  pech.hand = [num(2)];
+  r.deck = [num(5), num(6), num(7)];
+
+  r.draw(pech, 1, { from: attacker });
+  assert.equal(pech.hand.length, 2);
+  assert.equal(attacker.hand.length, 2); // 1 mitgezogen!
+});
+
+test('⚡ Junger Gott: Erhält Extra-Zug nach dem Ausspielen einer Spezialkarte', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'junggott';
+  p0.hand = [{ id: 999, kind: 'special', key: 'reset', effects: [{ type: 'reset' }] }];
+  const res = r.play(p0.id, [999]);
+  assert.equal(res.ok, true);
+  // Weiterhin p0 dran (Extra-Zug)
+  assert.equal(r.current().id, p0.id);
+});
+
+test('🎨 view.customCards: Eigene Bomben von Spieler*innen werden für den Almanach übertragen', () => {
+  const r = new CardRoom('custom-almanach');
+  r.addPlayer('alice', { name: 'Alice', special: { name: 'Sternen-Detonation', effects: [{ type: 'burn' }] } });
+  r.addPlayer('bob', { name: 'Bob', special: null });
+  assert.equal(r.start('alice').ok, true);
+
+  const v = r.view('bob');
+  assert.ok(Array.isArray(v.customCards), 'customCards ist Array');
+  assert.equal(v.customCards.length, 1);
+  assert.equal(v.customCards[0].name, 'Sternen-Detonation');
+  assert.equal(v.customCards[0].by, 'Alice');
+  assert.ok(v.customCards[0].text.includes('verbrennen'));
+});
+
+test('☀️ Gott: Prallt Angriffe ab, wehrt Tausch ab und reflektiert Ziehen', () => {
+  const r = table(2);
+  const attacker = r.current();
+  const god = r.seatFrom(attacker, 1);
+  god.role = 'gott';
+  god.hand = [num(5)];
+  attacker.hand = [num(1)];
+  r.deck = [num(10), num(11)];
+
+  // Gezielter Ziehangriff trifft Angreifer karmisch
+  r.draw(god, 1, { from: attacker });
+  assert.equal(god.hand.length, 1);
+  assert.equal(attacker.hand.length, 2);
+
+  // Tausch prallt ab
+  r.runEffect(attacker, { type: 'swap', target: 'next' }, { skip: 0, again: false });
+  assert.equal(god.hand.length, 1);
+});
+
+
+
+
 
 
 

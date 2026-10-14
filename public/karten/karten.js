@@ -90,13 +90,24 @@ function renderAlmanachTab(tab) {
 
   let items = [];
   if (tab === 'club') {
-    items = Object.values(PLAYER_CARDS).map((c) => ({
-      emoji: c.emoji || '✨',
+    const liveCustom = (view?.customCards ?? []).map((c) => ({
+      emoji: c.emoji || '💣',
+      art: c.art || arts[c.owner]?.art || null,
       name: c.name,
-      title: c.title || 'Spezialkarte',
-      by: c.by ? `Urheber: ${c.by}` : '',
-      text: c.text,
+      title: 'Selbstgebaute Bombe (Live am Tisch)',
+      by: `Erschaffen von: ${c.by}`,
+      text: c.text || describe(c.effects ?? []),
     }));
+    items = [
+      ...liveCustom,
+      ...Object.values(PLAYER_CARDS).map((c) => ({
+        emoji: c.emoji || '✨',
+        name: c.name,
+        title: c.title || 'Spezialkarte',
+        by: c.by ? `Urheber: ${c.by}` : '',
+        text: c.text,
+      })),
+    ];
   } else if (tab === 'characters') {
     items = Object.values(CHARACTERS).map((ch) => ({
       emoji: ch.emoji || '🎭',
@@ -113,20 +124,85 @@ function renderAlmanachTab(tab) {
       by: 'Grundspiel',
       text: describe(s.effects ?? []),
     }));
+  } else if (tab === 'custom') {
+    const list = view?.customCards ?? [];
+    if (!list.length) {
+      almanachContent.innerHTML = `
+        <div class="almanach-empty">
+          <div style="font-size: 2.8rem; margin-bottom: 10px;">🎨</div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 6px;">Noch keine selbstgebauten Karten am Tisch</div>
+          <p style="font-size: 0.85rem; margin: 0; line-height: 1.4;">Hake in der Lobby bei Schritt 2 <b>„Eigene Bombe zeichnen & bauen“</b> an, um spontan deine eigene Karte mit individuellem Namen, Artwork & Effekten zu erschaffen!</p>
+        </div>
+      `;
+      return;
+    }
+    items = list.map((c) => ({
+      emoji: c.emoji || '💣',
+      art: c.art || arts[c.owner]?.art || null,
+      name: c.name,
+      title: 'Selbstgebaute Bombe',
+      by: `Erschaffen von: ${c.by}`,
+      text: c.text || describe(c.effects ?? []),
+    }));
   } else if (tab === 'roles') {
     items = Object.values(ROLES).map((r) => ({
       emoji: r.emoji || '👑',
       name: r.name,
-      title: `Rolle (${r.cards >= 0 ? '+' : ''}${r.cards} Startkarten)`,
+      title: r.cards === 0 ? 'Standard-Hand (10 Karten)' : `${r.cards > 0 ? '+' : ''}${r.cards} Handkarten zum Start (${10 + r.cards} Karten)`,
       by: 'Geheime Rolle',
       text: r.text,
     }));
+  } else if (tab === 'elements') {
+    items = [
+      {
+        emoji: '🎵',
+        name: 'Farb-Resonanz',
+        title: 'Toleranz-Vorteil (Gleiche Farbe)',
+        by: 'Passive Grundmechanik',
+        text: 'Legst du eine Zahlenkarte derselben Farbe auf die oberste Tischkarte, darfst du den geforderten Wert um bis zu 2 Punkte UNTERBIETEN (z. B. eine blaue 8 auf eine blaue 10)! Bei aktiver „Unter“-Karte darfst du um bis zu 2 Punkte überbieten. Karten mit aktivem Resonanz-Bonus leuchten in deiner Hand magisch auf.',
+      },
+      {
+        emoji: '⛓️⚡',
+        name: 'Farb-Überladung',
+        title: 'Elementar-Kette (3× gleiche Farbe)',
+        by: 'Kettenreaktion am Tisch',
+        text: 'Werden 3× hintereinander Karten derselben Farbe gelegt (auch über mehrere Personen hinweg), entlädt sich das Spielfeld! Die nächste Person am Tisch muss sofort 1 Strafkarte vom Ziehstapel ziehen. Götter werfen diesen Blitz karmisch auf den Verursacher zurück.',
+      },
+      {
+        emoji: '🔥',
+        name: 'Rubin-Feuer',
+        title: 'Element des Feuers (#ff3d7f)',
+        by: 'Rubin-Edelstein',
+        text: 'Feurige Spielfreude. Kann für Farb-Resonanzen und feurige Überladungsketten genutzt werden.',
+      },
+      {
+        emoji: '❄️',
+        name: 'Saphir-Eis',
+        title: 'Element des Eises (#3dc6ff)',
+        by: 'Saphir-Edelstein',
+        text: 'Eiskalte Berechnung. Resonanzfähig mit allen blauen Saphir-Karten.',
+      },
+      {
+        emoji: '⚡',
+        name: 'Topas-Blitz',
+        title: 'Element des Blitzes (#ffd23d)',
+        by: 'Topas-Edelstein',
+        text: 'Geladene Dynamik. Resonanzfähig mit allen gelben Topas-Karten.',
+      },
+      {
+        emoji: '🌿',
+        name: 'Smaragd-Natur',
+        title: 'Element der Natur (#5cff8a)',
+        by: 'Smaragd-Edelstein',
+        text: 'Wachsende Stärke. Resonanzfähig mit allen grünen Smaragd-Karten.',
+      },
+    ];
   }
 
   almanachContent.innerHTML = items.map((it) => `
-    <div class="almanach-card">
+    <div class="almanach-card" title="${it.name}${it.title ? ' · ' + it.title : ''}${it.by ? ' (' + it.by + ')' : ''}: ${it.text || ''}">
       <div class="almanach-card-top">
-        <div class="almanach-emoji">${it.emoji}</div>
+        <div class="almanach-emoji" ${it.art ? `style="background-image: url('${it.art}'); background-size: cover; background-position: center; border-radius: 8px; width: 44px; height: 44px;"` : ''}>${it.art ? '' : it.emoji}</div>
         <div class="almanach-meta">
           <div class="almanach-name">${it.name}</div>
           <div class="almanach-title">${it.title}</div>
@@ -241,6 +317,26 @@ function renderEffects() {
 }
 renderEffects();
 
+const enableCustomCheckbox = $('enable-custom-card');
+const builderWrap = $('builder-wrap');
+const customCardHint = $('custom-card-hint');
+
+if (enableCustomCheckbox && builderWrap) {
+  enableCustomCheckbox.checked = Boolean(saved.useCustom);
+  builderWrap.hidden = !enableCustomCheckbox.checked;
+  if (customCardHint && enableCustomCheckbox.checked) {
+    customCardHint.textContent = 'Deine eigene Bombe wird beim Spielstart in den großen Los-Topf gemischt!';
+  }
+  enableCustomCheckbox.onchange = () => {
+    builderWrap.hidden = !enableCustomCheckbox.checked;
+    if (customCardHint) {
+      customCardHint.textContent = enableCustomCheckbox.checked
+        ? 'Deine eigene Bombe wird beim Spielstart in den großen Los-Topf gemischt!'
+        : 'Standard: Du spielst direkt mit den offiziellen Club- & Charakterkarten.';
+    }
+  };
+}
+
 function select(options, value, onChange) {
   const s = document.createElement('select');
   for (const [v, t] of options) { const o = document.createElement('option'); o.value = v; o.textContent = t; s.append(o); }
@@ -264,11 +360,13 @@ let lastJoin = null;
 function join(roomName) {
   const name = $('name').value.trim();
   if (!name) { $('error').textContent = 'Erst deinen Namen eingeben (oben).'; $('name').focus(); return; }
-  if (!effects.length) { $('error').textContent = 'Deine Karte braucht einen Effekt.'; return; }
-  const art = drawn ? draw.toDataURL('image/jpeg', 0.75) : null;
+  const useCustom = Boolean($('enable-custom-card')?.checked);
+  if (useCustom && !effects.length) { $('error').textContent = 'Deine Karte braucht mindestens einen Effekt.'; return; }
+  const art = useCustom && drawn ? draw.toDataURL('image/jpeg', 0.75) : null;
   const specialName = $('special-name').value.trim();
-  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects }));
-  lastJoin = { pid, name, avatar, room: roomName, special: { name: specialName || `${name}s Bombe`, art, effects } };
+  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects, useCustom }));
+  const special = useCustom ? { name: specialName || `${name}s Bombe`, art, effects } : null;
+  lastJoin = { pid, name, avatar, room: roomName, special };
   socket.emit('join', lastJoin, (res) => {
     if (res.error) { $('error').textContent = res.error; return; }
     me = res.id;
@@ -316,6 +414,38 @@ if ($('room').value) $('join').textContent = `➡️ ${$('room').value} beitrete
 
 socket.on('arts', (a) => { arts = a; if (view) render(); });
 let lastSeenLog = null;
+let lastSeenChainId = 0;
+let chainTimeout = null;
+
+function showChainBanner(evt) {
+  if (!evt || evt.id === lastSeenChainId) return;
+  lastSeenChainId = evt.id;
+  const banner = $('chain-banner');
+  if (!banner) return;
+
+  const iconEl = $('chain-icon');
+  const actorEl = $('chain-actor');
+  const titleEl = $('chain-title');
+  const descEl = $('chain-desc');
+
+  if (iconEl) iconEl.textContent = evt.emoji || '✨';
+  if (actorEl) actorEl.textContent = evt.actor ? `👤 ${evt.actor}` : 'EFFEKT';
+  if (titleEl) titleEl.textContent = evt.title || 'Karten-Effekt';
+  if (descEl) descEl.textContent = evt.desc || '';
+
+  if (chainTimeout) clearTimeout(chainTimeout);
+  banner.hidden = false;
+  requestAnimationFrame(() => {
+    banner.classList.add('show');
+    vibrate([30, 40, 30]);
+  });
+
+  chainTimeout = setTimeout(() => {
+    banner.classList.remove('show');
+    setTimeout(() => { banner.hidden = true; }, 350);
+  }, 3000);
+}
+
 socket.on('view', (v) => {
   const myTurnBefore = view?.turn === me;
   view = v;
@@ -323,6 +453,10 @@ socket.on('view', (v) => {
   selected = new Set([...selected].filter((id) => ids.has(id)));
   focus = Math.min(focus, Math.max(0, v.hand.length - 1));
   render();
+
+  if (v.chainEvent) {
+    showChainBanner(v.chainEvent);
+  }
 
   // Akustische Rückmeldung für Spielereignisse am Tisch
   const lastLog = v.log[v.log.length - 1];
@@ -458,6 +592,8 @@ function render() {
   v.pile.forEach((c, i) => {
     const el = cardEl(c, arts);
     el.style.transform = `rotate(${(c.id * 37 % 21) - 10}deg) translate(${i * 3}px, ${i * 2}px)`;
+    el.onmouseenter = () => updateExplain(c);
+    el.onmouseleave = () => updateExplain(null);
     $('pile').append(el);
   });
   const topCard = v.pile[v.pile.length - 1];
@@ -465,9 +601,20 @@ function render() {
   const elemTag = topElem ? `  ·  ${topElem.icon} ${topElem.gem}` : '';
   const dirArrow = v.dir === 1 ? '↻' : '↺';
   $('pile').querySelectorAll('.card').forEach((el) => { el.style.cursor = 'default'; });
+  const deckTag = v.state === 'playing' && v.deckCount !== undefined ? `  ·  🎴 ${v.deckCount} im Deck` : '';
   $('pile-info').textContent = v.state === 'playing'
-    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + `  ·  ${v.pileCount} im Stapel  ·  ${dirArrow}`
+    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + `  ·  ${v.pileCount} im Stapel` + deckTag + `  ·  ${dirArrow}`
     : v.state === 'over' ? 'Runde vorbei' : `${v.players.length} am Tisch`;
+
+  // Nachziehstapel Visualisierung & Counter
+  const deckCardEl = $('deck-card');
+  const deckCountEl = $('deck-count');
+  if (deckCardEl && deckCountEl) {
+    const count = v.deckCount ?? 0;
+    deckCountEl.textContent = count;
+    deckCardEl.title = `Nachziehstapel: Noch ${count} Karte${count === 1 ? '' : 'n'} im Deck`;
+    deckCardEl.classList.toggle('empty', count === 0);
+  }
 
   // ♊ freie Farben als Punkte hinter der Stapel-Info
   if (v.wild && v.state === 'playing') {
@@ -476,6 +623,21 @@ function render() {
     dots.title = 'Diese Farben passen gerade auf alles';
     for (const c of v.wild) { const d = document.createElement('i'); d.style.background = c; dots.append(d); }
     $('pile-info').append(' ♊', dots);
+  }
+
+  // Letzter Zug Indikator (Last Action Pill über dem Stapel)
+  const lastAct = v.lastAction;
+  const pillEl = $('last-action-pill');
+  if (pillEl) {
+    if (lastAct && v.state === 'playing') {
+      pillEl.hidden = false;
+      const iconEl = $('last-action-icon');
+      const textEl = $('last-action-text');
+      if (iconEl) iconEl.textContent = lastAct.icon || '🃏';
+      if (textEl) textEl.textContent = lastAct.text || '';
+    } else {
+      pillEl.hidden = true;
+    }
   }
 
   // Log (+ Ticker mit der letzten Aktion fürs Handy)
@@ -514,25 +676,36 @@ function render() {
       el.classList.add('resonant');
       el.title = `Farb-Resonanz! Erlaubt unter ${v.top} zu legen.`;
     }
+    el.onmouseenter = () => updateExplain(c);
+    el.onmouseleave = () => updateExplain(null);
     el.onclick = () => { focus = i; toggle(c); };
     $('hand').append(el);
   });
   $('turn-banner').classList.toggle('show', myTurn);
 
-  // Erklärfeld: angetippte Special-Karte → was draufsteht und was sie macht
+  // Erklärfeld: angetippte oder gehoverte Special-Karte
+  updateExplain(null);
+
   const sel = selectedCards();
-  const isCombo = isJesterCombo(sel);
-  const sp = isCombo ? { emoji: '😆😢', name: JESTER_COMBO.name, text: JESTER_COMBO.text } : sel.length === 1 && sel[0].kind === 'special' ? sel[0] : null;
-  $('explain').hidden = !sp;
-  if (sp) {
-    $('explain').innerHTML = '<b></b><span></span><small></small>';
-    $('explain').querySelector('b').textContent = `${sp.emoji ?? ''} ${sp.name}${sp.title ? ' · ' + sp.title : ''}${sp.by ? ' (von ' + sp.by + ')' : ''}`;
-    $('explain').querySelector('span').textContent = cardText(sp);
-    $('explain').querySelector('small').textContent = sp.ability === 'potato' ? (myTurn ? '→ „Weitergeben“ drücken und Person wählen.' : 'Weitergeben, wenn du dran bist.')
-      : sp.ability === 'luckyJester' && !isCombo ? 'Wirkt automatisch, solange du sie hältst.'
-      : myTurn ? 'Passt auf jede Karte → „Legen“ drücken.' : 'Passt auf jede Karte – leg sie, wenn du dran bist.';
-  }
   $('play').textContent = sel[0]?.ability === 'potato' ? '🥔 Weitergeben' : 'Legen ⬆️';
+
+  // Deine Rolle als interaktiver Badge in den Aktions-Knöpfen
+  const roleBadge = $('my-role-badge');
+  if (roleBadge) {
+    if (mine?.role && v.state === 'playing') {
+      roleBadge.hidden = false;
+      roleBadge.innerHTML = `${mine.role.emoji || '👑'} <span>${mine.role.name}</span>`;
+      roleBadge.title = `${mine.role.emoji} ${mine.role.name}:\n${mine.role.text}\n(Klicken für alle Rollen im Almanach)`;
+      roleBadge.onclick = () => {
+        if (modalAlmanach) {
+          modalAlmanach.hidden = false;
+          renderAlmanachTab('roles');
+        }
+      };
+    } else {
+      roleBadge.hidden = true;
+    }
+  }
 
   // Knöpfe
   const isHost = v.host === me;
@@ -547,11 +720,49 @@ function render() {
   }
 }
 
+function updateExplain(hoverCard = null) {
+  const sel = selectedCards();
+  const isCombo = isJesterCombo(sel);
+  const selectedSp = isCombo
+    ? { emoji: '😆😢', name: JESTER_COMBO.name, text: JESTER_COMBO.text }
+    : sel.length === 1 && sel[0].kind === 'special' ? sel[0] : null;
+  const sp = (hoverCard && hoverCard.kind === 'special') ? hoverCard : selectedSp;
+
+  const exp = $('explain');
+  if (!exp) return;
+  exp.hidden = !sp;
+  if (sp) {
+    const isHoverOnly = Boolean(hoverCard && hoverCard.kind === 'special' && (!selectedSp || hoverCard.id !== selectedSp.id));
+    exp.innerHTML = '<b></b><span></span><small></small>';
+    exp.querySelector('b').textContent = `${sp.emoji ?? (sp.key === 'custom' ? '💣' : '✨')} ${sp.name}${sp.title ? ' · ' + sp.title : ''}${sp.by ? ' (von ' + sp.by + ')' : ''}`;
+    exp.querySelector('span').textContent = cardText(sp);
+    const myTurn = view?.turn === me && view?.state === 'playing';
+    exp.querySelector('small').textContent = isHoverOnly
+      ? (sp.key === 'custom' ? '✨ Selbstgebaute Bombe' : (sp.by ? `Club-Karte von ${sp.by}` : 'Spezial-Effekt'))
+      : sp.ability === 'potato' ? (myTurn ? '→ „Weitergeben“ drücken und Person wählen.' : 'Weitergeben, wenn du dran bist.')
+      : sp.ability === 'luckyJester' && !isCombo ? 'Wirkt automatisch, solange du sie hältst.'
+      : myTurn ? 'Passt auf jede Karte → „Legen“ drücken.' : 'Passt auf jede Karte – leg sie, wenn du dran bist.';
+  }
+}
+
 // Gleiche Logik wie auf dem Server – nur damit man im Browser direkt sieht, was geht
 function playable(cards) {
   if (!cards.length) return false;
   if (cards.some((c) => c.kind === 'special')) return cards.length === 1 || isJesterCombo(cards);
   if (cards.some((c) => c.value !== cards[0].value)) return false;
+
+  const myRole = view.players?.find((p) => p.id === me)?.role;
+  const isHero = myRole?.key === 'held' || myRole?.ability === 'hero';
+  if (isHero && view.hand?.length <= 2 && cards.every((c) => c.kind === 'number')) {
+    return true; // 🦸 Heldenmut: Darf jede Zahl auf jede Zahl legen
+  }
+
+  const isGambler = myRole?.key === 'gluecksspieler' || myRole?.ability === 'gambler';
+  if (isGambler && view.top > 0 && cards.every((c) => c.kind === 'number')) {
+    const v = cards[0].value;
+    if ((v % 2) !== (view.top % 2)) return true; // 🎲 Gezinkte Würfel: Ungerade auf gerade und umgekehrt
+  }
+
   const v = cards[0].value;
   if (!view.top) return true;
   if (view.wild && cards.every((c) => view.wild.includes(c.color))) return true;

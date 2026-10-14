@@ -69,6 +69,48 @@ input, select { background: #2b2a45; color: #fff; }
 
 /* Mitte: Stapel auf dem Tisch */
 #center { position: absolute; z-index: 2; left: 50%; top: 47%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.table-stacks { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.deck-wrap, .pile-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.stack-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #a5a0c8; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+.card-stack-deck {
+  position: relative;
+  width: 120px;
+  height: 168px;
+  border-radius: 14px;
+  transform: perspective(700px) rotateX(28deg);
+  box-shadow: 2px 2px 0 #1b1930, 4px 4px 0 #282444, 6px 6px 0 #141220, 0 12px 28px rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-stack-deck:hover {
+  transform: perspective(700px) rotateX(20deg) translateY(-4px);
+  box-shadow: 2px 2px 0 #1b1930, 4px 4px 0 #282444, 6px 6px 0 #141220, 0 16px 36px rgba(255,210,61,0.25);
+}
+.card-stack-deck.empty {
+  background: transparent !important;
+  border: 3px dashed rgba(255, 255, 255, 0.25) !important;
+  box-shadow: none !important;
+}
+.deck-badge {
+  background: rgba(18, 15, 32, 0.92);
+  border: 2px solid #ffd23d;
+  color: #ffd23d;
+  font-size: 1.1rem;
+  font-weight: 900;
+  padding: 4px 12px;
+  border-radius: 99px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 12px rgba(255,210,61,0.3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.deck-badge::before {
+  content: '🎴';
+  font-size: 1rem;
+}
 #pile { position: relative; width: 120px; height: 168px; transform: perspective(700px) rotateX(28deg); }
 #pile .card { position: absolute; left: 0; top: 0; --card-w: 120px; cursor: default; box-shadow: 0 10px 20px rgba(0,0,0,.45); }
 #pile .empty { width: 100%; height: 100%; border: 3px dashed #ffffff40; border-radius: 14px; display: grid; place-items: center; color: #ffffff70; }
@@ -381,6 +423,14 @@ input, select { background: #2b2a45; color: #fff; }
   #actions button { padding: 8px 12px; font-size: .85rem; }
   #turn-banner { bottom: auto; top: 26%; font-size: .9rem; }
   .arm { width: 190px; height: 190px; }
+}
+
+@media (max-width: 700px), (max-height: 560px) {
+  .table-stacks { gap: 12px; }
+  .card-stack-deck { width: 64px; height: 90px; border-radius: 8px; }
+  .deck-badge { font-size: 0.8rem; padding: 2px 6px; }
+  .deck-badge::before { font-size: 0.75rem; }
+  .stack-label { font-size: 0.65rem; }
 }
 
 /* Vollbild-Karten: das Design der Spieler*innen füllt die ganze Karte */
@@ -909,6 +959,37 @@ input, select { background: #2b2a45; color: #fff; }
   border-radius: 10px;
   padding: 8px 10px;
 }
+.almanach-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: #8c89b0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+}
+
+/* Rollen-Pille in den Aktions-Knöpfen */
+.role-pill {
+  background: rgba(30, 26, 50, 0.95) !important;
+  border: 1.5px solid #ffd23d !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  padding: 8px 14px !important;
+  border-radius: 99px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 210, 61, 0.2) !important;
+}
+.role-pill:hover {
+  transform: translateY(-2px) scale(1.03) !important;
+  background: rgba(45, 38, 75, 1) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 210, 61, 0.4) !important;
+}
 
 @media (max-width: 600px) {
   #audio-controls {
@@ -922,6 +1003,164 @@ input, select { background: #2b2a45; color: #fff; }
     font-size: 0.95rem;
   }
 }
+
+/* ── Feature 3: Letzter Zug Indikator (Last Action Pill) ── */
+.last-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(18, 15, 30, 0.88);
+  border: 1px solid rgba(255, 210, 61, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 0 10px rgba(255, 210, 61, 0.15);
+  border-radius: 99px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  max-width: min(340px, 86vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: pill-pop 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  pointer-events: none;
+  z-index: 3;
+}
+.last-action-pill .last-action-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+.last-action-pill .last-action-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes pill-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Feature 1: Visual Effect Popups / Chain Banner (Yu-Gi-Oh / Hearthstone Style) ── */
+.chain-banner {
+  position: fixed;
+  left: 50%;
+  top: 24%;
+  transform: translate(-50%, -50%) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.25s ease;
+  max-width: min(440px, 92vw);
+  width: max-content;
+}
+
+.chain-banner.show {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+.chain-banner-badge {
+  background: linear-gradient(135deg, #ffd23d 0%, #ff8800 100%);
+  color: #120f20;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 99px;
+  box-shadow: 0 2px 10px rgba(255, 170, 0, 0.5);
+  animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+.chain-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: radial-gradient(120% 100% at 50% 0%, #2a2048 0%, #151128 70%, #0d0a1a 100%);
+  border: 2px solid rgba(255, 210, 61, 0.8);
+  border-radius: 20px;
+  padding: 12px 20px;
+  box-shadow: 0 0 30px rgba(255, 210, 61, 0.3), 0 16px 40px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.chain-banner-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(255, 210, 61, 0.6));
+  animation: icon-float 2s ease-in-out infinite;
+}
+
+.chain-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+.chain-banner-actor {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #ffd23d;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chain-banner-title {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chain-banner-desc {
+  font-size: 0.82rem;
+  line-height: 1.3;
+  color: #dfdcf5;
+  max-width: 320px;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.05); filter: brightness(1.2); }
+}
+
+@keyframes icon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px) scale(1.08); }
+}
+
+@media (max-width: 600px) {
+  .chain-banner {
+    top: 22%;
+  }
+  .chain-banner-content {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .chain-banner-icon {
+    font-size: 2rem;
+  }
+  .chain-banner-title {
+    font-size: 1rem;
+  }
+  .chain-banner-desc {
+    font-size: 0.76rem;
+    max-width: 240px;
+  }
+}
+
 
 
 
