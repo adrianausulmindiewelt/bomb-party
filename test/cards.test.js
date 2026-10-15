@@ -4,17 +4,20 @@ import assert from 'node:assert/strict';
 import { CardRoom } from '../server/cards/game.js';
 import { RULES, ROLES } from '../shared/cards.js';
 
-function table(n = 3) {
+// Rollen werden zufällig verteilt. Damit Tests nicht je nach Los rot werden
+// (z. B. wehrt ein*e Pazifist*in Strafkarten ab), sind alle standardmäßig Bürger*innen.
+function table(n = 3, { randomRoles = false } = {}) {
   const r = new CardRoom('t');
   for (let i = 0; i < n; i++) r.addPlayer('p' + i, { name: 'P' + i, special: { effects: [{ type: 'reset' }] } });
   assert.equal(r.start('p0').ok, true);
   r.introUntil = 0;   // Intro-Animation im Test überspringen
+  if (!randomRoles) for (const p of r.players) p.role = 'buerger';
   return r;
 }
 const num = (value, color = '#fff') => ({ id: Math.random(), kind: 'number', value, color });
 
 test('Jede*r bekommt zum Start Specials (Standard: 2, Erzmagier: 3) und eine Rolle', () => {
-  const r = table(5);
+  const r = table(5, { randomRoles: true });
   for (const p of r.players) {
     const expected = (p.role === 'magier' || p.role === 'mage') ? 3 : (RULES.specialsStart || 2);
     assert.equal(p.hand.filter((c) => c.kind === 'special').length, expected);
@@ -529,7 +532,7 @@ test('🪶 Phönix-Asche: verbrennt den gesamten Tischstapel zu Asche beim Kassi
   r.top = 13;
   assert.equal(r.take(p.id).ok, true);
   assert.equal(r.pile.length, 0); // Stapel vollständig verbrannt
-  assert.equal(p.hand.some((c) => c.ability === 'phoenix'), false); // Phönix verbraucht
+  assert.equal(p.hand.includes(phoenixCard), false); // Phönix verbraucht (die Ersatzkarte darf zufällig wieder einer sein)
   assert.equal(p.hand.length, 2); // Hat 1 Aschekarte frisch gezogen (num(3) + 1 neue Karte)
 });
 
@@ -1010,6 +1013,7 @@ test('🃏 Letzter Zug Indikator (Feature 3): lastAction wird bei Legen und Stap
   const r = table(2);
   const p0 = r.current();
   p0.hand = [num(9, '#ff3d7f'), num(12, '#ff3d7f')];
+  for (const pl of r.players) if (pl !== p0) pl.hand = [num(2), num(3)]; // keine Zufalls-Specials, die beim Stapelnehmen eingreifen
   r.top = 5;
   r.play(p0.id, [p0.hand[0].id]);
 
