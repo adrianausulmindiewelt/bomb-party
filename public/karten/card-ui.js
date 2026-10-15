@@ -10,6 +10,7 @@ export function cardEl(c, arts = {}) {
     const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '' };
     el.classList.add('element-' + (elem.element || 'neutral'));
     el.style.setProperty('--c', c.color);
+    el.title = `${c.value} · ${elem.label || elem.name || c.color}`;
     el.innerHTML = `
       <div class="corner tl"><span class="corner-val">${c.value}</span><span class="corner-icon">${elem.icon}</span></div>
       <div class="card-center">
@@ -31,19 +32,24 @@ export function cardEl(c, arts = {}) {
   const art = document.createElement('div');
   art.className = 'art';
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const src = isCustom ? arts[c.owner]?.art : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
+  const src = isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
   if (src) {
     // Erst prüfen, ob das Bild existiert – sonst bleibt das Emoji stehen
     const probe = new Image();
     probe.onload = () => { art.style.backgroundImage = `url("${src}")`; art.textContent = ''; };
     probe.src = src;
   }
-  art.textContent = c.emoji || '✨';
+  art.textContent = c.emoji || (isCustom ? '💣' : '✨');
   const label = document.createElement('div');
   label.className = 'label';
   label.innerHTML = `<b></b><i></i>`;
   label.querySelector('b').textContent = c.title ? `${c.name} · ${c.title}` : c.name;
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
+
+  const desc = cardText(c);
+  const byText = c.by ? ` (von ${c.by})` : '';
+  const titleText = c.title ? ` · ${c.title}` : '';
+  el.title = `${c.emoji || (isCustom ? '💣' : '✨')} ${c.name}${titleText}${byText}\n${desc}`;
   return el;
 }

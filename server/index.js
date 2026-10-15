@@ -84,6 +84,14 @@ const cards = io.of('/karten');
 
 cards.on('connection', (socket) => {
   socket.emit('hello', { build: BUILD });
+  // Fehler in einer Karte/Regel kostet nur diesen einen Zug – nie den ganzen Server mit allen Tischen.
+  const on = (event, fn) => socket.on(event, (...args) => {
+    try { fn(...args); } catch (err) {
+      console.error(`[karten] Fehler bei '${event}' (Tisch ${room?.id ?? '–'}):`, err);
+      const ack = args.at(-1);
+      if (typeof ack === 'function') ack({ error: 'Da ist was schiefgelaufen – der Zug wurde nicht ausgeführt.' });
+    }
+  });
   let room = null;
   let pid = null;   // feste Spieler-ID aus dem Browser (überlebt Sperrbildschirm & Funkloch)
   const sync = () => syncRoom(room);
@@ -94,7 +102,7 @@ cards.on('connection', (socket) => {
     if (res.ok) sync();
   };
 
-  socket.on('join', (data = {}, ack = () => {}) => {
+  on('join', (data = {}, ack = () => {}) => {
     if (room) return ack({ error: 'Schon an einem Tisch.' });
     const roomId = String(data.room || 'tisch').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'tisch';
     const img = (v) => (typeof v === 'string' && v.startsWith('data:image/') && v.length < MAX_AVATAR ? v : null);
@@ -116,15 +124,15 @@ cards.on('connection', (socket) => {
     sync();
   });
 
-  socket.on('start', act(() => room.start(pid)));
-  socket.on('play', act((ids) => room.play(pid, ids)));
-  socket.on('take', act(() => room.take(pid)));
-  socket.on('chat', (text) => {
+  on('start', act(() => room.start(pid)));
+  on('play', act((ids) => room.play(pid, ids)));
+  on('take', act(() => room.take(pid)));
+  on('chat', (text) => {
     const msg = room?.chatSay(pid, text);
     if (msg) cards.to(room.id).emit('chat', msg);
   });
 
-  socket.on('disconnect', () => {
+  on('disconnect', () => {
     if (!room) return;
     const p = room.players.find((o) => o.id === pid);
     if (p?.socket !== socket.id) return;          // schon mit neuer Verbindung zurück
@@ -156,7 +164,11 @@ setInterval(() => {
   }
 }, 1000 * dt);
 
-const PORT = Number(process.env.PORT) || 3000;
+// Letztes Netz: ein übersehener Fehler (z. B. in einem Timer) wird protokolliert statt alles abzuschießen.
+process.on('uncaughtException', (err) => console.error('[server] Unbehandelter Fehler:', err));
+process.on('unhandledRejection', (err) => console.error('[server] Unbehandelte Promise-Ablehnung:', err));
+
+const PORT = Number(process.env.PORT) || 3001;
 http.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎮 ${BRAND.title} läuft!\n`);
   console.log(`   Auf diesem Rechner:  http://localhost:${PORT}`);
