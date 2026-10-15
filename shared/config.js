@@ -46,4 +46,4 @@ export const POWERUPS = {
 
 // Wo läuft der Spielserver? Leer = gleiche Adresse wie die Webseite (lokal, Tunnel).
 // Auf Vercel liegt nur die Webseite – der Server läuft auf Render.
-export const GAME_SERVER_URL = 'https://vcr-icq-linux-dominant.trycloudflare.com'; // übergangsweise Laptop-Tunnel → später Render
+export const GAME_SERVER_URL = 'https://str-blacks-americas-cheaper.trycloudflare.com'; // übergangsweise Laptop-Tunnel → später Render
