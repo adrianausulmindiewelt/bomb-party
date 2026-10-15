@@ -1209,7 +1209,7 @@ export class CardRoom {
 
   // Bilder (Avatare + selbstgezeichnete Karten) – getrennt, weil groß
   arts() {
-    return Object.fromEntries(this.players.map((p) => [p.id, { avatar: p.avatar, art: p.special.art }]));
+    return Object.fromEntries(this.players.map((p) => [p.id, { avatar: p.avatar, art: p.special?.art ?? null }]));
   }
 }
 

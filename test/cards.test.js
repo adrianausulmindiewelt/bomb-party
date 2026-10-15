@@ -1243,3 +1243,12 @@ test('☀️ Gott: Prallt Angriffe ab, wehrt Tausch ab und reflektiert Ziehen', 
 
 
 
+
+test('Ohne eigene Bomben-Karte stürzt arts() nicht ab (hat am 15.10. den Server gekillt)', () => {
+  const r = new CardRoom('no-special');
+  r.addPlayer('a', { name: 'A', special: null });
+  r.addPlayer('b', { name: 'B', special: { effects: [{ type: 'reset' }] } });
+  const arts = r.arts();
+  assert.equal(arts.a.art, null);
+  assert.ok('b' in arts);
+});
