@@ -232,6 +232,8 @@ if (btnAlmanach && modalAlmanach) {
 document.title = CARD_BRAND.title;
 $('title').textContent = CARD_BRAND.title;
 $('tagline').textContent = CARD_BRAND.tagline;
+// Musik direkt beim Öffnen versuchen (klappt sonst beim ersten Tippen)
+sound.unlock();
 
 // ── 1 · Du ───────────────────────────────────────────────
 let avatar = saved.avatar || JSON.parse(localStorage.getItem('profile') || '{}').avatar || null;
@@ -253,7 +255,7 @@ let pen = '#111';
 let drawn = false;
 function clearDraw() { dctx.fillStyle = '#fff'; dctx.fillRect(0, 0, 300, 300); drawn = false; }
 clearDraw();
-if (saved.art) { const i = new Image(); i.onload = () => { dctx.drawImage(i, 0, 0, 300, 300); drawn = true; }; i.src = saved.art; }
+if (saved.art) { const i = new Image(); i.onload = () => { dctx.drawImage(i, 0, 0, 300, 300); drawn = true; updateSteps(); }; i.src = saved.art; }
 for (const c of ['#111', '#ff3d7f', '#3dc6ff', '#ffd23d', '#5cff8a', '#b47cff', '#ff8a3d', '#fff']) {
   const b = document.createElement('button');
   b.type = 'button'; b.style.background = c;
@@ -265,17 +267,17 @@ let last = null;
 const pos = (e) => { const r = draw.getBoundingClientRect(); return [(e.clientX - r.left) * 300 / r.width, (e.clientY - r.top) * 300 / r.height]; };
 draw.addEventListener('pointerdown', (e) => { draw.setPointerCapture(e.pointerId); last = pos(e); stroke(last); });
 draw.addEventListener('pointermove', (e) => { if (last) stroke(pos(e)); });
-draw.addEventListener('pointerup', () => { last = null; });
+draw.addEventListener('pointerup', () => { last = null; updateSteps(); });
 function stroke(p) {
   dctx.strokeStyle = pen; dctx.lineWidth = pen === '#fff' ? 24 : 8; dctx.lineCap = 'round';
   dctx.beginPath(); dctx.moveTo(...last); dctx.lineTo(...p); dctx.stroke();
   last = p; drawn = true;
 }
-$('draw-clear').onclick = clearDraw;
+$('draw-clear').onclick = () => { clearDraw(); updateSteps(); };
 $('draw-upload').onchange = async (e) => {
   if (!e.target.files[0]) return;
   const i = new Image();
-  i.onload = () => { dctx.drawImage(i, 0, 0, 300, 300); drawn = true; };
+  i.onload = () => { dctx.drawImage(i, 0, 0, 300, 300); drawn = true; updateSteps(); };
   i.src = await fileToAvatar(e.target.files[0]);
 };
 
@@ -314,28 +316,18 @@ function renderEffects() {
     if (!e) break;
   }
   $('special-desc').textContent = effects.length ? '💣 ' + describe(effects) : 'Wähle mindestens einen Effekt.';
+  updateSteps();
 }
+
+// Häkchen an den Schritten, sobald sie fertig sind
+function updateSteps() {
+  $('step-you').classList.toggle('done', Boolean($('name').value.trim()));
+  draw.parentElement.classList.toggle('drawn', drawn);
+  $('step-card').classList.toggle('done', drawn && Boolean($('special-name').value.trim()) && effects.length > 0);
+}
+$('name').addEventListener('input', updateSteps);
+$('special-name').addEventListener('input', updateSteps);
 renderEffects();
-
-const enableCustomCheckbox = $('enable-custom-card');
-const builderWrap = $('builder-wrap');
-const customCardHint = $('custom-card-hint');
-
-if (enableCustomCheckbox && builderWrap) {
-  enableCustomCheckbox.checked = Boolean(saved.useCustom);
-  builderWrap.hidden = !enableCustomCheckbox.checked;
-  if (customCardHint && enableCustomCheckbox.checked) {
-    customCardHint.textContent = 'Deine eigene Bombe wird beim Spielstart in den großen Los-Topf gemischt!';
-  }
-  enableCustomCheckbox.onchange = () => {
-    builderWrap.hidden = !enableCustomCheckbox.checked;
-    if (customCardHint) {
-      customCardHint.textContent = enableCustomCheckbox.checked
-        ? 'Deine eigene Bombe wird beim Spielstart in den großen Los-Topf gemischt!'
-        : 'Standard: Du spielst direkt mit den offiziellen Club- & Charakterkarten.';
-    }
-  };
-}
 
 function select(options, value, onChange) {
   const s = document.createElement('select');
@@ -359,14 +351,25 @@ let lastJoin = null;
 
 function join(roomName) {
   const name = $('name').value.trim();
-  if (!name) { $('error').textContent = 'Erst deinen Namen eingeben (oben).'; $('name').focus(); return; }
-  const useCustom = Boolean($('enable-custom-card')?.checked);
-  if (useCustom && !effects.length) { $('error').textContent = 'Deine Karte braucht mindestens einen Effekt.'; return; }
-  const art = useCustom && drawn ? draw.toDataURL('image/jpeg', 0.75) : null;
   const specialName = $('special-name').value.trim();
-  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects, useCustom }));
-  const special = useCustom ? { name: specialName || `${name}s Bombe`, art, effects } : null;
-  lastJoin = { pid, name, avatar, room: roomName, special };
+  // Die eigene Karte ist Pflicht: Bild, Name und mindestens ein Effekt
+  const missing = !name ? ['Erst deinen Namen eingeben.', 'step-you', $('name')]
+    : !drawn ? ['Zeichne zuerst deine Bomben-Karte (oder lade ein Bild hoch).', 'step-card', draw]
+    : !specialName ? ['Gib deiner Karte noch einen Namen.', 'step-card', $('special-name')]
+    : !effects.length ? ['Deine Karte braucht mindestens einen Effekt.', 'step-card', $('effects')]
+    : null;
+  if (missing) {
+    const [msg, step, el] = missing;
+    $('error').textContent = '👆 ' + msg;
+    $(step).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $(step).classList.remove('shake'); void $(step).offsetWidth; $(step).classList.add('shake');
+    el.focus?.({ preventScroll: true });
+    return;
+  }
+  $('error').textContent = '';
+  const art = draw.toDataURL('image/jpeg', 0.75);
+  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects }));
+  lastJoin = { pid, name, avatar, room: roomName, special: { name: specialName, art, effects } };
   socket.emit('join', lastJoin, (res) => {
     if (res.error) { $('error').textContent = res.error; return; }
     me = res.id;
@@ -374,6 +377,7 @@ function join(roomName) {
     clearInterval(tablePoll);
     history.replaceState(null, '', `?raum=${res.room}`);
     $('lobby').hidden = true;
+    $('bg').hidden = true;
     $('table').hidden = false;
     sound.unlock();
     if (sound.bgmEnabled) sound.startBGM();
