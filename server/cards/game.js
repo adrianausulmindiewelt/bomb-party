@@ -6,6 +6,7 @@
 import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, cardText, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
 
 let nextCardId = 1;
+const LAST_CARD_GRACE_MS = 400;   // ☝️ Puffer fürs Netz – angezeigt werden die vollen RULES.lastCardSeconds
 const card = (props) => ({ id: nextCardId++, ...props });
 
 export class CardRoom {
@@ -15,6 +16,7 @@ export class CardRoom {
     this.state = 'lobby';     // 'lobby' | 'playing' | 'over'
     this.log = [];
     this.game = 0;            // zählt Spiele hoch – der Browser erkennt daran „neues Spiel → Intro zeigen“
+    this.lastCallSeq = 0;     // ☝️ jede „Letzte Karte!“-Chance bekommt eine eigene Nummer
     this.reset();
   }
 
@@ -91,6 +93,7 @@ export class CardRoom {
         changed = true;
       }
     }
+    if (this.expireLastCalls(now)) changed = true;   // Notnagel, falls der genaue Timer nicht gegriffen hat
     const cur = this.current();
     if (this.state === 'playing' && cur && !cur.connected && now - cur.awaySince > RULES.awaySkipSeconds * 1000
         && now - (cur.lastSkipped || 0) > RULES.awaySkipSeconds * 1000) {
@@ -134,9 +137,11 @@ export class CardRoom {
     for (const p of this.players) {
       p.inGame = true;
       p.role = pickRole();
+      p.lastCall = null;      // ☝️ offene „Letzte Karte!“-Chance { token, until }
+      p.saidLast = false;     // ☝️ schon gerufen (gilt, bis man wieder mehr oder weniger als 1 Karte hat)
       p.stats = { resonance: 0, pileCards: 0, drawnCards: 0, specials: 0 };
       // Ausgeloste Specials: Standardmäßig RULES.specialsStart (2), Erzmagier bekommt 3
-      const count = p.role === 'mage' ? 3 : (RULES.specialsStart || 2);
+      const count = p.role === 'magier' ? 3 : (RULES.specialsStart || 2);
       const drawnCards = [];
       // Garantierte Club- oder Charakterkarte pro Person (falls im Topf)
       const clubIdx = pot.findIndex((c) => (c.by || c.title) && c.owner !== p.id && !drawnCards.includes(c));
@@ -181,6 +186,7 @@ export class CardRoom {
 
     // Auswahl prüfen, BEVOR Karten die Hand verlassen
     const opp = (tid) => this.active().find((o) => o.id === tid && o !== p);
+    const anyone = (tid) => this.active().find((o) => o.id === tid);
     const combo = cards.length === 2 && cards[0].kind === 'special';
     if (combo && !(opp(choice.targets?.[0]) && opp(choice.targets?.[1]) && choice.targets[0] !== choice.targets[1])) return { error: 'Wähle zwei verschiedene Personen.' };
     if (!combo && cards[0].ability === 'sadJester' && !opp(choice.target)) return { error: 'Wähle, wer mit dir weinen soll.' };
@@ -192,6 +198,10 @@ export class CardRoom {
     if (cards[0].ability === 'twins') {
       const cs = choice.colors;
       if (!Array.isArray(cs) || cs.length !== 2 || cs[0] === cs[1] || !cs.every((c) => RULES.colors.includes(c))) return { error: 'Wähle zwei Farben.' };
+    }
+    if (cards[0].ability === 'excuseKing') {
+      const ts = choice.targets;
+      if (!(Array.isArray(ts) && anyone(ts[0]) && anyone(ts[1]) && ts[0] !== ts[1])) return { error: 'Wähle zwei verschiedene Personen.' };
     }
 
     const prevTop = this.top;
@@ -246,7 +256,10 @@ export class CardRoom {
           this.say(`🧪 ${p.name} (Alchemist) transmutiert das Paar: Wirft ${lowest.value} zusätzlich ab!`);
         }
       }
-      return this.endTurn(p, { skip: 0, again: false });
+      // 🤖 Vibe-Coder*in: genau eine Zahl über dem Tisch → die KI vervollständigt den Zug
+      const autocomplete = p.role === 'vibecoder' && prevTop > 0 && !prevLower && cards[0].value === prevTop + 1;
+      if (autocomplete) this.say(`🤖 ${p.name} (Vibe-Coder*in): Autocomplete! ${prevTop} → ${cards[0].value} – sofort nochmal dran.`);
+      return this.endTurn(p, { skip: 0, again: autocomplete });
     }
 
     this.colorStreak = { color: null, count: 0 };
@@ -334,7 +347,7 @@ export class CardRoom {
     } else if (sp.ability === 'divineWrath') {
       const victim = opp(choice.target);
       if (victim) {
-        if (victim.role === 'god') {
+        if (victim.role === 'gott') {
           this.say(`☀️ ${victim.name} (Gott) ist immun gegen göttlichen Zorn – der Blitz wirft ${p.name} um (zieht 2)!`);
           this.draw(p, 2, { global: true, penalty: true });
         } else if (this.blocksWithAegis(victim, p)) {
@@ -520,9 +533,27 @@ export class CardRoom {
           this.say(`   → 🎆 ${o.name} verbrennt ${highest.color} ${highest.value} im Funkenregen!`);
         }
       }
+    } else if (sp.ability === 'excuseKing') {
+      // 👑 Zwei beliebige Personen (auch man selbst) tauschen die Hände – kein Schelm kontert.
+      // Gott und die Aegis schützen trotzdem, die Kartoffel bleibt bei der Person, die sie hält.
+      const [a, b] = choice.targets.map(anyone);
+      const god = [a, b].find((x) => x !== p && x.role === 'gott');
+      const shielded = !god && [a, b].find((x) => this.blocksWithAegis(x, p));
+      if (god) {
+        this.say(`☀️ ${god.name} (Gott) lässt sich auch vom König nichts sagen – kein Tausch!`);
+      } else if (shielded) {
+        this.say(`🛡️ ${shielded.name} blockt den Königs-Tausch mit der Aegis der Nullifizierung ab!`);
+      } else {
+        const isPotato = (c) => c.ability === 'potato';
+        const restA = a.hand.filter((c) => !isPotato(c));
+        a.hand = [...a.hand.filter(isPotato), ...b.hand.filter((c) => !isPotato(c))];
+        b.hand = [...b.hand.filter(isPotato), ...restA];
+        sortHand(a.hand); sortHand(b.hand);
+        this.say(`   → 👑 ${a.name} und ${b.name} tauschen die Hände. Keine Widerrede!`);
+      }
     }
     for (const e of sp.effects ?? []) this.runEffect(p, e, ctx);
-    if (p.role === 'demigod' && !ctx.again) {
+    if (p.role === 'junggott' && !ctx.again) {
       ctx.again = true;
       this.say(`⚡ ${p.name} (Junger Gott) entfesselt Himmelsblitz: Ist sofort noch einmal dran!`);
     }
@@ -537,7 +568,7 @@ export class CardRoom {
     const valid = allowed.length ? allowed : others;      // zu zweit geht's notfalls doch zurück
     const t = valid.find((o) => o.id === targetId);
     if (!t) return { error: targetId === potato.cameFrom ? 'Nicht zurück an die Person, von der du sie hast!' : 'Wähle, wer die Kartoffel bekommt.' };
-    if (t.role === 'god') {
+    if (t.role === 'gott') {
       this.say(`☀️ ${t.name} (Gott) verbrennt die Heiße Kartoffel mit heiligem Licht – sie fällt in den Ziehstapel!`);
       p.hand = p.hand.filter((c) => c !== potato);
       delete potato.cameFrom;
@@ -570,7 +601,7 @@ export class CardRoom {
     if (!t || n <= 0) return;
     const isPenalty = penalty || Boolean(from && t !== from);
     if (from && t !== from) {
-      if (t.role === 'god' && !global) {
+      if (t.role === 'gott' && !global) {
         this.say(`☀️ ${t.name} (Gott) ist erhaben – Göttliches Karma zwingt ${from.name}, stattdessen ${n} Karten zu ziehen!`);
         return this.draw(from, n, { global: true, noReflect: true, penalty: true });
       }
@@ -719,7 +750,7 @@ export class CardRoom {
     if (p && p.role === 'held' && p.hand.length <= 2 && cards.every((c) => c.kind === 'number')) {
       return null; // 🦸 Heldenmut: Darf jede Zahl auf jede Zahl legen
     }
-    if (p && p.role === 'gambler' && cards.every((c) => c.kind === 'number') && this.top > 0) {
+    if (p && p.role === 'gluecksspieler' && cards.every((c) => c.kind === 'number') && this.top > 0) {
       const v = cards[0].value;
       if ((v % 2) !== (this.top % 2)) return null; // 🎲 Gezinkte Würfel: Ungerade auf gerade (oder umgekehrt) klappt immer
     }
@@ -765,7 +796,52 @@ export class CardRoom {
       return { ok: true };
     }
     if (!again) this.advance(1 + skip);
+    this.watchLastCards();
     return { ok: true };
+  }
+
+  // ── ☝️ Letzte Karte! ──────────────────────────────────────
+  // Wer auf genau eine Karte kommt, muss innerhalb von RULES.lastCardSeconds „Letzte Karte!“ drücken –
+  // sonst zieht er/sie zufällig 3–4 Strafkarten (RULES.lastCardPenalty).
+  watchLastCards(now = Date.now()) {
+    for (const o of this.active()) {
+      if (o.hand.length !== 1) { o.lastCall = null; o.saidLast = false; continue; }
+      if (!o.lastCall && !o.saidLast) o.lastCall = { token: ++this.lastCallSeq, until: now + RULES.lastCardSeconds * 1000 + LAST_CARD_GRACE_MS };
+    }
+  }
+
+  callLast(id, now = Date.now()) {
+    const p = this.players.find((o) => o.id === id);
+    if (this.state !== 'playing' || !p?.lastCall) return { error: 'Gerade gibt es nichts zu rufen.' };
+    if (now > p.lastCall.until) return { error: 'Zu spät! ⏰' };
+    p.lastCall = null;
+    p.saidLast = true;
+    this.say(`☝️ ${p.name}: LETZTE KARTE!`);
+    return { ok: true };
+  }
+
+  // Abgelaufene Chancen bestrafen. Gibt true zurück, wenn jemand ziehen musste.
+  expireLastCalls(now = Date.now()) {
+    if (this.state !== 'playing') return false;
+    let changed = false;
+    for (const o of this.active()) {
+      if (!o.lastCall || now < o.lastCall.until) continue;
+      o.lastCall = null;
+      o.saidLast = true;   // bei leerem Stapel bleibt es bei 1 Karte – dann nicht gleich nochmal
+      const [min, max] = RULES.lastCardPenalty;
+      const n = min + Math.floor(Math.random() * (max - min + 1));
+      this.say(`⏰ ${o.name} hat „Letzte Karte!“ verpennt – ${n} Strafkarten!`);
+      this.draw(o, n, { global: true, penalty: true });
+      changed = true;
+    }
+    if (changed) this.watchLastCards(now);
+    return changed;
+  }
+
+  // Millisekunden bis zur nächsten ablaufenden Chance (oder null) – dafür stellt der Server einen Timer
+  nextLastCallIn(now = Date.now()) {
+    const due = this.active().filter((o) => o.lastCall).map((o) => o.lastCall.until - now);
+    return due.length ? Math.max(0, Math.min(...due)) : null;
   }
 
   advance(steps) {
@@ -882,7 +958,7 @@ export class CardRoom {
         break;
       case 'give':
         for (const t of targets) {
-          if (t.role === 'god' && p !== t) { this.say(`☀️ ${t.name} (Gott) weist unerwünschte Gaben zurück!`); continue; }
+          if (t.role === 'gott' && p !== t) { this.say(`☀️ ${t.name} (Gott) weist unerwünschte Gaben zurück!`); continue; }
           if (!global && this.reflects(t, p)) { this.say(`😆 ${t.name} lacht zuletzt – ${p.name} behält die Karten.`); continue; }
           for (let i = 0; i < e.n; i++) {
             const pool = tradable(p.hand);
@@ -896,7 +972,7 @@ export class CardRoom {
         break;
       case 'takePile':
         for (const t of targets) {
-          if (t.role === 'god') {
+          if (t.role === 'gott') {
             this.say(`☀️ ${t.name} (Gott) gebietet über die Ordnung – Stapel-Kassieren prallt ab!`);
             continue;
           }
@@ -913,7 +989,7 @@ export class CardRoom {
         break;
       case 'swap':
         for (const t of targets) {
-          if (t.role === 'god') {
+          if (t.role === 'gott') {
             this.say(`☀️ ${t.name} (Gott) steht über irdischem Besitz – Hand-Tausch prallt ab!`);
             continue;
           }
@@ -949,7 +1025,7 @@ export class CardRoom {
   }
 
   triggerNecromancer() {
-    for (const n of this.active().filter((o) => o.role === 'necromancer')) {
+    for (const n of this.active().filter((o) => o.role === 'nekromant')) {
       if (this.deck.length > 0) {
         const soul = this.deck.pop();
         n.hand.push(soul);
@@ -1030,6 +1106,9 @@ export class CardRoom {
       })),
       hand: me?.hand ?? [],
       drawn: me?.drawn ?? null,      // deine ausgeloste Special-Karte (für die Animation)
+      // ☝️ Nur du siehst deinen Knopf: token = welche Chance, ms = wie lange noch
+      lastCall: this.state === 'playing' && me?.lastCall
+        ? { token: me.lastCall.token, ms: Math.max(0, me.lastCall.until - LAST_CARD_GRACE_MS - Date.now()) } : null,
     };
   }
 

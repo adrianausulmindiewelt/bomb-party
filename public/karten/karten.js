@@ -147,6 +147,7 @@ if (btnAlmanach && modalAlmanach) {
   modalAlmanach.onclick = (e) => {
     if (e.target === modalAlmanach) modalAlmanach.hidden = true;
   };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modalAlmanach.hidden = true; });
   document.querySelectorAll('.almanach-tabs .tab-btn').forEach((b) => {
     b.onclick = () => renderAlmanachTab(b.dataset.tab);
   });
@@ -371,6 +372,7 @@ socket.on('view', (v) => {
   if (v.state === 'playing' && v.game !== seenGame && v.drawn) { seenGame = v.game; $('ranking').hidden = true; playIntro(v); }
   if (v.state === 'over' && v.ranking && shownRanking !== v.game) { shownRanking = v.game; showRanking(v); }
   showFx(v.fx);
+  showLastCall(v.lastCall);
 });
 let seenGame = 0, shownRanking = 0;
 const bubbles = {};
@@ -627,6 +629,13 @@ async function playSelected() {
     const cs = await pickColors();
     if (!cs) return;
     choice = { colors: cs };
+  } else if (cards[0].ability === 'excuseKing') {
+    const all = view.players.filter((p) => p.inGame).map((p) => (p.id === me ? { ...p, name: `${p.name} (du)` } : p));
+    const a = await pick('👑 Wer tauscht die Hand?', all);
+    if (!a) return;
+    const b = await pick('👑 … mit wem?', all.filter((p) => p.id !== a));
+    if (!b) return;
+    choice = { targets: [a, b] };
   }
   if (cards.length) sound.playCardSound(cards[0]);
   vibrate(25);
@@ -700,6 +709,7 @@ function initControls() {
     else if (e.code === 'ArrowUp' || e.code === 'KeyW') { if (view.hand[focus]) toggle(view.hand[focus]); }
     else if (e.code === 'Space' || e.code === 'Enter') playSelected();
     else if (e.code === 'KeyT' || e.code === 'ArrowDown') take();
+    else if (e.code === 'KeyL' && !$('last-card').hidden) $('last-card').click();
     else return;
     e.preventDefault();
     render();
@@ -717,6 +727,7 @@ function initControls() {
       if (press('a', pad.buttons[0]?.pressed) && view.hand[focus]) toggle(view.hand[focus]);
       if (press('b', pad.buttons[1]?.pressed)) playSelected();
       if (press('x', pad.buttons[2]?.pressed)) take();
+      if (press('y', pad.buttons[3]?.pressed) && !$('last-card').hidden) $('last-card').click();
       if (press('s', pad.buttons[9]?.pressed) && view.host === me) $('start').click();
     }
     requestAnimationFrame(poll);
@@ -763,6 +774,7 @@ function showRoleCard(role, v) {
         <li>🎯 <b>Ziel:</b> Als Erste*r alle Karten loswerden.</li>
         <li>⬆️ Leg <b>gleich hoch oder höher</b> als die oberste Karte – mehrere Gleiche gehen zusammen.</li>
         <li>🗑️ Kannst du nicht? Dann <b>nimmst du den Stapel</b>.</li>
+        <li>☝️ Nur noch <b>eine Karte</b>? Sofort <b>„LETZTE KARTE!“</b> drücken – sonst ziehst du 3–4 Strafkarten.</li>
         <li>🏁 Sobald jemand keine Karten mehr hat, ist Schluss. Abgerechnet wird nach Kartenzahl – wer am meisten hat, ist Letzte*r.</li>
         <li>🤫 Deine Rolle ist <b>geheim</b>. Die anderen sehen sie erst am Ende.</li>
       </ul>
@@ -991,6 +1003,33 @@ function bubble(m) {
   if (view) render();
   setTimeout(() => view && render(), 4600);
 }
+
+// ═════════ ☝️ Letzte Karte! ═════════
+// Nur noch eine Karte? Dann taucht irgendwo ein großer Knopf auf – 2 Sekunden Zeit, sonst Strafkarten.
+let lastCallToken = null, lastCallTimer = null;
+function showLastCall(lc) {
+  const btn = $('last-card');
+  if (!lc) { btn.hidden = true; clearTimeout(lastCallTimer); return; }
+  if (lc.token === lastCallToken) return;          // dieselbe Chance – Knopf bleibt, wo er ist
+  lastCallToken = lc.token;
+  btn.style.setProperty('--lc-ms', `${lc.ms}ms`);
+  btn.hidden = false;
+  // Zufälliger Platz – immer ganz im Bild, unter der Steuerleiste und über der eigenen Hand
+  const w = btn.offsetWidth, h = btn.offsetHeight, m = 24;
+  const top = 70 + h / 2, bottom = Math.max(top, innerHeight * 0.6 - h / 2);
+  btn.style.setProperty('--lc-x', `${w / 2 + m + Math.random() * Math.max(0, innerWidth - w - 2 * m)}px`);
+  btn.style.setProperty('--lc-y', `${top + Math.random() * (bottom - top)}px`);
+  vibrate([90, 40, 90]);
+  sound.playTurn();
+  clearTimeout(lastCallTimer);
+  lastCallTimer = setTimeout(() => { btn.hidden = true; }, lc.ms);
+}
+$('last-card').onclick = () => {
+  $('last-card').hidden = true;
+  clearTimeout(lastCallTimer);
+  vibrate(30);
+  act('last-card', {});
+};
 
 // ═════════ Großes Effekt-Banner (z. B. Münzwurf) ═════════
 let lastFxId = null;

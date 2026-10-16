@@ -4,19 +4,22 @@ import assert from 'node:assert/strict';
 import { CardRoom } from '../server/cards/game.js';
 import { RULES, ROLES } from '../shared/cards.js';
 
-function table(n = 3) {
+// Rollen sind im Test neutral (Bürger*in) – sonst funken Gott, Pazifist & Co. zufällig dazwischen.
+// Wer die echten Zufallsrollen braucht: table(n, { randomRoles: true })
+function table(n = 3, { randomRoles = false } = {}) {
   const r = new CardRoom('t');
   for (let i = 0; i < n; i++) r.addPlayer('p' + i, { name: 'P' + i, special: { effects: [{ type: 'reset' }] } });
   assert.equal(r.start('p0').ok, true);
   r.introUntil = 0;   // Intro-Animation im Test überspringen
+  if (!randomRoles) for (const p of r.players) p.role = 'buerger';
   return r;
 }
 const num = (value, color = '#fff') => ({ id: Math.random(), kind: 'number', value, color });
 
 test('Jede*r bekommt zum Start Specials (Standard: 2, Erzmagier: 3) und eine Rolle', () => {
-  const r = table(5);
+  const r = table(5, { randomRoles: true });
   for (const p of r.players) {
-    const expected = p.role === 'mage' ? 3 : (RULES.specialsStart || 2);
+    const expected = p.role === 'magier' ? 3 : (RULES.specialsStart || 2);
     assert.equal(p.hand.filter((c) => c.kind === 'special').length, expected);
     assert.equal(p.hand.length, RULES.handSize + ROLES[p.role].cards);
   }
@@ -121,7 +124,7 @@ test('Niemand bekommt die eigene selbst gebaute Karte', () => {
 });
 
 // ── Spielerkarten ────────────────────────────────────────────
-import { PLAYER_CARDS } from '../shared/cards.js';
+import { PLAYER_CARDS, validateEffects } from '../shared/cards.js';
 const sp = (key) => ({ id: key + Math.random(), kind: 'special', key, effects: [], ...PLAYER_CARDS[key] });
 const drawFx = (n, target = 'next') => ({ id: 'd' + Math.random(), kind: 'special', key: 'x', name: 'Zieh', emoji: '📥', effects: [{ type: 'draw', n, target }] });
 
@@ -287,6 +290,89 @@ test('🎲 Wer dabei alle Karten verliert, gewinnt', () => {
   try { r.play(p.id, [g.id]); } finally { Math.random = real; }
   assert.equal(r.state, 'over');
   assert.equal(r.winner, p.id);
+});
+
+test('👑 Ausreden-König: zwei Personen tauschen die Hände – kein Schelm kontert', () => {
+  const r = table(3);
+  const p = r.current();
+  const [a, b] = r.players.filter((o) => o !== p);
+  a.hand = [sp('gluecklich'), num(1)]; b.hand = [num(2), num(3), num(4)];
+  const k = sp('ausreden');
+  p.hand = [k, num(9)];
+  assert.match(r.play(p.id, { ids: [k.id], choice: { targets: [a.id, a.id] } }).error, /zwei verschiedene/);
+  assert.equal(r.play(p.id, { ids: [k.id], choice: { targets: [a.id, b.id] } }).ok, true);
+  assert.equal(a.hand.length, 3);
+  assert.equal(b.hand.length, 2);
+  assert.ok(b.hand.some((c) => c.ability === 'luckyJester'));   // Schelm wandert mit, statt zu kontern
+});
+
+test('👑 … auch mit sich selbst – die Kartoffel bleibt, wo sie ist', () => {
+  const r = table(2);
+  const p = r.current();
+  const t = r.players.find((o) => o !== p);
+  t.hand = [sp('kartoffel'), num(1), num(2)];
+  const k = sp('ausreden');
+  p.hand = [k, num(9)];
+  assert.equal(r.play(p.id, { ids: [k.id], choice: { targets: [p.id, t.id] } }).ok, true);
+  assert.deepEqual(p.hand.map((c) => c.value), [1, 2]);
+  assert.deepEqual(t.hand.map((c) => c.ability ?? c.value), [9, 'potato']);
+});
+
+test('😴 Mittagsschläfer: nächste Person setzt aus, alle geben 1 Karte weiter', () => {
+  const r = table(3);
+  const p = r.current();
+  for (const o of r.players) o.hand = [num(1), num(2)];
+  const z = sp('mittagsschlaefer');
+  p.hand.push(z);
+  const sleeper = r.seatFrom(p, 1);
+  assert.equal(r.play(p.id, [z.id]).ok, true);
+  assert.deepEqual(r.players.map((o) => o.hand.length), [2, 2, 2]);
+  assert.equal(r.current(), r.seatFrom(sleeper, 1));
+});
+
+test('🎧 Headset-Zocker: nochmal dran, alle anderen ziehen 1', () => {
+  const r = table(3);
+  const p = r.current();
+  for (const o of r.players) o.hand = [num(1)];
+  const h = sp('headset');
+  p.hand = [h, num(5)];
+  assert.equal(r.play(p.id, [h.id]).ok, true);
+  assert.equal(r.current(), p);
+  for (const o of r.players.filter((x) => x !== p)) assert.equal(o.hand.length, 2);
+});
+
+test('👑 … Gott und die Aegis lassen sich auch vom König nichts sagen', () => {
+  for (const guard of ['gott', 'aegis']) {
+    const r = table(3);
+    const p = r.current();
+    const [a, b] = r.players.filter((o) => o !== p);
+    a.hand = [num(1), num(2)]; b.hand = [num(3)];
+    if (guard === 'gott') b.role = 'gott'; else b.hand.push(sp('aegis'));
+    const k = sp('ausreden');
+    p.hand = [k, num(9)];
+    assert.equal(r.play(p.id, { ids: [k.id], choice: { targets: [a.id, b.id] } }).ok, true);
+    assert.deepEqual(a.hand.map((c) => c.value), [1, 2], guard);
+    assert.deepEqual(b.hand.map((c) => c.value), [3], guard);   // Aegis ist danach verbraucht
+  }
+});
+
+test('🤖 Vibe-Coder*in: genau eins über dem Tisch → Autocomplete, nochmal dran', () => {
+  const r = table(2);
+  const p = r.current();
+  p.role = 'vibecoder';
+  const [c0, c1, c2, c3] = RULES.colors;
+  p.hand = [num(8, c0), num(12, c1), num(13, c2)];
+  r.pile = [num(7, c3)]; r.top = 7;
+  assert.equal(r.play(p.id, [p.hand[0].id]).ok, true);      // 8 auf 7
+  assert.equal(r.current(), p);
+  assert.equal(r.play(p.id, [p.hand[0].id]).ok, true);      // 12 auf 8: kein Autocomplete
+  assert.notEqual(r.current(), p);
+});
+
+test('Spielerkarten aus dem Baukasten halten sich an die Effekt-Regeln', () => {
+  for (const [key, c] of Object.entries(PLAYER_CARDS)) {
+    if (c.effects) assert.deepEqual(validateEffects(c.effects), c.effects, key);
+  }
 });
 
 test('💬 Chat: Text wird gekürzt, Spam gebremst', () => {
@@ -467,7 +553,7 @@ test('☀️ Gott: immun gegen Hand-Tausch (swap)', () => {
   const r = table(2);
   const p = r.current();
   const god = r.seatFrom(p, 1);
-  god.role = 'god';
+  god.role = 'gott';
   god.hand = [num(1)];
   const swapCard = { id: 201, kind: 'special', key: 'swap', name: 'Tausch', emoji: '🃏', effects: [{ type: 'swap', target: 'next' }] };
   p.hand = [swapCard, num(10), num(11)];
@@ -479,7 +565,7 @@ test('☀️ Gott: immun gegen Stapel-Kassieren (takePile)', () => {
   const r = table(2);
   const p = r.current();
   const god = r.seatFrom(p, 1);
-  god.role = 'god';
+  god.role = 'gott';
   god.hand = [num(1)];
   r.pile = [num(5), num(6)];
   const tpCard = { id: 202, kind: 'special', key: 'take', name: 'Friss', emoji: '🗑️', effects: [{ type: 'takePile', target: 'next' }] };
@@ -492,7 +578,7 @@ test('☀️ Gott: reflektiert gezielte Zieh-Angriffe per göttlichem Karma', ()
   const r = table(2);
   const p = r.current();
   const god = r.seatFrom(p, 1);
-  god.role = 'god';
+  god.role = 'gott';
   god.hand = [num(1)];
   const drawCard = drawFx(2, 'next');
   p.hand = [drawCard, num(4)];
@@ -505,7 +591,7 @@ test('☀️ Gott: reflektiert gezielte Zieh-Angriffe per göttlichem Karma', ()
 test('⚡ Junger Gott: erhält sofort einen Extra-Zug nach Ausspielen einer Spezialkarte', () => {
   const r = table(2);
   const p = r.current();
-  p.role = 'demigod';
+  p.role = 'junggott';
   const spCard = { id: 301, kind: 'special', key: 'reset', name: 'Reset', emoji: '🔄', effects: [{ type: 'reset' }] };
   p.hand = [spCard, num(5)];
   r.play(p.id, [spCard.id]);
@@ -551,7 +637,7 @@ test('⚡ Göttlicher Blitz: vernichtet Spezialkarte des Gegners', () => {
 test('🎲 Glücksspieler: darf ungerade Zahl auf gerade Zahl legen', () => {
   const r = table(2);
   const p = r.current();
-  p.role = 'gambler';
+  p.role = 'gluecksspieler';
   r.top = 10; // gerade Zahl
   const odd = num(3); // ungerade Zahl, normalerweise < 10 und verboten
   p.hand = [odd, num(2)];
@@ -693,7 +779,7 @@ test('⛓️⚡ Farb-Überladung: Gott reflektiert das Ziehen auf den Angreifer'
   const r = table(2);
   const p0 = r.current();
   const p1 = r.seatFrom(p0, 1);
-  p1.role = 'god'; // P1 ist Gott!
+  p1.role = 'gott'; // P1 ist Gott!
   const greenColor = '#5cff8a';
 
   r.colorStreak = { color: greenColor, count: 2 };
@@ -754,7 +840,7 @@ test('Post-Game Reveal: Fun Awards (Kettenkönig, Stapel-Schlucker, Blitzableite
 
   p0.role = 'alchemist';
   p1.role = 'berserker';
-  p2.role = 'god';
+  p2.role = 'gott';
 
   p0.hand = [];
   p1.hand = [num(5)];
@@ -797,7 +883,7 @@ test('Post-Game Reveal: Fun Awards (Kettenkönig, Stapel-Schlucker, Blitzableite
   assert.equal(v.ranking[1].id, p1.id);
   assert.equal(v.ranking[1].role.key, 'berserker');
   assert.equal(v.ranking[2].id, p2.id);
-  assert.equal(v.ranking[2].role.key, 'god');
+  assert.equal(v.ranking[2].role.key, 'gott');
 });
 
 test('🍕 Pizza-Raid (Club-Karte): Reinigt Tisch und lässt Spieler*innen mit > 3 Karten 1 Karte abwerfen', () => {

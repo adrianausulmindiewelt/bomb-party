@@ -126,14 +126,17 @@ input, select { background: #2b2a45; color: #fff; }
 }
 
 @media (hover: hover) {
+  /* Wächst von der Unterkante nach oben und hebt nur leicht ab – so bleibt die Karte unter dem Mauszeiger.
+     Vorher sprang sie weg, der Klick landete auf dem Tisch und man konnte keine Karte auswählen. */
   #hand .card:hover {
-    --lift: 74px !important;
-    --s: 1.42 !important;
+    --lift: 12px !important;
+    --s: 1.3 !important;
+    transform-origin: 50% 100%;
     --r: 0deg !important;
     z-index: 200 !important;
     filter: brightness(1.1) !important;
     box-shadow: 0 20px 42px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 61, 127, 0.4) !important;
-    animation-play-state: paused;
+    animation: none !important;   /* kein Wippen unter dem Mauszeiger */
   }
 }
 
@@ -457,10 +460,11 @@ input, select { background: #2b2a45; color: #fff; }
 @media (max-width: 700px), (max-height: 560px) { #club-badge { top: 62%; } #club-badge img { height: 52px; } }
 
 /* ═════════ Chat ═════════ */
-#chat-btn { position: absolute; z-index: 7; right: 12px; top: 12px; width: 48px; height: 48px; border-radius: 50%; padding: 0; font-size: 1.4rem;
+#chat-btn { position: absolute; z-index: 7; right: 12px; top: 66px;   /* unter der Steuerleiste (Musik, Almanach …) */
+  width: 48px; height: 48px; border-radius: 50%; padding: 0; font-size: 1.4rem;
   background: #23213acc; box-shadow: 0 6px 14px #0007; }
 #chat-unread { position: absolute; right: -4px; top: -4px; background: var(--accent); border-radius: 99px; font-size: .75rem; padding: 2px 7px; }
-#chat { position: absolute; z-index: 40; right: 12px; top: 68px; width: min(340px, calc(100vw - 24px)); height: min(460px, 62vh);
+#chat { position: absolute; z-index: 40; right: 12px; top: 122px; width: min(340px, calc(100vw - 24px)); height: min(460px, 62vh);
   background: #14121ff2; border: 2px solid #3a3760; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 16px 40px #000b;
   backdrop-filter: blur(6px); animation: pop .15s ease-out; }
 #chat header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #3a3760; }
@@ -771,6 +775,20 @@ input, select { background: #2b2a45; color: #fff; }
   background: #2b2848 !important;
   box-shadow: 0 6px 0 #1a1830 !important;
 }
+
+/* ═════════ ☝️ Letzte Karte! – taucht irgendwo auf, 2 Sekunden Zeit ═════════ */
+#last-card { position: absolute; z-index: 80; left: var(--lc-x, 50%); top: var(--lc-y, 40%); transform: translate(-50%, -50%);
+  width: max-content; min-width: min(320px, 82vw); white-space: nowrap; padding: 24px 30px 30px; overflow: hidden;
+  font-size: clamp(1.5rem, 5vw, 2.2rem); font-weight: 900; letter-spacing: .03em; color: #120f20;
+  background: #ffd23d; border: 4px solid #fff; border-radius: 22px;
+  box-shadow: 0 0 0 6px var(--accent), 0 18px 50px #000c, 0 0 70px #ffd23daa;
+  animation: lc-pop .18s ease-out, lc-pulse .45s ease-in-out .18s infinite alternate; }
+#last-card:hover { background: #ffe26b; }
+#last-card i { position: absolute; left: 0; bottom: 0; width: 100%; height: 9px; background: var(--accent);
+  transform-origin: left; animation: lc-time var(--lc-ms, 2000ms) linear forwards; }
+@keyframes lc-pop { from { transform: translate(-50%, -50%) scale(.3); } to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes lc-pulse { to { transform: translate(-50%, -50%) scale(1.07); } }
+@keyframes lc-time { to { transform: scaleX(0); } }
 
 /* ═════════ Club-Almanach & Galerie ═════════ */
 .almanach-window {

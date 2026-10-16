@@ -18,6 +18,23 @@
     <button id="open-almanach" title="📖 Club-Almanach & Kartengalerie" type="button">📖</button>
   </div>
 
+  <!-- Almanach liegt außerhalb von #table: sonst öffnet er sich in der Lobby unsichtbar und blockiert danach am Tisch alle Knöpfe -->
+  <div id="almanach-modal" class="overlay" hidden>
+    <div class="almanach-window">
+      <div class="almanach-header">
+        <h2>📖 Club-Almanach & Kartengalerie</h2>
+        <button id="almanach-close" type="button" class="close-btn" title="Schließen">✕</button>
+      </div>
+      <div class="almanach-tabs">
+        <button class="tab-btn active" data-tab="club">🏛️ Club & Specials</button>
+        <button class="tab-btn" data-tab="characters">🎭 Charaktere</button>
+        <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
+        <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
+      </div>
+      <div id="almanach-content" class="almanach-grid"></div>
+    </div>
+  </div>
+
   <!-- ── Lobby: du + deine Bomben-Karte ── -->
   <main id="lobby">
     <div class="club">
@@ -178,24 +195,10 @@
     </div>
     <div id="explain" hidden></div>
     <div id="turn-banner">DU BIST DRAN</div>
+    <button id="last-card" type="button" hidden>☝️ LETZTE KARTE!<i></i></button>
     <div id="intro" class="overlay" hidden></div>
     <div id="ranking" class="overlay" hidden></div>
     <div id="picker" class="overlay" hidden></div>
-    <div id="almanach-modal" class="overlay" hidden>
-      <div class="almanach-window">
-        <div class="almanach-header">
-          <h2>📖 Club-Almanach & Kartengalerie</h2>
-          <button id="almanach-close" type="button" class="close-btn" title="Schließen">✕</button>
-        </div>
-        <div class="almanach-tabs">
-          <button class="tab-btn active" data-tab="club">🏛️ Club & Specials</button>
-          <button class="tab-btn" data-tab="characters">🎭 Charaktere</button>
-          <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
-          <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
-        </div>
-        <div id="almanach-content" class="almanach-grid"></div>
-      </div>
-    </div>
     <div id="toast"></div>
   </section>
 

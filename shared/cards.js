@@ -18,6 +18,8 @@ export const RULES = {
   introSeconds: 6,       // so lange laufen Rollen- und Karten-Animation am Anfang
   awaySkipSeconds: 15,   // wer die Verbindung verliert und dran ist, wird danach übersprungen
   awayKickSeconds: 120,  // … und nach so langer Abwesenheit ganz rausgenommen
+  lastCardSeconds: 2,    // ☝️ Nur noch 1 Karte? So lange hat man Zeit, „Letzte Karte!“ zu drücken …
+  lastCardPenalty: [3, 4], // … sonst zieht man zufällig so viele Strafkarten (von–bis)
 };
 
 // Die 4 Elemente der Kartenfarben (optische Gestaltung & Resonanz-Zuordnung)
@@ -123,12 +125,14 @@ export const ROLES = {
   magier:    { name: 'Erzmagier',   emoji: '🧙‍♂️', cards: -1, weight: 3, ability: 'mage', text: 'Arkane Schatzkammer: Startet mit 3 Spezialkarten (statt 2)! Meister der arkanen Künste.' },
   nekromant: { name: 'Nekromant',   emoji: '💀', cards: 0,  weight: 3, ability: 'necromancer', text: 'Seelenraub: Verbrennt ein Stapel oder eine Karte (Burn/Loch/Phönix), erntet er die Seelen und zieht 1 Karte vom Deck.' },
   gluecksspieler: { name: 'Glücksspieler', emoji: '🎲', cards: 0, weight: 3, ability: 'gambler', text: 'Gezinkte Würfel: Darf jede ungerade Zahl auf eine gerade Zahl legen (und umgekehrt), völlig ungeachtet des Werts!' },
+  vibecoder: { name: 'Vibe-Coder*in', emoji: '🤖', cards: 0,  weight: 2, ability: 'autocomplete', text: 'Autocomplete: Legst du genau eine Zahl über den Tisch (z. B. 8 auf 7), vervollständigt die KI deinen Zug – du bist sofort noch einmal dran. Bugs inklusive.' },
 };
 
 // ─────────────────────────────────────────────────────────────
 // KARTEN VON SPIELER*INNEN mit eigenen Regeln.
 // Die Logik dazu steht in server/cards/game.js (Suche nach „ability“).
-// needs: welche Auswahl man beim Ausspielen trifft – 'target' (eine Person), 'colors2' (zwei Farben)
+// needs: welche Auswahl man beim Ausspielen trifft – 'target' (eine Person), 'colors2' (zwei Farben),
+//        'people2' (zwei Personen, man selbst zählt mit)
 // ─────────────────────────────────────────────────────────────
 export const PLAYER_CARDS = {
   kartoffel: {
@@ -241,6 +245,25 @@ export const PLAYER_CARDS = {
   ruben_firework: {
     name: 'Pyrotechnik-Knall', title: 'Das Feuerwerk (Ruben)', emoji: '🎆', by: 'Ruben', ability: 'fireworkBlast',
     text: 'Aktiv: Zündet das große Club-Feuerwerk! Der Tischstapel detoniert vollständig (verbrennt auf 0). Alle Spieler*innen am Tisch müssen gleichzeitig ihre höchste Zahlenkarte verbrennen!',
+  },
+  // FK-Karten von Floris – ohne ability laufen sie komplett über den Effekt-Baukasten
+  ausreden: {
+    name: 'Der Ausreden-König', title: 'Keine Widerrede!', emoji: '👑', by: 'Floris', ability: 'excuseKing', needs: 'people2',
+    art: '/karten/art/ausreden.jpg', fullArt: true,
+    text: 'Wähle 2 Personen (auch dich): Sie tauschen ihre kompletten Hände. Kein Schelm kann kontern – der König hat immer Recht. '
+      + 'Nur Gott und die Aegis lassen sich nichts sagen, und die Heiße Kartoffel bleibt, wo sie ist.',
+  },
+  mittagsschlaefer: {
+    name: 'Der Mittagsschläfer', title: 'Gute Nacht!', emoji: '😴', by: 'Floris',
+    art: '/karten/art/mittagsschlaefer.jpg', fullArt: true,
+    effects: [{ type: 'skip', n: 1 }, { type: 'rotate' }],
+    text: 'Du schnarchst so laut, dass die nächste Person einschläft und aussetzt. Karussell: Alle geben 1 Karte weiter.',
+  },
+  headset: {
+    name: 'Der Headset-Zocker', title: 'Nur noch eine Runde', emoji: '🎧', by: 'Floris',
+    art: '/karten/art/headset.jpg', fullArt: true,
+    effects: [{ type: 'again' }, { type: 'draw', n: 1, target: 'all' }],
+    text: 'Headset auf, Welt aus: Du hörst niemanden rufen und bist nochmal dran. Alle anderen ziehen 1, weil sie auf dich warten müssen.',
   },
 };
 export const JESTER_COMBO = {

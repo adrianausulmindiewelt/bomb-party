@@ -91,7 +91,7 @@ cards.on('connection', (socket) => {
     if (!room) return ack({ error: 'Nicht am Tisch.', rejoin: true });   // Browser setzt sich dann selbst wieder hin
     const res = fn(data);
     ack(res);
-    if (res.ok) sync();
+    if (res.ok) { sync(); armLastCall(room); }
   };
 
   socket.on('join', (data = {}, ack = () => {}) => {
@@ -119,6 +119,7 @@ cards.on('connection', (socket) => {
   socket.on('start', act(() => room.start(pid)));
   socket.on('play', act((ids) => room.play(pid, ids)));
   socket.on('take', act(() => room.take(pid)));
+  socket.on('last-card', act(() => room.callLast(pid)));
   socket.on('chat', (text) => {
     const msg = room?.chatSay(pid, text);
     if (msg) cards.to(room.id).emit('chat', msg);
@@ -133,6 +134,13 @@ cards.on('connection', (socket) => {
     else { cards.to(room.id).emit('arts', room.arts()); sync(); }
   });
 });
+
+// ☝️ „Letzte Karte!“ läuft nach 2 s ab – genau dann prüfen, nicht erst beim nächsten Sekundentakt
+function armLastCall(room) {
+  const ms = room?.nextLastCallIn();
+  if (ms === null || ms === undefined) return;
+  setTimeout(() => { if (room.expireLastCalls()) syncRoom(room); }, ms + 25);
+}
 
 function syncRoom(room) {
   if (!room) return;
