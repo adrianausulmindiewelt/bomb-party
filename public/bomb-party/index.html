@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#14121f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Bomb Party</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- Lobby: Name, Foto, Farbe -->
+  <main id="lobby">
+    <h1 id="title">BOMB PARTY</h1>
+    <p id="tagline"></p>
+
+    <label class="avatar-pick">
+      <canvas id="avatar-preview" width="160" height="160"></canvas>
+      <span>📸 Foto von dir</span>
+      <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
+    </label>
+
+    <input id="name" maxlength="16" placeholder="Dein Name" autocomplete="nickname" />
+    <div id="colors"></div>
+    <input id="room" maxlength="20" placeholder="Raum (leer = lobby)" />
+    <button id="play">Los geht's</button>
+    <p id="error"></p>
+    <p class="hint">Steuerung: WASD/Pfeile + Leertaste · Controller: Stick + A · Handy: Joystick + 💣</p>
+    <p class="hint"><a href="/" style="color:inherit">🃏 Zurück zum Club Bombe Spiel</a></p>
+  </main>
+
+  <!-- Spiel -->
+  <section id="game" hidden>
+    <canvas id="canvas"></canvas>
+    <div id="touch" hidden>
+      <div id="stick"><div id="knob"></div></div>
+      <button id="bomb-btn">💣</button>
+    </div>
+  </section>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

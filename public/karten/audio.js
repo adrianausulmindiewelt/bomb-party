@@ -13,11 +13,11 @@ class SoundEngine {
 
     // Einstellungen aus localStorage laden
     this.sfxEnabled = localStorage.getItem('topp-das-sfx') !== 'false';
-    this.bgmEnabled = localStorage.getItem('topp-das-bgm') === 'true'; // Default aus bis Nutzer aktiviert
+    this.bgmEnabled = localStorage.getItem('topp-das-bgm') !== 'false'; // Musik läuft automatisch, bis man sie ausschaltet
 
     // Autoplay Unlock Listener
     this._unlockHandler = () => this.unlock();
-    ['click', 'touchstart', 'keydown'].forEach((e) => {
+    ['pointerdown', 'click', 'touchstart', 'keydown'].forEach((e) => {
       window.addEventListener(e, this._unlockHandler, { passive: true });
     });
   }
@@ -40,16 +40,23 @@ class SoundEngine {
     this.bgmGain.gain.setValueAtTime(this.bgmEnabled ? 0.35 : 0, this.ctx.currentTime);
     this.bgmGain.connect(this.masterGain);
 
-    if (this.bgmEnabled) {
-      this.startBGM();
-    }
+    // Musik erst starten, wenn der Browser Ton erlaubt – sonst stauen sich die Noten
+    if (this.bgmEnabled && this.ctx.state === 'running') this.startBGM();
   }
 
+  // Browser erlauben Ton oft erst nach dem ersten Tippen/Klicken.
+  // Wir versuchen es sofort beim Laden und spätestens bei der ersten Berührung.
   unlock() {
     this.init();
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+    if (!this.ctx) return;
+    const go = () => {
+      if (this.bgmEnabled && !this.bgmPlaying) this.startBGM();
+      if (this.ctx.state === 'running') {
+        ['pointerdown', 'click', 'touchstart', 'keydown'].forEach((e) => window.removeEventListener(e, this._unlockHandler));
+      }
+    };
+    if (this.ctx.state === 'suspended') this.ctx.resume().then(go).catch(() => {});
+    else go();
   }
 
   toggleSFX() {
