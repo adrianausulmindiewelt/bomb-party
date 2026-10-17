@@ -10,7 +10,8 @@ const memeEvents = new MemeEvents();
 import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
 
 const $ = (id) => document.getElementById(id);
-const saved = JSON.parse(localStorage.getItem('karten-profile') || '{}');
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem('karten-profile') || '{}') || {}; } catch { saved = {}; }
 
 // ── Steuerleiste (BGM, SFX, Vibration, Vollbild, Almanach) ──
 const btnBgm = $('toggle-bgm');
@@ -317,9 +318,10 @@ $('tagline').textContent = CARD_BRAND.tagline;
 // Musik direkt beim Öffnen versuchen (klappt sonst beim ersten Tippen)
 sound.unlock();
 
-// ── 1 · Du ───────────────────────────────────────────────
-let avatar = saved.avatar || JSON.parse(localStorage.getItem('profile') || '{}').avatar || null;
-$('name').value = saved.name || JSON.parse(localStorage.getItem('profile') || '{}').name || '';
+let legacyProfile = {};
+try { legacyProfile = JSON.parse(localStorage.getItem('profile') || '{}') || {}; } catch { legacyProfile = {}; }
+let avatar = saved.avatar || legacyProfile.avatar || null;
+$('name').value = saved.name || legacyProfile.name || '';
 $('room').value = new URLSearchParams(location.search).get('raum') || '';
 function showAvatar() {
   const ctx = $('avatar-preview').getContext('2d');
@@ -838,11 +840,18 @@ function render() {
   const topCard = v.pile[v.pile.length - 1];
   const topElem = topCard?.color ? COLOR_ELEMENTS[topCard.color] : null;
   const elemTag = topElem ? `  ·  ${topElem.icon} ${topElem.gem}` : '';
+  const streak = v.colorStreak;
+  const streakElem = streak?.color ? COLOR_ELEMENTS[streak.color] : null;
+  const streakTag = streak && streak.count >= 2
+    ? `  ·  ⚡ ${streak.count}/3 ${streakElem?.label || 'Kette'} (Überladung droht!)`
+    : streak && streak.count === 1 && streakElem
+    ? `  ·  ${streakElem.icon} 1/3 Kette`
+    : '';
   const dirArrow = v.dir === 1 ? '↻' : '↺';
   $('pile').querySelectorAll('.card').forEach((el) => { el.style.cursor = 'default'; });
   const deckTag = v.state === 'playing' && v.deckCount !== undefined ? `  ·  🎴 ${v.deckCount} im Deck` : '';
   $('pile-info').textContent = v.state === 'playing'
-    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + `  ·  ${v.pileCount} im Stapel` + deckTag + `  ·  ${dirArrow}`
+    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + streakTag + `  ·  ${v.pileCount} im Stapel` + deckTag + `  ·  ${dirArrow}`
     : v.state === 'over' ? 'Runde vorbei' : `${v.players.length} am Tisch`;
 
   // Nachziehstapel Visualisierung & Counter
@@ -894,7 +903,16 @@ function render() {
   const stepX = n > 1 ? Math.min(cw * 0.85, (avail - cw) / (n - 1)) : 0;
   const half = ((n - 1) * stepX + cw) / 2;
   $('pov').style.setProperty('--fan-half', `${Math.max(half, cw)}px`);
-  $('pov').classList.toggle('my-turn', myTurn);
+  // Gleiche Zahlen zählen für Kombi- / Zwillings-Ablage
+  const numberCounts = {};
+  for (const c of v.hand) {
+    if (c?.kind === 'number' && typeof c.value === 'number') {
+      numberCounts[c.value] = (numberCounts[c.value] || 0) + 1;
+    }
+  }
+  const currentSel = selectedCards();
+  const selectedNumValue = (currentSel.length > 0 && currentSel[0]?.kind === 'number') ? currentSel[0].value : null;
+
   v.hand.forEach((c, i) => {
     const el = cardEl(c, arts);
     const t = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;   // -1 (links) … 1 (rechts)
@@ -913,10 +931,64 @@ function render() {
     if (isPlayable) el.classList.add('playable');
     if (isResonantBonus) {
       el.classList.add('resonant');
-      el.title = `Farb-Resonanz! Erlaubt unter ${v.top} zu legen.`;
+      el.title = `Farb-Resonanz! Erlaubt ${v.lower ? 'über' : 'unter'} ${v.top} zu legen (-2 Resonanz).`;
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-resonance';
+      badge.textContent = '🎵 -2';
+      badge.title = 'Farb-Resonanz: Erlaubt 2 Punkte Abweichung auf gleiche Farbe!';
+      el.append(badge);
     }
-    el.onmouseenter = () => updateExplain(c);
-    el.onmouseleave = () => updateExplain(null);
+    const myRole = mine?.role;
+    if (myTurn && isPlayable && (myRole?.key === 'held' || myRole?.ability === 'hero') && v.hand?.length <= 2 && c.kind === 'number') {
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-hero';
+      badge.textContent = '🦸 Held';
+      badge.title = 'Heldenmut: Jede beliebige Zahl darf gelegt werden!';
+      el.append(badge);
+    } else if (myTurn && isPlayable && (myRole?.key === 'gluecksspieler' || myRole?.ability === 'gambler') && v.top > 0 && c.kind === 'number' && (c.value % 2 !== v.top % 2)) {
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-gambler';
+      badge.textContent = '🎲 Würfel';
+      badge.title = 'Gezinkte Würfel: Ungerade auf gerade und umgekehrt!';
+      el.append(badge);
+    }
+
+    // 👯 Zwillings- / Kombi-Signal bei gleichen Zahlenwerten
+    if (c.kind === 'number' && numberCounts[c.value] > 1) {
+      el.classList.add('twin-candidate');
+      if (selectedNumValue !== null && c.value === selectedNumValue && !selected.has(c.id)) {
+        el.classList.add('twin-companion');
+        const badge = document.createElement('span');
+        badge.className = 'hand-card-badge badge-twin';
+        badge.textContent = '+ Kombi!';
+        badge.title = `Kombi-Ablage: Du kannst diese ${c.value} zusammen mit der gewählten abwerfen!`;
+        el.append(badge);
+      }
+    }
+
+    // 🎴 Atmender Fächer: Nachbarkarten weichen sanft zur Seite aus
+    el.addEventListener('mouseenter', () => {
+      updateExplain(c);
+      const nudge = Math.max(16, Math.min(30, 220 / (n || 1)));
+      const siblings = $('hand')?.children;
+      if (siblings) {
+        for (let j = 0; j < siblings.length; j++) {
+          if (j < i) siblings[j].style.setProperty('--nudge', `-${nudge}px`);
+          else if (j > i) siblings[j].style.setProperty('--nudge', `${nudge}px`);
+          else siblings[j].style.setProperty('--nudge', '0px');
+        }
+      }
+    });
+    el.addEventListener('mouseleave', () => {
+      updateExplain(null);
+      const siblings = $('hand')?.children;
+      if (siblings) {
+        for (let j = 0; j < siblings.length; j++) {
+          siblings[j].style.setProperty('--nudge', '0px');
+        }
+      }
+    });
+
     el.onclick = () => { focus = i; toggle(c); };
     $('hand').append(el);
   });
@@ -927,7 +999,21 @@ function render() {
   updateExplain(null);
 
   const sel = selectedCards();
-  $('play').textContent = sel[0]?.ability === 'potato' ? '🥔 Weitergeben' : 'Legen ⬆️';
+  const isLastCard = v.hand.length === 1;
+  const isDefenseCard = sel.length === 1 && ['mirror', 'aegis', 'luckyJester'].includes(sel[0]?.ability);
+  const isMultiDrop = sel.length > 1 && sel.every((c) => c.kind === 'number' && c.value === sel[0].value);
+
+  if (sel[0]?.ability === 'potato') {
+    $('play').textContent = '🥔 Weitergeben';
+  } else if (isLastCard && isDefenseCard) {
+    $('play').textContent = '🏆 Letzte Karte legen (Sieg!)';
+  } else if (isDefenseCard) {
+    $('play').textContent = '⚠️ Trotzdem legen';
+  } else if (isMultiDrop) {
+    $('play').textContent = `🚀 Kombi (${sel.length}x ${sel[0].value}) abwerfen!`;
+  } else {
+    $('play').textContent = 'Legen ⬆️';
+  }
 
   // Deine Rolle als interaktiver Badge in den Aktions-Knöpfen
   const roleBadge = $('my-role-badge');
@@ -985,6 +1071,7 @@ function updateExplain(hoverCard = null) {
   exp.hidden = !sp;
   if (sp) {
     const isHoverOnly = Boolean(hoverCard && hoverCard.kind === 'special' && (!selectedSp || hoverCard.id !== selectedSp.id));
+    const isLastCard = view?.hand?.length === 1;
     exp.innerHTML = '<b></b><span></span><small></small>';
     exp.querySelector('b').textContent = `${sp.emoji ?? (sp.key === 'custom' ? '💣' : '✨')} ${sp.name}${sp.title ? ' · ' + sp.title : ''}${sp.by ? ' (von ' + sp.by + ')' : ''}`;
     exp.querySelector('span').textContent = cardText(sp);
@@ -992,7 +1079,10 @@ function updateExplain(hoverCard = null) {
     exp.querySelector('small').textContent = isHoverOnly
       ? (sp.key === 'custom' ? '✨ Selbstgebaute Bombe' : (sp.by ? `Club-Karte von ${sp.by}` : 'Spezial-Effekt'))
       : sp.ability === 'potato' ? (myTurn ? '→ „Weitergeben“ drücken und Person wählen.' : 'Weitergeben, wenn du dran bist.')
-      : sp.ability === 'luckyJester' && !isCombo ? 'Wirkt automatisch, solange du sie hältst.'
+      : sp.ability === 'luckyJester' && !isCombo ? (isLastCard ? '🏆 Letzte Karte! Lege den Schelm ab, um das Spiel zu gewinnen!' : '🛡️ Passiver Schelm: Wirkt automatisch bei Angriffen. (Tipp: Behalte ihn zum Schutz auf der Hand!)')
+      : sp.ability === 'mirror' ? (isLastCard ? '🏆 Letzte Karte! Lege den Spiegel ab, um das Spiel zu gewinnen!' : '🛡️ Passiv-Schutz: Spiegelt Zieh-Strafen zurück. (Warnung: Aktiv weggeworfen verpufft die Verteidigung!)')
+      : sp.ability === 'aegis' ? (isLastCard ? '🏆 Letzte Karte! Lege die Aegis ab, um das Spiel zu gewinnen!' : (myTurn ? '🛡️ Passiv-Schutz (wehrt Zieh-Strafen & Aussetzen ab)! Aktives Legen setzt nur Tisch auf 0.' : '🛡️ Passiv: Blockt negative Effekte & Aussetzen automatisch ab!'))
+      : sp.ability === 'phoenix' ? (isLastCard ? '🏆 Letzte Karte! Verbrennt den Tisch und sichert den Sieg!' : (myTurn ? '🪶 Aktiv: Verbrennt Tischstapel zu Asche & zieht 1 | Passiv: Schützt vor Stapel-Fressen.' : '🪶 Passiv: Verbrennt den Tisch bei Stapel-Fressen!'))
       : myTurn ? 'Passt auf jede Karte → „Legen“ drücken.' : 'Passt auf jede Karte – leg sie, wenn du dran bist.';
   }
 }
@@ -1000,7 +1090,9 @@ function updateExplain(hoverCard = null) {
 // Gleiche Logik wie auf dem Server – nur damit man im Browser direkt sieht, was geht
 function playable(cards) {
   if (!cards.length) return false;
-  if (cards.some((c) => c.kind === 'special')) return cards.length === 1 || isJesterCombo(cards);
+  if (cards.some((c) => c.kind === 'special')) {
+    return cards.length === 1 || isJesterCombo(cards);
+  }
   if (cards.some((c) => c.value !== cards[0].value)) return false;
 
   const myRole = view.players?.find((p) => p.id === me)?.role;
@@ -1030,7 +1122,9 @@ function playable(cards) {
 function isJesterCombo(cards) {
   return cards.length === 2 && cards.map((c) => c.ability).sort().join('+') === 'luckyJester+sadJester';
 }
-const selectedCards = () => view.hand.filter((c) => selected.has(c.id));
+function selectedCards() {
+  return (view?.hand || []).filter((c) => selected.has(c.id));
+}
 
 function toggle(c) {
   if (selected.has(c.id)) selected.delete(c.id);

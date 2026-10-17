@@ -283,16 +283,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   bottom: 0;
   --card-w: var(--cw);
   transform-origin: 50% 120%;
-  transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.4, 1.1), filter 0.2s, box-shadow 0.2s;
-  transform: translate(var(--x, 0), calc(var(--y, 0) - var(--lift, 0px))) rotate(var(--r, 0deg)) scale(var(--s, 1));
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.45, 1.05), filter 0.2s, box-shadow 0.22s;
+  transform: translate(calc(var(--x, 0px) + var(--nudge, 0px)), calc(var(--y, 0px) - var(--lift, 0px))) rotate(var(--r, 0deg)) scale(var(--s, 1));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45), 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes card-idle-wave {
   0%, 100% {
-    transform: translate(var(--x, 0), calc(var(--y, 0) - var(--lift, 0px))) rotate(var(--r, 0deg)) scale(var(--s, 1));
+    transform: translate(calc(var(--x, 0px) + var(--nudge, 0px)), calc(var(--y, 0px) - var(--lift, 0px))) rotate(var(--r, 0deg)) scale(var(--s, 1));
   }
   50% {
-    transform: translate(var(--x, 0), calc(var(--y, 0) - var(--lift, 0px) - 6px)) rotate(calc(var(--r, 0deg) + 0.8deg)) scale(var(--s, 1));
+    transform: translate(calc(var(--x, 0px) + var(--nudge, 0px)), calc(var(--y, 0px) - var(--lift, 0px) - 6px)) rotate(calc(var(--r, 0deg) + 0.8deg)) scale(var(--s, 1));
   }
 }
 
@@ -303,7 +304,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
     --r: 0deg !important;
     z-index: 200 !important;
     filter: brightness(1.1) !important;
-    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 61, 127, 0.4) !important;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.75), 0 0 24px rgba(255, 210, 61, 0.35) !important;
     animation-play-state: paused;
   }
 }
@@ -311,7 +312,37 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 #hand .card.selected {
   --lift: 52px !important;
   --s: 1.25 !important;
-  box-shadow: 0 0 0 3.5px #ffd23d, 0 0 28px var(--accent) !important;
+  box-shadow: 0 0 0 3.5px #ffd23d, 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 28px var(--accent) !important;
+}
+
+/* 👯 Zwillings- & Kombi-Highlighting */
+#hand .card.twin-candidate::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #5cff8a, transparent);
+  opacity: 0.85;
+  border-radius: 4px 4px 0 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#hand .card.twin-companion {
+  animation: card-twin-pulse 1.3s ease-in-out infinite !important;
+  box-shadow: 0 0 0 3px #5cff8a, 0 12px 28px rgba(92, 255, 138, 0.5) !important;
+  z-index: 50 !important;
+}
+
+@keyframes card-twin-pulse {
+  0%, 100% {
+    transform: translate(calc(var(--x, 0px) + var(--nudge, 0px)), calc(var(--y, 0px) - var(--lift, 0px) - 8px)) rotate(var(--r, 0deg)) scale(calc(var(--s, 1) * 1.06));
+  }
+  50% {
+    transform: translate(calc(var(--x, 0px) + var(--nudge, 0px)), calc(var(--y, 0px) - var(--lift, 0px) - 16px)) rotate(var(--r, 0deg)) scale(calc(var(--s, 1) * 1.12));
+  }
 }
 
 @keyframes card-selected-bounce {
@@ -320,7 +351,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 }
 
 #pov.my-turn #hand .card.playable:not(.dim) {
-  box-shadow: 0 0 16px #ffd23d99, 0 6px 14px rgba(0,0,0,0.5);
+  box-shadow: 0 0 18px #ffd23d99, 0 8px 18px rgba(0,0,0,0.55);
 }
 
 @keyframes card-playable-bob {
@@ -1288,6 +1319,78 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
     font-size: 0.76rem;
     max-width: 240px;
   }
+}
+
+/* ── Transparenz-Badges & Indikatoren auf Karten ── */
+.hand-card-badge {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.hand-card-badge.badge-resonance {
+  background: linear-gradient(135deg, #ff0844, #ffb199);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 10px rgba(255, 8, 68, 0.7);
+}
+.hand-card-badge.badge-hero {
+  background: linear-gradient(135deg, #f12711, #f5af19);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+.hand-card-badge.badge-gambler {
+  background: linear-gradient(135deg, #8a2387, #e94057);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+.hand-card-badge.badge-twin {
+  background: linear-gradient(135deg, #00b09b, #96c93d);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 12px rgba(0, 176, 155, 0.85);
+}
+.card-shield-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(18, 48, 80, 0.9);
+  color: #70e1ff;
+  border: 1px solid rgba(112, 225, 255, 0.6);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 🏷️ Corner Glyphs für Special-Karten im Fächer */
+.card.special .corner.special-corner {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  line-height: 1;
+}
+.card.special .corner.special-corner.tl {
+  left: 6px;
+  top: 6px;
+  font-size: calc(var(--card-w) * 0.17);
+  background: rgba(14, 12, 26, 0.82);
+  border: 1px solid rgba(255, 210, 61, 0.45);
+  border-radius: 6px;
+  padding: 2px 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 

@@ -1253,6 +1253,128 @@ test('Ohne eigene Bomben-Karte stürzt arts() nicht ab (hat am 15.10. den Server
   assert.ok('b' in arts);
 });
 
+test('🛡️ Aegis der Nullifizierung: Annulliert Aussetzen (skip) und schützt den eigenen Zug', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+
+  const aegisCard = sp('aegis');
+  p1.hand = [aegisCard, num(10)];
+  r.turn = 0; // p0 ist dran
+
+  const skipCard = { id: 'skip1', kind: 'special', key: 'skip', name: 'Stopp', effects: [{ type: 'skip', n: 1 }] };
+  p0.hand = [skipCard, num(5)];
+  assert.equal(r.play(p0.id, [skipCard.id]).ok, true);
+
+  // Aegis hat Aussetzen geblockt, p1 setzt nicht aus, sondern ist regulär dran!
+  assert.equal(r.current().id, p1.id);
+  assert.ok(!p1.hand.includes(aegisCard), 'Aegis wurde abgeworfen');
+  assert.ok(r.pile.includes(aegisCard), 'Aegis liegt auf dem Ablagestapel');
+  assert.ok(r.log.some((msg) => msg.includes('annulliert das Aussetzen mit der Aegis')));
+});
+
+test('🚚 Bernd (takePile): Wendet Phönix-Asche, Dorfdepp und Berserker zuverlässig an', () => {
+  const r2 = table(2);
+  const berndPlayer = r2.players[0];
+  const victimDorf = r2.players[1];
+  victimDorf.role = 'dorfdepp';
+  victimDorf.hand = [num(100)];
+  r2.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
+  const berndCard = { id: 'bernd1', kind: 'special', key: 'bernd', name: 'Bernd', effects: [{ type: 'takePile', target: 'next' }] };
+  berndPlayer.hand = [berndCard];
+  r2.turn = 0;
+  assert.equal(r2.play(berndPlayer.id, [berndCard.id]).ok, true);
+  assert.equal(victimDorf.hand.length, 4, 'Dorfdepp nimmt maximal 3 Karten vom 10er Stapel (+1 vorherige Handkarte)');
+
+  // Phönix bei takePile
+  const r3 = table(2);
+  const pA = r3.players[0];
+  const pB = r3.players[1];
+  pB.role = 'held';
+  const ph = sp('phoenix');
+  pB.hand = [ph, num(50)];
+  r3.pile = [num(1), num(2), num(3)];
+  r3.deck = [num(99)];
+  const berndCard2 = { id: 'bernd2', kind: 'special', key: 'bernd', name: 'Bernd', effects: [{ type: 'takePile', target: 'next' }] };
+  pA.hand = [berndCard2];
+  r3.turn = 0;
+  assert.equal(r3.play(pA.id, [berndCard2.id]).ok, true);
+  assert.ok(!pB.hand.includes(ph), 'Phönix wurde verbraucht');
+  assert.equal(r3.pile.length, 0, 'Tischstapel wurde zu Asche verbrannt');
+});
+
+test('🪶 Phönix-Asche (aktiv gespielt): Verbrennt Tischstapel und zieht 1 frische Karte', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const phCard = sp('phoenix');
+  p0.hand = [phCard, num(10)];
+  r.pile = [num(1), num(2), num(3)];
+  r.deck = [num(77)];
+  r.top = 10;
+
+  assert.equal(r.play(p0.id, [phCard.id]).ok, true);
+  assert.equal(r.top, 0, 'Tischwert wurde auf 0 gereinigt');
+  assert.equal(r.pile.length, 0, 'Stapel wurde zu Asche verbrannt');
+  assert.equal(p0.hand.length, 2, 'Phönix abgelegt (-1) und 1 frische Karte gezogen (+1)');
+  assert.ok(p0.hand.some((c) => c.value === 77), 'Gezogene Karte stammt vom Deck');
+});
+
+test('🧑 Bürger*in: Lässt sich von Richtungswechseln nicht beirren (behält regulären nächsten Zug)', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+  const p2 = r.players[2];
+
+  p1.role = 'buerger';
+  p2.role = 'held';
+  r.dir = 1;
+  r.turn = 0; // p0 ist am Zug, nächster in normaler Richtung wäre p1
+
+  const reverseCard = { id: 'rev1', kind: 'special', key: 'reverse', name: 'Wende', effects: [{ type: 'reverse' }] };
+  p0.hand = [reverseCard, num(5)];
+
+  assert.equal(r.play(p0.id, [reverseCard.id]).ok, true);
+  assert.equal(r.dir, -1, 'Richtung wurde umgekehrt');
+  // Weil p1 Bürger*in ist, wurde p1 nicht übergangen, sondern darf regulär ziehen:
+  assert.equal(r.current().id, p1.id, 'Bürger*in p1 behält den nächsten Zug');
+});
+
+test('🔱 Poseidon-Dreizack (give): Strafkarten werden an das Ziel übergeben, die gespielte Karte selbst landet auf dem Ablagestapel', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const victim = r.seatFrom(p0, 1);
+  victim.role = 'held';
+
+  const cardA = num(1);
+  const cardB = num(2);
+  const dreizack = { id: 'drei', kind: 'special', key: 'louis', name: 'Dreizack', effects: [{ type: 'give', n: 2, target: 'next' }] };
+  p0.hand = [dreizack, cardA, cardB];
+  victim.hand = [num(10)];
+  r.pile = [];
+
+  assert.equal(r.play(p0.id, [dreizack.id]).ok, true);
+  // Die Strafkarte Dreizack selbst landet auf dem Ablagestapel (wird nicht übergeben):
+  assert.ok(r.pile.includes(dreizack), 'Der Dreizack selbst liegt auf dem Ablagestapel');
+  // Die 2 Strafkarten wurden als Strafe an das Ziel übergeben:
+  assert.equal(victim.hand.length, 3, 'Ziel hat 2 Strafkarten kassiert (+1 vorherige)');
+  assert.ok(victim.hand.includes(cardA) && victim.hand.includes(cardB), 'Strafkarten sind in der Hand des Ziels');
+  assert.equal(p0.hand.length, 0, 'Angreifer hat die 2 Strafkarten abgegeben');
+});
+
+test('🪞 Letzte Karte: Passiv-Schutzkarte (z. B. Spiegel) kann als letzte Handkarte gelegt werden und gewinnt die Runde', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const mirrorCard = sp('mirror');
+  p0.hand = [mirrorCard]; // Nur 1 Karte auf der Hand!
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [mirrorCard.id]).ok, true);
+  assert.equal(p0.hand.length, 0, 'Spiegel wurde abgelegt');
+  assert.equal(r.state, 'over', 'Runde ist vorbei');
+  assert.equal(r.winner, p0.id, 'Spieler mit letzter Passivkarte gewinnt');
+});
+
 // ── Kartenauswahl durch den Host ───────────────────────────
 import { DEFAULT_DECK, specialCatalog } from '../shared/cards.js';
 
@@ -1319,3 +1441,19 @@ test('Ansage: Spezialkarte bringt den Satz mit, nur die legende Person kann übe
   q.play(c.id, ['rs2']);
   assert.equal(q.chainEvent.voice, null);
 });
+
+test('👯 Kombi-Ablage: Gleiche Zahlen (z. B. zwei 7er) können zusammen abgelegt werden und ziehen die Hand um 2 ab', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const c1 = num(7, '#ff3d7f');
+  const c2 = num(7, '#3dc6ff');
+  p0.hand = [c1, c2, num(9)];
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [c1.id, c2.id]).ok, true);
+  assert.equal(r.top, 7);
+  assert.equal(p0.hand.length, 1);
+  assert.ok(!p0.hand.includes(c1) && !p0.hand.includes(c2));
+});
+

@@ -2,15 +2,16 @@ import { cardText, CHARACTERS, COLOR_ELEMENTS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
 
 export function cardEl(c, arts = {}) {
+  if (!c) return document.createElement('div');
   const el = document.createElement('div');
-  el.className = 'card ' + c.kind;
+  el.className = 'card ' + (c.kind || '');
   el.dataset.id = c.id;
 
   if (c.kind === 'number') {
     const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '' };
     el.classList.add('element-' + (elem.element || 'neutral'));
-    el.style.setProperty('--c', c.color);
-    el.title = `${c.value} · ${elem.label || elem.name || c.color}`;
+    el.style.setProperty('--c', c.color || '#fff');
+    el.title = `${c.value} · ${elem.label || elem.name || c.color || ''}`;
     el.innerHTML = `
       <div class="corner tl"><span class="corner-val">${c.value}</span><span class="corner-icon">${elem.icon}</span></div>
       <div class="card-center">
@@ -32,7 +33,7 @@ export function cardEl(c, arts = {}) {
   const art = document.createElement('div');
   art.className = 'art';
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const src = isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
+  const src = isCustom ? (arts[c.owner]?.art || c.art) : (typeof c.art === 'string' && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art));
   if (src) {
     // Erst prüfen, ob das Bild existiert – sonst bleibt das Emoji stehen
     const probe = new Image();
@@ -46,6 +47,22 @@ export function cardEl(c, arts = {}) {
   label.querySelector('b').textContent = c.title ? `${c.name} · ${c.title}` : c.name;
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
+
+  // 🏷️ Corner-Glyph oben links für blitzschnelle Erkennung im Fächer
+  const cornerGlyph = c.emoji || (isCustom ? '💣' : '✨');
+  const cornerTl = document.createElement('div');
+  cornerTl.className = 'corner tl special-corner';
+  cornerTl.innerHTML = `<span class="corner-icon">${cornerGlyph}</span>`;
+  el.append(cornerTl);
+
+  if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
+    el.classList.add('passive-guard');
+    const badge = document.createElement('span');
+    badge.className = 'card-shield-badge';
+    badge.textContent = '🛡️ Passiv';
+    badge.title = 'Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus!';
+    el.append(badge);
+  }
 
   const desc = cardText(c);
   const byText = c.by ? ` (von ${c.by})` : '';

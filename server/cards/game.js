@@ -475,6 +475,14 @@ export class CardRoom {
         sortHand(victim.hand);
         this.say(`   → 🥷 ${p.name} stiehlt verdeckt 1 Karte von ${victim.name}!`);
       }
+    } else if (sp.ability === 'phoenix') {
+      const count = this.pile.length;
+      this.pile = [];
+      this.top = 0;
+      this.lower = false;
+      this.say(`   → 🪶 Phönix-Asche entflammt aktiv: Alle ${count} Karten auf dem Tisch verbrennen zu Asche! ${p.name} zieht 1 frische Karte.`);
+      this.triggerNecromancer();
+      this.draw(p, 1, { global: true });
     } else if (sp.ability === 'portal') {
       const idx = this.deck.findIndex((c) => c.kind === 'special');
       if (idx >= 0) {
@@ -610,6 +618,10 @@ export class CardRoom {
       }
     } else if (sp.ability === 'cookieCrunch') {
       this.say(`   → 🍪 Der Cookie-Crunch! Cookie stiftet herrliches Chaos am Tisch!`);
+      const upcoming = this.seatFrom(p, 1);
+      if (this.active().length > 2 && upcoming && (this.hasRole(upcoming, 'buerger') || this.hasRole(upcoming, 'citizen'))) {
+        this.buergerNext = upcoming.id;
+      }
       this.dir *= -1;
       const act = this.active();
       if (act.length > 1) {
@@ -848,20 +860,22 @@ export class CardRoom {
 
   // 🛡️ Aegis der Nullifizierung: blockt negative Effekte aus der Hand ab
   blocksWithAegis(t, from) {
-    if (!from || t === from) return false;
-    const aegis = t.hand.find((c) => c.ability === 'aegis');
+    if (!t || !Array.isArray(t.hand) || !from || t === from) return false;
+    const aegis = t.hand.find((c) => c?.ability === 'aegis');
     if (!aegis) return false;
     t.hand = t.hand.filter((c) => c !== aegis);
+    if (!Array.isArray(this.pile)) this.pile = [];
     this.pile.push(aegis);
     return true;
   }
 
   // 😆 Glücklicher Schelm: verbraucht sich und wirft einen gezielten Angriff zurück
   reflects(t, from) {
-    if (!from || t === from) return false;
-    const lucky = t.hand.find((c) => c.ability === 'luckyJester');
+    if (!t || !Array.isArray(t.hand) || !from || t === from) return false;
+    const lucky = t.hand.find((c) => c?.ability === 'luckyJester');
     if (!lucky) return false;
     t.hand = t.hand.filter((c) => c !== lucky);
+    if (!Array.isArray(this.pile)) this.pile = [];
     this.pile.splice(Math.max(0, this.pile.length - 1), 0, lucky);   // unter die oberste Karte
     return true;
   }
@@ -997,15 +1011,36 @@ export class CardRoom {
       this.finish(potatoWin);
       return { ok: true };
     }
-    if (!again) this.advance(1 + skip);
+    if (!again) this.advance(1 + skip, p);
     return { ok: true };
   }
 
-  advance(steps) {
+  advance(steps, fromPlayer = null) {
     const n = this.players.length;
     if (!this.active().length) return;
+    if (this.buergerNext) {
+      const bIndex = this.players.findIndex((pl) => pl.id === this.buergerNext && pl.inGame);
+      this.buergerNext = null;
+      if (bIndex >= 0) {
+        this.turn = bIndex;
+        const bPlayer = this.players[bIndex];
+        this.say(`🧑 ${bPlayer.name} (Bürger*in) lässt sich nicht beirren und behält den Zug bei!`);
+        if (this.wild && this.current()?.id === this.wild.owner) {
+          this.wild = null;
+          this.say('♊ Die zwei Welten schließen sich wieder.');
+        }
+        return;
+      }
+    }
     for (let s = 0; s < steps; s++) {
       do { this.turn = (this.turn + this.dir + n) % n; } while (!this.players[this.turn].inGame);
+      const curr = this.players[this.turn];
+      if (s < steps - 1 && fromPlayer && curr !== fromPlayer) {
+        if (this.blocksWithAegis(curr, fromPlayer)) {
+          this.say(`🛡️ ${curr.name} annulliert das Aussetzen mit der Aegis der Nullifizierung und ist am Zug!`);
+          break;
+        }
+      }
     }
     if (this.wild && this.current()?.id === this.wild.owner) {
       this.wild = null;
@@ -1106,7 +1141,14 @@ export class CardRoom {
       case 'reset': this.top = 0; this.lower = false; break;
       case 'burn': this.pile = []; this.top = 0; this.lower = false; this.triggerNecromancer(); break;
       case 'lower': this.lower = true; break;
-      case 'reverse': this.dir *= -1; break;
+      case 'reverse': {
+        const upcoming = this.seatFrom(p, 1);
+        if (this.active().length > 2 && upcoming && (this.hasRole(upcoming, 'buerger') || this.hasRole(upcoming, 'citizen'))) {
+          this.buergerNext = upcoming.id;
+        }
+        this.dir *= -1;
+        break;
+      }
       case 'again': ctx.again = true; break;
       case 'boss': this.top = RULES.maxValue + 1; this.lower = false; break;
       case 'skip': ctx.skip += e.n; break;
@@ -1117,18 +1159,24 @@ export class CardRoom {
         for (const t of targets) {
           if ((this.hasRole(t, 'gott') || this.hasRole(t, 'god')) && p !== t) { this.say(`☀️ ${t.name} (Gott) weist unerwünschte Gaben zurück!`); continue; }
           if (!global && this.reflects(t, p)) { this.say(`😆 ${t.name} lacht zuletzt – ${p.name} behält die Karten.`); continue; }
+          let given = 0;
           for (let i = 0; i < e.n; i++) {
             const pool = tradable(p.hand);
             if (!pool.length) break;
             const c = pool[randIdx(pool)];
             p.hand = p.hand.filter((x) => x !== c);
             t.hand.push(c);
+            given++;
           }
           sortHand(t.hand);
+          if (given) {
+            this.say(`   → 🔱 Strafkarten: ${t.name} kassiert ${given} Strafkarte(n) von ${p.name}!`);
+          }
         }
         break;
       case 'takePile':
         for (const t of targets) {
+          if (!t || !t.inGame) continue;
           if (this.hasRole(t, 'gott') || this.hasRole(t, 'god')) {
             this.say(`☀️ ${t.name} (Gott) gebietet über die Ordnung – Stapel-Kassieren prallt ab!`);
             continue;
@@ -1138,9 +1186,45 @@ export class CardRoom {
             continue;
           }
           const who = !global && this.reflects(t, p) ? p : t;
+          if (!who) continue;
+          if (!Array.isArray(who.hand)) who.hand = [];
+          if (!who.stats) who.stats = {};
           if (who === p) this.say(`😆 ${t.name} lacht zuletzt – ${p.name} nimmt den Stapel selbst!`);
-          who.stats.pileCards = (who.stats.pileCards || 0) + this.pile.length;
-          who.hand.push(...this.pile); sortHand(who.hand);
+
+          const phoenix = who.hand.find((c) => c?.ability === 'phoenix');
+          if (phoenix) {
+            who.hand = who.hand.filter((c) => c !== phoenix);
+            const count = this.pile?.length || 0;
+            this.say(`🪶 ${who.name} wirft Phönix-Asche ab: Alle ${count} Karten auf dem Tisch verbrennen vollständig zu Asche!`);
+            this.triggerNecromancer();
+            this.draw(who, 1, { global: true });
+            sortHand(who.hand);
+            continue;
+          }
+          const pileCount = this.pile?.length || 0;
+          if ((this.hasRole(who, 'dorfdepp') || this.hasRole(who, 'fool')) && pileCount > 3) {
+            const takeCount = 3;
+            const burned = pileCount - takeCount;
+            const taken = (this.pile || []).slice(-takeCount);
+            who.stats.pileCards = (who.stats.pileCards || 0) + takeCount;
+            who.hand.push(...taken);
+            sortHand(who.hand);
+            this.say(`🤪 ${who.name} nutzt Bauernschläue: Nimmt nur 3 Karten – ${burned} Karten verbrennen! 🔥`);
+            this.triggerNecromancer();
+          } else if ((this.hasRole(who, 'berserker') || this.hasRole(who, 'berserk')) && pileCount > 2) {
+            const takeCount = Math.ceil(pileCount / 2);
+            const burned = pileCount - takeCount;
+            const taken = (this.pile || []).slice(-takeCount);
+            who.stats.pileCards = (who.stats.pileCards || 0) + takeCount;
+            who.hand.push(...taken);
+            sortHand(who.hand);
+            this.say(`🪓 ${who.name} verfällt in Blutrausch: Nimmt nur ${takeCount} Karten – ${burned} Karten verbrennen! 🔥`);
+            this.triggerNecromancer();
+          } else {
+            who.stats.pileCards = (who.stats.pileCards || 0) + pileCount;
+            if (Array.isArray(this.pile)) who.hand.push(...this.pile);
+            sortHand(who.hand);
+          }
         }
         this.pile = []; this.top = 0; this.lower = false;
         break;
@@ -1321,7 +1405,11 @@ function pickRole(allowed = Object.keys(ROLES)) {
 }
 
 function sortHand(hand) {
-  hand.sort((a, b) => (a.kind === b.kind ? (a.value ?? 0) - (b.value ?? 0) : a.kind === 'number' ? -1 : 1));
+  if (!Array.isArray(hand)) return;
+  hand.sort((a, b) => {
+    if (!a || !b) return 0;
+    return a.kind === b.kind ? (a.value ?? 0) - (b.value ?? 0) : a.kind === 'number' ? -1 : 1;
+  });
 }
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
