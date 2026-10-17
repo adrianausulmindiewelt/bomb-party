@@ -1373,6 +1373,8 @@ test('🪞 Letzte Karte: Passiv-Schutzkarte (z. B. Spiegel) kann als letzte Hand
   assert.equal(p0.hand.length, 0, 'Spiegel wurde abgelegt');
   assert.equal(r.state, 'over', 'Runde ist vorbei');
   assert.equal(r.winner, p0.id, 'Spieler mit letzter Passivkarte gewinnt');
+});
+
 // ── Kartenauswahl durch den Host ───────────────────────────
 import { DEFAULT_DECK, specialCatalog } from '../shared/cards.js';
 
