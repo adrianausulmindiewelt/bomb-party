@@ -881,6 +881,8 @@ test('📋 Die Musterlösung (Adrian - Chef-Dekret): Reinigt Tisch, gibt Extra-Z
   const r = table(3);
   const p0 = r.current();
   const others = r.players.filter((p) => p !== p0);
+  // Zufällige Schutz-/Reflexionsrollen dürfen diesen Karteneffekt-Test nicht beeinflussen.
+  others.forEach((p) => { p.role = 'buerger'; });
   others[0].hand = [num(1), num(2), num(3), num(4)]; // > 3 Karten -> zieht 1 -> 5
   others[1].hand = [num(1), num(2)];                  // <= 3 Karten -> bleibt bei 2
   const sol = sp('adrian_muster');
