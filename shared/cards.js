@@ -92,11 +92,11 @@ export const CHARACTERS = {
             effects: [{ type: 'takePile', target: 'next' }] },
   niclas: { name: 'Niclas', title: 'Der Turbo',        emoji: '🏎️',
             effects: [{ type: 'skip', n: 2 }] },
-  andre:  { name: 'André',  title: 'Der Gruppenleiter / Mentor', emoji: '🛡️', art: '/karten/art/andre.jpg', fullArt: true,
+  andre:  { name: 'André',  title: 'Souveränin des Äthers', emoji: '⚔️', art: '/karten/art/andre.jpg', fullArt: true,
             effects: [{ type: 'reset' }, { type: 'draw', n: 1, target: 'all' }] },
   ruben:  { name: 'Ruben',  title: 'Das Feuerwerk',    emoji: '🎆',
             effects: [{ type: 'burn' }, { type: 'give', n: 1, target: 'random' }] },
-  floris: { name: 'Flo',    title: 'Automations-Pipeline (Kernelflow)', emoji: '🌰',
+  floris: { name: 'Flo',    title: 'Automations-Pipeline (Kernelflow)', emoji: '⚙️',
             effects: [{ type: 'boss' }, { type: 'skip', n: 1 }] },
   jonas:  { name: 'Jonas',  title: 'Der Spielleiter / P&P-Meister', emoji: '📜',
             effects: [{ type: 'reverse' }, { type: 'swap', target: 'most' }] },
@@ -148,8 +148,7 @@ export const PLAYER_CARDS = {
       + 'Passiv: Sollst du ziehen, wird sie automatisch abgeworfen – je die Hälfte ziehen deine beiden Sitznachbar*innen.',
   },
   aegis: {
-    name: 'Aegis der Nullifizierung', title: 'Souveränin des Äthers', emoji: '🛡️', by: 'NoRevanell Morningstar', ability: 'aegis',
-    art: '/karten/art/aegis.jpg', fullArt: true,
+    name: 'Aegis der Nullifizierung', title: 'Goldener Schutzschild', emoji: '🛡️', by: 'NoRevanell Morningstar', ability: 'aegis',
     text: 'Passiv (aus der Hand): Wann immer dich ein negativer Effekt treffen würde (Zieh-Strafen, Stapel kassieren, Hand-Tausch, Aussetzen), wird die Aegis automatisch abgeworfen und der Effekt vollständig annulliert.',
   },
   spiegel: {
@@ -179,15 +178,15 @@ export const PLAYER_CARDS = {
       + 'Zusammen mit dem Glücklichen Schelm legbar: „Lachen und Weinen“.',
   },
   gluecksspiel: {
-    name: 'Kriege 4 oder verliere 4', emoji: '🎲', ability: 'gamble',
+    name: 'Kriege 4 oder verliere 4', emoji: '🪙', ability: 'gamble',
     text: 'Münzwurf: Entweder du ziehst 4 Karten – oder du wirst 4 Karten los. 50 : 50.',
   },
   portal: {
-    name: 'Dimensionsportal', title: 'Riss im Raumzeitgefüge', emoji: '🌌', by: 'NoRevanell Morningstar', ability: 'portal',
+    name: 'Dimensionsportal', title: 'Riss im Raumzeitgefüge', emoji: '🌀', by: 'NoRevanell Morningstar', ability: 'portal',
     text: 'Aktiv: Öffnet ein Portal in die Tiefen des Decks: Ziehe sofort die nächste Spezialkarte direkt auf die Hand (oder 2 normale Karten, falls keine mehr da ist).',
   },
   phoenix: {
-    name: 'Phönix-Asche', title: 'Wiedergeburt aus Flammen', emoji: '🪶', by: 'NoRevanell Morningstar', ability: 'phoenix',
+    name: 'Phönix-Asche', title: 'Wiedergeburt aus Flammen', emoji: '🐦‍🔥', by: 'NoRevanell Morningstar', ability: 'phoenix',
     text: 'Passiv (aus der Hand): Musst du den Stapel kassieren, verbrennt der gesamte Stapel stattdessen zu Asche! Du wirfst den Phönix ab und ziehst 1 frische Karte vom Deck.',
   },
   himmelszorn: {
