@@ -1307,3 +1307,21 @@ body:has(#lobby:not([hidden])) .hero { padding-top: 56px; }
 /* Offene Fenster nicht von der Musik-Leiste verdecken lassen (Handy) */
 body:has(#deck-modal:not([hidden])) #audio-controls,
 body:has(#almanach-modal:not([hidden])) #audio-controls { visibility: hidden; }
+
+/* ═════════ Deutlich zeigen: DU bist dran ═════════ */
+#turn-banner { bottom: calc(var(--ch, 146px) + 34px); background: #ffd23d; color: #14121f; text-shadow: none; padding: 8px 18px; border-radius: 99px;
+  font-size: 1.15rem; box-shadow: 0 0 24px #ffd23dcc; white-space: nowrap; }
+#turn-banner.show { animation: turn-pulse 1.1s ease-in-out infinite; }
+@keyframes turn-pulse { 0%, 100% { transform: translate(-50%, 0) scale(1); } 50% { transform: translate(-50%, -3px) scale(1.08); } }
+#table.my-turn::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 4;
+  border: 8px solid #ffd23d; box-shadow: inset 0 0 70px #ffd23daa; animation: turn-glow 1.1s ease-in-out infinite; }
+@keyframes turn-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.turn-splash { position: fixed; left: 50%; top: 42%; z-index: 40; pointer-events: none; white-space: nowrap;
+  font-family: var(--display); font-weight: 900; font-size: clamp(2.2rem, 11vw, 5rem); color: #ffd23d;
+  text-shadow: 0 0 30px #ffd23d, 0 6px 0 #0009; animation: turn-splash 1.6s ease-out forwards; }
+@keyframes turn-splash {
+  0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; }
+}

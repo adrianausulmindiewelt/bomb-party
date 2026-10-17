@@ -565,7 +565,14 @@ socket.on('view', (v) => {
   if (!myTurnBefore && v.turn === me && v.state === 'playing') {
     vibrate([40, 50, 40]);
     sound.playTurn();
+    // Großer Hinweis in der Bildmitte, damit es niemand verpasst
+    const sp = document.createElement('div');
+    sp.className = 'turn-splash';
+    sp.textContent = '🫵 DU BIST DRAN!';
+    $('table').append(sp);
+    setTimeout(() => sp.remove(), 1600);
   }
+  document.title = v.turn === me && v.state === 'playing' ? '🔴 Du bist dran! · Club Bombe' : 'Club Bombe Spiel';
   if (v.state === 'playing' && v.game !== seenGame && v.drawn) { seenGame = v.game; $('ranking').hidden = true; playIntro(v); }
   if (v.state === 'over' && v.ranking && shownRanking !== v.game) { shownRanking = v.game; showRanking(v); }
   showFx(v.fx);
@@ -832,6 +839,7 @@ function render() {
     $('hand').append(el);
   });
   $('turn-banner').classList.toggle('show', myTurn);
+  $('table').classList.toggle('my-turn', myTurn);
 
   // Erklärfeld: angetippte oder gehoverte Special-Karte
   updateExplain(null);
