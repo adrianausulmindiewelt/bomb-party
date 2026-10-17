@@ -766,20 +766,22 @@ export class CardRoom {
 
   // 🛡️ Aegis der Nullifizierung: blockt negative Effekte aus der Hand ab
   blocksWithAegis(t, from) {
-    if (!from || t === from) return false;
-    const aegis = t.hand.find((c) => c.ability === 'aegis');
+    if (!t || !Array.isArray(t.hand) || !from || t === from) return false;
+    const aegis = t.hand.find((c) => c?.ability === 'aegis');
     if (!aegis) return false;
     t.hand = t.hand.filter((c) => c !== aegis);
+    if (!Array.isArray(this.pile)) this.pile = [];
     this.pile.push(aegis);
     return true;
   }
 
   // 😆 Glücklicher Schelm: verbraucht sich und wirft einen gezielten Angriff zurück
   reflects(t, from) {
-    if (!from || t === from) return false;
-    const lucky = t.hand.find((c) => c.ability === 'luckyJester');
+    if (!t || !Array.isArray(t.hand) || !from || t === from) return false;
+    const lucky = t.hand.find((c) => c?.ability === 'luckyJester');
     if (!lucky) return false;
     t.hand = t.hand.filter((c) => c !== lucky);
+    if (!Array.isArray(this.pile)) this.pile = [];
     this.pile.splice(Math.max(0, this.pile.length - 1), 0, lucky);   // unter die oberste Karte
     return true;
   }
@@ -1080,6 +1082,7 @@ export class CardRoom {
         break;
       case 'takePile':
         for (const t of targets) {
+          if (!t || !t.inGame) continue;
           if (this.hasRole(t, 'gott') || this.hasRole(t, 'god')) {
             this.say(`☀️ ${t.name} (Gott) gebietet über die Ordnung – Stapel-Kassieren prallt ab!`);
             continue;
@@ -1089,39 +1092,43 @@ export class CardRoom {
             continue;
           }
           const who = !global && this.reflects(t, p) ? p : t;
+          if (!who) continue;
+          if (!Array.isArray(who.hand)) who.hand = [];
+          if (!who.stats) who.stats = {};
           if (who === p) this.say(`😆 ${t.name} lacht zuletzt – ${p.name} nimmt den Stapel selbst!`);
 
-          const phoenix = who.hand.find((c) => c.ability === 'phoenix');
+          const phoenix = who.hand.find((c) => c?.ability === 'phoenix');
           if (phoenix) {
             who.hand = who.hand.filter((c) => c !== phoenix);
-            const count = this.pile.length;
+            const count = this.pile?.length || 0;
             this.say(`🪶 ${who.name} wirft Phönix-Asche ab: Alle ${count} Karten auf dem Tisch verbrennen vollständig zu Asche!`);
             this.triggerNecromancer();
             this.draw(who, 1, { global: true });
             sortHand(who.hand);
             continue;
           }
-          if ((this.hasRole(who, 'dorfdepp') || this.hasRole(who, 'fool')) && this.pile.length > 3) {
+          const pileCount = this.pile?.length || 0;
+          if ((this.hasRole(who, 'dorfdepp') || this.hasRole(who, 'fool')) && pileCount > 3) {
             const takeCount = 3;
-            const burned = this.pile.length - takeCount;
-            const taken = this.pile.slice(-takeCount);
+            const burned = pileCount - takeCount;
+            const taken = (this.pile || []).slice(-takeCount);
             who.stats.pileCards = (who.stats.pileCards || 0) + takeCount;
             who.hand.push(...taken);
             sortHand(who.hand);
             this.say(`🤪 ${who.name} nutzt Bauernschläue: Nimmt nur 3 Karten – ${burned} Karten verbrennen! 🔥`);
             this.triggerNecromancer();
-          } else if ((this.hasRole(who, 'berserker') || this.hasRole(who, 'berserk')) && this.pile.length > 2) {
-            const takeCount = Math.ceil(this.pile.length / 2);
-            const burned = this.pile.length - takeCount;
-            const taken = this.pile.slice(-takeCount);
+          } else if ((this.hasRole(who, 'berserker') || this.hasRole(who, 'berserk')) && pileCount > 2) {
+            const takeCount = Math.ceil(pileCount / 2);
+            const burned = pileCount - takeCount;
+            const taken = (this.pile || []).slice(-takeCount);
             who.stats.pileCards = (who.stats.pileCards || 0) + takeCount;
             who.hand.push(...taken);
             sortHand(who.hand);
             this.say(`🪓 ${who.name} verfällt in Blutrausch: Nimmt nur ${takeCount} Karten – ${burned} Karten verbrennen! 🔥`);
             this.triggerNecromancer();
           } else {
-            who.stats.pileCards = (who.stats.pileCards || 0) + this.pile.length;
-            who.hand.push(...this.pile);
+            who.stats.pileCards = (who.stats.pileCards || 0) + pileCount;
+            if (Array.isArray(this.pile)) who.hand.push(...this.pile);
             sortHand(who.hand);
           }
         }
@@ -1303,7 +1310,11 @@ function pickRole() {
 }
 
 function sortHand(hand) {
-  hand.sort((a, b) => (a.kind === b.kind ? (a.value ?? 0) - (b.value ?? 0) : a.kind === 'number' ? -1 : 1));
+  if (!Array.isArray(hand)) return;
+  hand.sort((a, b) => {
+    if (!a || !b) return 0;
+    return a.kind === b.kind ? (a.value ?? 0) - (b.value ?? 0) : a.kind === 'number' ? -1 : 1;
+  });
 }
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }

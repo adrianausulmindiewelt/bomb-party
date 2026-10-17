@@ -7,7 +7,8 @@ import { connect, SERVER } from '/js/net.js';
 import { sound } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-const saved = JSON.parse(localStorage.getItem('karten-profile') || '{}');
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem('karten-profile') || '{}') || {}; } catch { saved = {}; }
 
 // ── Steuerleiste (BGM, SFX, Vibration, Vollbild, Almanach) ──
 const btnBgm = $('toggle-bgm');
@@ -233,9 +234,10 @@ document.title = CARD_BRAND.title;
 $('title').textContent = CARD_BRAND.title;
 $('tagline').textContent = CARD_BRAND.tagline;
 
-// ── 1 · Du ───────────────────────────────────────────────
-let avatar = saved.avatar || JSON.parse(localStorage.getItem('profile') || '{}').avatar || null;
-$('name').value = saved.name || JSON.parse(localStorage.getItem('profile') || '{}').name || '';
+let legacyProfile = {};
+try { legacyProfile = JSON.parse(localStorage.getItem('profile') || '{}') || {}; } catch { legacyProfile = {}; }
+let avatar = saved.avatar || legacyProfile.avatar || null;
+$('name').value = saved.name || legacyProfile.name || '';
 $('room').value = new URLSearchParams(location.search).get('raum') || '';
 function showAvatar() {
   const ctx = $('avatar-preview').getContext('2d');
