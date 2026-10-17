@@ -1441,3 +1441,19 @@ test('Ansage: Spezialkarte bringt den Satz mit, nur die legende Person kann übe
   q.play(c.id, ['rs2']);
   assert.equal(q.chainEvent.voice, null);
 });
+
+test('👯 Kombi-Ablage: Gleiche Zahlen (z. B. zwei 7er) können zusammen abgelegt werden und ziehen die Hand um 2 ab', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const c1 = num(7, '#ff3d7f');
+  const c2 = num(7, '#3dc6ff');
+  p0.hand = [c1, c2, num(9)];
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [c1.id, c2.id]).ok, true);
+  assert.equal(r.top, 7);
+  assert.equal(p0.hand.length, 1);
+  assert.ok(!p0.hand.includes(c1) && !p0.hand.includes(c2));
+});
+

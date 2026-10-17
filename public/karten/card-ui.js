@@ -48,6 +48,13 @@ export function cardEl(c, arts = {}) {
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
 
+  // 🏷️ Corner-Glyph oben links für blitzschnelle Erkennung im Fächer
+  const cornerGlyph = c.emoji || (isCustom ? '💣' : '✨');
+  const cornerTl = document.createElement('div');
+  cornerTl.className = 'corner tl special-corner';
+  cornerTl.innerHTML = `<span class="corner-icon">${cornerGlyph}</span>`;
+  el.append(cornerTl);
+
   if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
     el.classList.add('passive-guard');
     const badge = document.createElement('span');

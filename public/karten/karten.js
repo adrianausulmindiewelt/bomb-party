@@ -903,7 +903,16 @@ function render() {
   const stepX = n > 1 ? Math.min(cw * 0.85, (avail - cw) / (n - 1)) : 0;
   const half = ((n - 1) * stepX + cw) / 2;
   $('pov').style.setProperty('--fan-half', `${Math.max(half, cw)}px`);
-  $('pov').classList.toggle('my-turn', myTurn);
+  // Gleiche Zahlen zählen für Kombi- / Zwillings-Ablage
+  const numberCounts = {};
+  for (const c of v.hand) {
+    if (c?.kind === 'number' && typeof c.value === 'number') {
+      numberCounts[c.value] = (numberCounts[c.value] || 0) + 1;
+    }
+  }
+  const currentSel = selectedCards();
+  const selectedNumValue = (currentSel.length > 0 && currentSel[0]?.kind === 'number') ? currentSel[0].value : null;
+
   v.hand.forEach((c, i) => {
     const el = cardEl(c, arts);
     const t = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;   // -1 (links) … 1 (rechts)
@@ -943,8 +952,43 @@ function render() {
       badge.title = 'Gezinkte Würfel: Ungerade auf gerade und umgekehrt!';
       el.append(badge);
     }
-    el.onmouseenter = () => updateExplain(c);
-    el.onmouseleave = () => updateExplain(null);
+
+    // 👯 Zwillings- / Kombi-Signal bei gleichen Zahlenwerten
+    if (c.kind === 'number' && numberCounts[c.value] > 1) {
+      el.classList.add('twin-candidate');
+      if (selectedNumValue !== null && c.value === selectedNumValue && !selected.has(c.id)) {
+        el.classList.add('twin-companion');
+        const badge = document.createElement('span');
+        badge.className = 'hand-card-badge badge-twin';
+        badge.textContent = '+ Kombi!';
+        badge.title = `Kombi-Ablage: Du kannst diese ${c.value} zusammen mit der gewählten abwerfen!`;
+        el.append(badge);
+      }
+    }
+
+    // 🎴 Atmender Fächer: Nachbarkarten weichen sanft zur Seite aus
+    el.addEventListener('mouseenter', () => {
+      updateExplain(c);
+      const nudge = Math.max(16, Math.min(30, 220 / (n || 1)));
+      const siblings = $('hand')?.children;
+      if (siblings) {
+        for (let j = 0; j < siblings.length; j++) {
+          if (j < i) siblings[j].style.setProperty('--nudge', `-${nudge}px`);
+          else if (j > i) siblings[j].style.setProperty('--nudge', `${nudge}px`);
+          else siblings[j].style.setProperty('--nudge', '0px');
+        }
+      }
+    });
+    el.addEventListener('mouseleave', () => {
+      updateExplain(null);
+      const siblings = $('hand')?.children;
+      if (siblings) {
+        for (let j = 0; j < siblings.length; j++) {
+          siblings[j].style.setProperty('--nudge', '0px');
+        }
+      }
+    });
+
     el.onclick = () => { focus = i; toggle(c); };
     $('hand').append(el);
   });
@@ -957,6 +1001,7 @@ function render() {
   const sel = selectedCards();
   const isLastCard = v.hand.length === 1;
   const isDefenseCard = sel.length === 1 && ['mirror', 'aegis', 'luckyJester'].includes(sel[0]?.ability);
+  const isMultiDrop = sel.length > 1 && sel.every((c) => c.kind === 'number' && c.value === sel[0].value);
 
   if (sel[0]?.ability === 'potato') {
     $('play').textContent = '🥔 Weitergeben';
@@ -964,6 +1009,8 @@ function render() {
     $('play').textContent = '🏆 Letzte Karte legen (Sieg!)';
   } else if (isDefenseCard) {
     $('play').textContent = '⚠️ Trotzdem legen';
+  } else if (isMultiDrop) {
+    $('play').textContent = `🚀 Kombi (${sel.length}x ${sel[0].value}) abwerfen!`;
   } else {
     $('play').textContent = 'Legen ⬆️';
   }
@@ -1075,7 +1122,9 @@ function playable(cards) {
 function isJesterCombo(cards) {
   return cards.length === 2 && cards.map((c) => c.ability).sort().join('+') === 'luckyJester+sadJester';
 }
-const selectedCards = () => view.hand.filter((c) => selected.has(c.id));
+function selectedCards() {
+  return (view?.hand || []).filter((c) => selected.has(c.id));
+}
 
 function toggle(c) {
   if (selected.has(c.id)) selected.delete(c.id);
