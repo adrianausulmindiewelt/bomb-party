@@ -1063,17 +1063,18 @@ export class CardRoom {
         for (const t of targets) {
           if ((this.hasRole(t, 'gott') || this.hasRole(t, 'god')) && p !== t) { this.say(`☀️ ${t.name} (Gott) weist unerwünschte Gaben zurück!`); continue; }
           if (!global && this.reflects(t, p)) { this.say(`😆 ${t.name} lacht zuletzt – ${p.name} behält die Karten.`); continue; }
-          let discarded = 0;
+          let given = 0;
           for (let i = 0; i < e.n; i++) {
             const pool = tradable(p.hand);
             if (!pool.length) break;
             const c = pool[randIdx(pool)];
             p.hand = p.hand.filter((x) => x !== c);
-            this.pile.push(c);
-            discarded++;
+            t.hand.push(c);
+            given++;
           }
-          if (discarded) {
-            this.say(`   → 💥 Schadenseffekt: ${p.name} wirft ${discarded} Karte(n) auf den Ablagestapel ab (gegen ${t.name})!`);
+          sortHand(t.hand);
+          if (given) {
+            this.say(`   → 🔱 Strafkarten: ${t.name} kassiert ${given} Strafkarte(n) von ${p.name}!`);
           }
         }
         break;

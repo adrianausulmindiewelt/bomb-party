@@ -713,7 +713,18 @@ function render() {
   updateExplain(null);
 
   const sel = selectedCards();
-  $('play').textContent = sel[0]?.ability === 'potato' ? '🥔 Weitergeben' : 'Legen ⬆️';
+  const isLastCard = v.hand.length === 1;
+  const isDefenseCard = sel.length === 1 && ['mirror', 'aegis', 'luckyJester'].includes(sel[0]?.ability);
+
+  if (sel[0]?.ability === 'potato') {
+    $('play').textContent = '🥔 Weitergeben';
+  } else if (isLastCard && isDefenseCard) {
+    $('play').textContent = '🏆 Letzte Karte legen (Sieg!)';
+  } else if (isDefenseCard) {
+    $('play').textContent = '⚠️ Trotzdem legen';
+  } else {
+    $('play').textContent = 'Legen ⬆️';
+  }
 
   // Deine Rolle als interaktiver Badge in den Aktions-Knöpfen
   const roleBadge = $('my-role-badge');
@@ -759,6 +770,7 @@ function updateExplain(hoverCard = null) {
   exp.hidden = !sp;
   if (sp) {
     const isHoverOnly = Boolean(hoverCard && hoverCard.kind === 'special' && (!selectedSp || hoverCard.id !== selectedSp.id));
+    const isLastCard = view?.hand?.length === 1;
     exp.innerHTML = '<b></b><span></span><small></small>';
     exp.querySelector('b').textContent = `${sp.emoji ?? (sp.key === 'custom' ? '💣' : '✨')} ${sp.name}${sp.title ? ' · ' + sp.title : ''}${sp.by ? ' (von ' + sp.by + ')' : ''}`;
     exp.querySelector('span').textContent = cardText(sp);
@@ -766,10 +778,10 @@ function updateExplain(hoverCard = null) {
     exp.querySelector('small').textContent = isHoverOnly
       ? (sp.key === 'custom' ? '✨ Selbstgebaute Bombe' : (sp.by ? `Club-Karte von ${sp.by}` : 'Spezial-Effekt'))
       : sp.ability === 'potato' ? (myTurn ? '→ „Weitergeben“ drücken und Person wählen.' : 'Weitergeben, wenn du dran bist.')
-      : sp.ability === 'luckyJester' && !isCombo ? '🛡️ Passiver Schelm: Wirkt automatisch bei Angriffen aus der Hand.'
-      : sp.ability === 'mirror' ? '🛡️ Reiner Passiv-Schutz! Bleibt auf der Hand und wirft Zieh-Angriffe zurück.'
-      : sp.ability === 'aegis' ? (myTurn ? '🛡️ Passiver Schutz (bleibt auf der Hand)! Aktives Legen setzt nur Tisch auf 0.' : '🛡️ Passiv: Blockt negative Effekte & Aussetzen automatisch ab!')
-      : sp.ability === 'phoenix' ? (myTurn ? '🪶 Aktiv: Verbrennt Tischstapel zu Asche & zieht 1 | Passiv: Schützt vor Stapel-Fressen.' : '🪶 Passiv: Verbrennt den Tisch bei Stapel-Fressen!')
+      : sp.ability === 'luckyJester' && !isCombo ? (isLastCard ? '🏆 Letzte Karte! Lege den Schelm ab, um das Spiel zu gewinnen!' : '🛡️ Passiver Schelm: Wirkt automatisch bei Angriffen. (Tipp: Behalte ihn zum Schutz auf der Hand!)')
+      : sp.ability === 'mirror' ? (isLastCard ? '🏆 Letzte Karte! Lege den Spiegel ab, um das Spiel zu gewinnen!' : '🛡️ Passiv-Schutz: Spiegelt Zieh-Strafen zurück. (Warnung: Aktiv weggeworfen verpufft die Verteidigung!)')
+      : sp.ability === 'aegis' ? (isLastCard ? '🏆 Letzte Karte! Lege die Aegis ab, um das Spiel zu gewinnen!' : (myTurn ? '🛡️ Passiv-Schutz (wehrt Zieh-Strafen & Aussetzen ab)! Aktives Legen setzt nur Tisch auf 0.' : '🛡️ Passiv: Blockt negative Effekte & Aussetzen automatisch ab!'))
+      : sp.ability === 'phoenix' ? (isLastCard ? '🏆 Letzte Karte! Verbrennt den Tisch und sichert den Sieg!' : (myTurn ? '🪶 Aktiv: Verbrennt Tischstapel zu Asche & zieht 1 | Passiv: Schützt vor Stapel-Fressen.' : '🪶 Passiv: Verbrennt den Tisch bei Stapel-Fressen!'))
       : myTurn ? 'Passt auf jede Karte → „Legen“ drücken.' : 'Passt auf jede Karte – leg sie, wenn du dran bist.';
   }
 }
@@ -778,7 +790,6 @@ function updateExplain(hoverCard = null) {
 function playable(cards) {
   if (!cards.length) return false;
   if (cards.some((c) => c.kind === 'special')) {
-    if (cards.length === 1 && cards[0].ability === 'mirror') return false; // Reiner Passiv-Schutz, kann nicht aktiv gelegt werden!
     return cards.length === 1 || isJesterCombo(cards);
   }
   if (cards.some((c) => c.value !== cards[0].value)) return false;

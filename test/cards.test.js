@@ -1339,7 +1339,7 @@ test('🧑 Bürger*in: Lässt sich von Richtungswechseln nicht beirren (behält 
   assert.equal(r.current().id, p1.id, 'Bürger*in p1 behält den nächsten Zug');
 });
 
-test('💥 Schadenseffekt (Geben): Karten landen auf dem Ablagestapel statt in der Hand des Opfers', () => {
+test('🔱 Poseidon-Dreizack (give): Strafkarten werden an das Ziel übergeben, die gespielte Karte selbst landet auf dem Ablagestapel', () => {
   const r = table(2);
   const p0 = r.current();
   const victim = r.seatFrom(p0, 1);
@@ -1353,7 +1353,24 @@ test('💥 Schadenseffekt (Geben): Karten landen auf dem Ablagestapel statt in d
   r.pile = [];
 
   assert.equal(r.play(p0.id, [dreizack.id]).ok, true);
-  assert.equal(victim.hand.length, 1, 'Opfer hat KEINE Schadenskarten direkt auf die Hand bekommen');
-  assert.equal(p0.hand.length, 0, 'Angreifer hat die 2 Karten abgelegt');
-  assert.ok(r.pile.includes(cardA) && r.pile.includes(cardB), 'Abgelegte Schadenskarten liegen auf dem Ablagestapel');
+  // Die Strafkarte Dreizack selbst landet auf dem Ablagestapel (wird nicht übergeben):
+  assert.ok(r.pile.includes(dreizack), 'Der Dreizack selbst liegt auf dem Ablagestapel');
+  // Die 2 Strafkarten wurden als Strafe an das Ziel übergeben:
+  assert.equal(victim.hand.length, 3, 'Ziel hat 2 Strafkarten kassiert (+1 vorherige)');
+  assert.ok(victim.hand.includes(cardA) && victim.hand.includes(cardB), 'Strafkarten sind in der Hand des Ziels');
+  assert.equal(p0.hand.length, 0, 'Angreifer hat die 2 Strafkarten abgegeben');
+});
+
+test('🪞 Letzte Karte: Passiv-Schutzkarte (z. B. Spiegel) kann als letzte Handkarte gelegt werden und gewinnt die Runde', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const mirrorCard = sp('mirror');
+  p0.hand = [mirrorCard]; // Nur 1 Karte auf der Hand!
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [mirrorCard.id]).ok, true);
+  assert.equal(p0.hand.length, 0, 'Spiegel wurde abgelegt');
+  assert.equal(r.state, 'over', 'Runde ist vorbei');
+  assert.equal(r.winner, p0.id, 'Spieler mit letzter Passivkarte gewinnt');
 });
