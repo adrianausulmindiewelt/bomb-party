@@ -15,6 +15,7 @@ export class CardRoom {
     this.state = 'lobby';     // 'lobby' | 'playing' | 'over'
     this.log = [];
     this.game = 0;            // zählt Spiele hoch – der Browser erkennt daran „neues Spiel → Intro zeigen“
+    this.narrationSeq = 0;
     this.reset();
   }
 
@@ -31,6 +32,7 @@ export class CardRoom {
     this.introUntil = 0;
     this.wild = null;         // Zwillings-Parade: { colors: [a, b], owner } – diese Farben passen auf alles
     this.colorStreak = { color: null, count: 0 }; // Farb-Kette für Elementar-Überladung (3x gleiche Farbe)
+    this.narration = null;
   }
 
   // ── Leute ──────────────────────────────────────────────────
@@ -255,6 +257,7 @@ export class CardRoom {
     if (combo) {
       const [a, b2] = choice.targets.map(opp);
       this.say(`${p.name} spielt 😆😢 ${JESTER_COMBO.name}!`);
+      this.startNarration(p, JESTER_COMBO.name, JESTER_COMBO.text);
       // Person 1: Hand (ohne Kartoffel) in den Ziehstapel mischen, gleich viele neu ziehen
       const keep = a.hand.filter((c) => c.ability === 'potato');
       const old = a.hand.filter((c) => c.ability !== 'potato');
@@ -270,6 +273,7 @@ export class CardRoom {
     const sp = cards[0];
     // Spielerkarten haben lange Texte → im Protokoll nur der Name (Details per Antippen)
     this.say(`${p.name} spielt ${sp.emoji} ${sp.name}${sp.text ? '!' : ': ' + cardText(sp)}`);
+    this.startNarration(p, sp.name, cardText(sp));
     if (sp.ability === 'twins') {
       this.wild = { colors: choice.colors, owner: p.id };
       this.say(`   → ♊ Bis ${p.name} wieder dran ist, passen diese 2 Farben auf alles.`);
@@ -1001,6 +1005,23 @@ export class CardRoom {
     return msg;
   }
 
+  startNarration(player, cardName, description) {
+    this.narration = {
+      id: ++this.narrationSeq,
+      playerId: player.id,
+      cardName: String(cardName || 'Spezialkarte'),
+      description: String(description || ''),
+      skipped: false,
+    };
+  }
+
+  skipNarration(pid, narrationId) {
+    if (!this.narration || this.narration.id !== Number(narrationId)) return { error: 'Diese Ansage ist nicht mehr aktiv.' };
+    if (this.narration.playerId !== pid) return { error: 'Nur wer die Karte gespielt hat, darf die Ansage überspringen.' };
+    this.narration.skipped = true;
+    return { ok: true };
+  }
+
   view(forId) {
     const me = this.players.find((p) => p.id === forId);
     const reveal = this.state === 'over';
@@ -1022,6 +1043,7 @@ export class CardRoom {
       pile: this.pile.slice(-4),
       pileCount: this.pile.length,
       log: this.log,
+      narration: this.narration,
       players: this.players.map((p) => ({
         id: p.id, name: p.name, count: p.hand.length, inGame: p.inGame, connected: p.connected,
         // Rollen sind geheim – man sieht nur die eigene, der Spion sieht alle, und alle am Spielende

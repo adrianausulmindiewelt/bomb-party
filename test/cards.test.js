@@ -74,6 +74,20 @@ test('Nicht dran → kein Zug', () => {
   assert.match(r.play(notMe.id, [notMe.hand[0].id]).error, /nicht dran/);
 });
 
+test('Nur die Person, die das Special spielt, kann die Ansage für alle überspringen', () => {
+  const r = table(2);
+  const p = r.current();
+  const other = r.players.find((candidate) => candidate !== p);
+  const special = { id: 'voice-special', kind: 'special', key: 'reset', name: 'Erzähler', emoji: '🎙️', effects: [{ type: 'reset' }] };
+  p.hand = [special, num(3)];
+  assert.equal(r.play(p.id, [special.id]).ok, true);
+  assert.equal(r.narration.playerId, p.id);
+  assert.ok(r.narration.description.length > 0);
+  assert.ok(r.skipNarration(other.id, r.narration.id).error);
+  assert.equal(r.skipNarration(p.id, r.narration.id).ok, true);
+  assert.equal(r.narration.skipped, true);
+});
+
 test('Verbindung weg und zurück: Platz und Karten bleiben', () => {
   const r = table(3);
   const p = r.players[1];
