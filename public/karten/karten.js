@@ -5,6 +5,8 @@ import { fileToAvatar } from '/js/avatar.js';
 import { cardEl } from './card-ui.js';
 import { connect, SERVER } from '/js/net.js';
 import { sound } from './audio.js';
+import { MEME_SOUNDS, MemeEvents } from './meme-sounds.js';
+const memeEvents = new MemeEvents();
 import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
 
 const $ = (id) => document.getElementById(id);
@@ -31,8 +33,71 @@ function updateAudioUI() {
   }
 }
 if (btnBgm) btnBgm.onclick = () => { sound.toggleBGM(); updateAudioUI(); };
-if (btnSfx) btnSfx.onclick = () => { sound.toggleSFX(); updateAudioUI(); };
+if (btnSfx) btnSfx.onclick = () => { sound.toggleSFX(); if (!sound.sfxEnabled) stopVoice(); updateAudioUI(); updateMemeUI(); };
 updateAudioUI();
+
+
+// ── Meme-Soundboard: Vorschau und Download direkt im Spiel ──
+const memeModal = $('meme-modal');
+function updateMemeUI() {
+  $('meme-enabled').checked = sound.memes.enabled;
+  $('meme-volume').value = Math.round(sound.memes.volume * 100);
+  $('meme-volume-value').textContent = `${Math.round(sound.memes.volume * 100)} %`;
+  $('meme-muted-note').hidden = sound.sfxEnabled && sound.memes.enabled && sound.memes.volume > 0;
+  $('open-memes').classList.toggle('muted', !sound.memes.enabled);
+  document.querySelectorAll('[data-meme-preview]').forEach((b) => {
+    b.disabled = !sound.sfxEnabled || !sound.memes.enabled || !sound.memes.volume;
+  });
+}
+$('meme-list').innerHTML = MEME_SOUNDS.map((s) => `
+  <article class="funke-card meme-clip">
+    <div><b>${s.emoji} ${s.name}</b><p>${s.use}</p></div>
+    <div class="funke-row">
+      <button class="funke-btn funke-btn--ghost funke-btn--sm" type="button" data-meme-preview="${s.id}" aria-label="${s.name} anhören" aria-pressed="false">▶ Anhören</button>
+      <a class="funke-btn funke-btn--ghost funke-btn--sm" href="${s.file}" download="${s.id}.mp3">↓ MP3</a>
+    </div>
+  </article>`).join('');
+$('open-memes').onclick = () => { memeModal.hidden = false; updateMemeUI(); $('meme-close').focus(); };
+function closeMemes() { memeModal.hidden = true; sound.memes.stop(); $('open-memes').focus(); }
+$('meme-close').onclick = closeMemes;
+memeModal.onclick = (e) => { if (e.target === memeModal) closeMemes(); };
+$('meme-unmute').onclick = () => {
+  if (!sound.sfxEnabled) sound.toggleSFX();
+  sound.memes.setEnabled(true);
+  if (!sound.memes.volume) sound.memes.setVolume(0.65);
+  updateAudioUI(); updateMemeUI();
+};
+$('meme-enabled').onchange = (e) => { sound.memes.setEnabled(e.target.checked); updateMemeUI(); };
+$('meme-volume').oninput = (e) => { sound.memes.setVolume(Number(e.target.value) / 100); updateMemeUI(); };
+let memePlayingId = null;
+sound.memes.onPlay = (id) => {
+  memePlayingId = id;
+  for (const b of document.querySelectorAll('[data-meme-preview]')) {
+    const playing = b.dataset.memePreview === id;
+    b.textContent = playing ? '■ Stoppen' : '▶ Anhören';
+    b.setAttribute('aria-pressed', String(playing));
+  }
+  $('meme-playback-note').textContent = id ? `${MEME_SOUNDS.find((s) => s.id === id)?.name} läuft …` : '';
+};
+$('meme-list').onclick = async (e) => {
+  const b = e.target.closest('[data-meme-preview]');
+  if (!b) return;
+  if (memePlayingId === b.dataset.memePreview) return sound.memes.stop();
+  sound.unlock();
+  try { await sound.ctx?.resume(); } catch {}
+  $('meme-playback-note').textContent = 'Sound lädt …';
+  if (!await sound.memes.play(b.dataset.memePreview, { preview: true })) {
+    $('meme-playback-note').textContent = 'Der Sound konnte gerade nicht gestartet werden. Bitte noch einmal versuchen.';
+  }
+};
+memeModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeMemes(); }
+  if (e.key !== 'Tab') return;
+  const items = [...memeModal.querySelectorAll('button:not(:disabled),input,a[href]')];
+  const first = items[0], last = items.at(-1);
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 // ── Vibration / Haptik ────────────────────────────────────
 let vibEnabled = localStorage.getItem('karten-vib') !== 'false';
@@ -446,6 +511,7 @@ let chainTimeout = null;
 // 🗣️ KI-Ansage: fertige MP3 aus /karten/voice/, sonst spricht der Browser selbst
 let voiceAudio = null;
 function stopVoice() {
+  sound.memes.setSpeaking(false);
   if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   if (sound.bgmGain && sound.ctx) sound.bgmGain.gain.setTargetAtTime(sound.bgmEnabled ? 0.35 : 0, sound.ctx.currentTime, 0.2);
@@ -458,6 +524,7 @@ function hideChainBanner() {
 function speak(voice, done) {
   stopVoice();
   if (!sound.sfxEnabled) return done(3000);          // Sound aus → nur lesen
+  sound.memes.setSpeaking(true);
   if (sound.bgmGain && sound.ctx) sound.bgmGain.gain.setTargetAtTime(sound.bgmEnabled ? 0.08 : 0, sound.ctx.currentTime, 0.1);
   const finish = () => { stopVoice(); done(600); };
   const browserVoice = () => {
@@ -517,6 +584,8 @@ function showChainBanner(evt) {
 }
 
 socket.on('view', (v) => {
+  const meme = memeEvents.observe(v, me);
+  if (meme) void sound.memes.play(meme, { priority: v.state === 'over' });
   const myTurnBefore = view?.turn === me;
   view = v;
   if (v.host === me && v.deckChoice) {

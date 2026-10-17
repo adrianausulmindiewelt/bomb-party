@@ -1,5 +1,6 @@
 // Web Audio API Sound- & Musik-Engine für „TOPP DAS!“
-// Komplett prozedural synthetisiert – keine externen Dateien oder 404-Abhängigkeiten nötig!
+// Synth-SFX plus lokal gespeicherte Meme-Clips; kein externer Dienst während des Spiels.
+import { MemePlayer } from './meme-sounds.js';
 
 class SoundEngine {
   constructor() {
@@ -14,6 +15,9 @@ class SoundEngine {
     // Einstellungen aus localStorage laden
     this.sfxEnabled = localStorage.getItem('topp-das-sfx') !== 'false';
     this.bgmEnabled = localStorage.getItem('topp-das-bgm') !== 'false'; // Musik läuft automatisch, bis man sie ausschaltet
+
+    this.memes = new MemePlayer(() => this.sfxEnabled);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.memes.stop(); });
 
     // Autoplay Unlock Listener
     this._unlockHandler = () => this.unlock();
@@ -35,6 +39,7 @@ class SoundEngine {
     this.sfxGain = this.ctx.createGain();
     this.sfxGain.gain.setValueAtTime(this.sfxEnabled ? 0.9 : 0, this.ctx.currentTime);
     this.sfxGain.connect(this.masterGain);
+    this.memes.attach(this.ctx, this.sfxGain);
 
     this.bgmGain = this.ctx.createGain();
     this.bgmGain.gain.setValueAtTime(this.bgmEnabled ? 0.35 : 0, this.ctx.currentTime);
@@ -52,6 +57,7 @@ class SoundEngine {
     const go = () => {
       if (this.bgmEnabled && !this.bgmPlaying) this.startBGM();
       if (this.ctx.state === 'running') {
+        this.memes.preload();
         ['pointerdown', 'click', 'touchstart', 'keydown'].forEach((e) => window.removeEventListener(e, this._unlockHandler));
       }
     };
@@ -66,6 +72,7 @@ class SoundEngine {
     if (this.sfxGain && this.ctx) {
       this.sfxGain.gain.setValueAtTime(this.sfxEnabled ? 0.9 : 0, this.ctx.currentTime);
     }
+    if (!this.sfxEnabled) this.memes.stop();
     if (this.sfxEnabled) this.playCardSnap();
     return this.sfxEnabled;
   }

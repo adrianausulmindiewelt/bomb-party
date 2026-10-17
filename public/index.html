@@ -32,6 +32,7 @@
   <div id="audio-controls">
     <button id="toggle-bgm" title="Hintergrundmusik an/aus" type="button">🎵</button>
     <button id="toggle-sfx" title="Soundeffekte an/aus" type="button">🔊</button>
+    <button id="open-memes" title="Meme-Sounds: anhören, einstellen und herunterladen" aria-label="Meme-Sounds öffnen" type="button">😂</button>
     <button id="toggle-vib" title="Haptisches Vibrations-Feedback an/aus" type="button">📳</button>
     <button id="toggle-fullscreen" title="Vollbildmodus umschalten" type="button">⛶</button>
     <button id="open-almanach" title="📖 Club-Almanach & Kartengalerie" type="button">📖</button>
@@ -325,6 +326,24 @@ Bevor du fertig bist:
     </div>
     <div id="toast"></div>
   </section>
+
+    <div id="meme-modal" class="overlay" hidden>
+      <section class="funke-modal meme-window" role="dialog" aria-modal="true" aria-labelledby="meme-title">
+        <div class="funke-row">
+          <h2 id="meme-title" class="funke-h2">😂 Meme-Sounds</h2>
+          <button id="meme-close" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" aria-label="Meme-Sounds schließen">✕</button>
+        </div>
+        <p class="funke-body">Kurze Reaktionen auf Spielmomente. Deine Vorschau hörst nur du.</p>
+        <label class="funke-body"><input id="meme-enabled" type="checkbox" /> Meme-Sounds automatisch spielen</label>
+        <label class="funke-body" for="meme-volume">Lautstärke <output id="meme-volume-value" for="meme-volume"></output></label>
+        <input id="meme-volume" type="range" min="0" max="100" step="5" aria-label="Meme-Lautstärke" />
+        <p id="meme-muted-note" class="funke-body" role="status" hidden>Zum Anhören Meme-Sounds und 🔊 Soundeffekte einschalten und die Lautstärke erhöhen. <button id="meme-unmute" class="funke-btn funke-btn--ghost funke-btn--sm" type="button">Sounds einschalten</button></p>
+        <p id="meme-playback-note" class="funke-body" role="status" aria-live="polite"></p>
+        <p><a class="funke-btn funke-btn--ghost funke-btn--sm" href="/karten/sounds/meme-sounds.zip" download>↓ Alle 7 als ZIP</a></p>
+        <div id="meme-list" class="funke-grid"></div>
+        <p class="funke-body"><a href="https://www.myinstants.com/en/index/de/" target="_blank" rel="noopener noreferrer">Mehr Sounds auf Myinstants ↗</a> · <a href="/karten/sounds/memes/manifest.json" target="_blank">Quellen</a></p>
+      </section>
+    </div>
 
   <script type="module" src="/karten/karten.js"></script>
   <script>

@@ -1370,3 +1370,16 @@ body:has(#almanach-modal:not([hidden])) #audio-controls { visibility: hidden; }
 }
 #actions.setup #my-role-badge { display: none !important; }
 #actions.setup button { min-height: 44px; }
+
+/* Neue Sound-Bibliothek aus kanonischen Funke-Komponenten. */
+.meme-window { color: var(--funke-ink); width: min(600px, 94vw); max-width: 600px; max-height: 88dvh; overflow-y: auto; }
+.meme-window > .funke-row { justify-content: space-between; }
+.meme-window label, .meme-window input[type="range"] { display: block; width: 100%; margin: 12px 0; }
+.meme-window input[type="checkbox"] { accent-color: var(--funke-red); }
+.meme-window input[type="range"] { accent-color: var(--funke-red); padding: 0; }
+.meme-window .meme-clip { display: grid; gap: 12px; padding: 16px; }
+.meme-clip p { margin: 5px 0 0; font: 13px/1.5 var(--funke-font-body); color: var(--funke-muted); }
+.meme-window a { color: var(--funke-red-deep); }
+.meme-window .funke-btn { min-height: 44px; text-decoration: none; }
+.meme-window :focus-visible { outline: 3px solid var(--funke-red); outline-offset: 3px; }
+body:has(#meme-modal:not([hidden])) #audio-controls { visibility: hidden; }

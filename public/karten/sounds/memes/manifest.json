@@ -1,0 +1,79 @@
+[
+  {
+    "id": "bruh",
+    "name": "Bruh",
+    "source": "https://www.myinstants.com/en/instant/bruh/",
+    "download": "https://www.myinstants.com/media/sounds/movie_1.mp3",
+    "originalBytes": 14061,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 0.82,
+    "file": "bruh.mp3",
+    "bytes": 10703
+  },
+  {
+    "id": "vine-boom",
+    "name": "Vine Boom",
+    "source": "https://www.myinstants.com/en/instant/vine-boom-sound-70972/",
+    "download": "https://www.myinstants.com/media/sounds/vine-boom.mp3",
+    "originalBytes": 21230,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 1.25,
+    "file": "vine-boom.mp3",
+    "bytes": 16111
+  },
+  {
+    "id": "yippee",
+    "name": "Yippee",
+    "source": "https://www.myinstants.com/en/instant/yippeeeeeeeeeeeeee-34261/",
+    "download": "https://www.myinstants.com/media/sounds/yippeeeeeeeeeeeeee.mp3",
+    "originalBytes": 44753,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 2.65,
+    "file": "yippee.mp3",
+    "bytes": 32963
+  },
+  {
+    "id": "six-seven",
+    "name": "Six Seven",
+    "source": "https://www.myinstants.com/en/instant/67-71609/",
+    "download": "https://www.myinstants.com/media/sounds/67_SQlv2Xv.mp3",
+    "originalBytes": 62208,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 1.94,
+    "file": "six-seven.mp3",
+    "bytes": 24182
+  },
+  {
+    "id": "spongebob-fail",
+    "name": "SpongeBob Fail",
+    "source": "https://www.myinstants.com/en/instant/spongebob-fail-11236/",
+    "download": "https://www.myinstants.com/media/sounds/spongebob-fail.mp3",
+    "originalBytes": 54782,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 3.38,
+    "file": "spongebob-fail.mp3",
+    "bytes": 41440
+  },
+  {
+    "id": "metal-pipe",
+    "name": "Metal Pipe",
+    "source": "https://www.myinstants.com/en/instant/metal-pipe-falling-sound-effect-7737/",
+    "download": "https://www.myinstants.com/media/sounds/metal-pipe-falling-sound-effect.mp3",
+    "originalBytes": 51662,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 3.17,
+    "file": "metal-pipe.mp3",
+    "bytes": 38915
+  },
+  {
+    "id": "fah",
+    "name": "FAHHH",
+    "source": "https://www.myinstants.com/en/instant/fahhhhhhhhhhhhhh-3525/",
+    "download": "https://www.myinstants.com/media/sounds/fahhhhhhhhhhhhhh.mp3",
+    "originalBytes": 79456,
+    "license": "Third-party meme clip; underlying usage rights not verified.",
+    "duration": 1.93,
+    "file": "fah.mp3",
+    "bytes": 23868
+  }
+]
