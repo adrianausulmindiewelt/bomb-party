@@ -59,6 +59,17 @@ test('Wer nicht kann, nimmt den Stapel', () => {
   assert.equal(r.top, 0);
 });
 
+test('Kartenziehen löst das GRRRRR-Karten-ziehen-Meme aus', () => {
+  const r = table(2);
+  const p = r.current();
+  const beforeId = r.drawMeme?.id ?? 0;
+  r.draw(p, 1, { global: true, penalty: true });
+  assert.equal(r.drawMeme.id, beforeId + 1);
+  assert.equal(r.drawMeme.playerId, p.id);
+  assert.equal(r.drawMeme.count, 1);
+  assert.deepEqual(r.view(p.id).drawMeme, r.drawMeme);
+});
+
 test('Spielende: Erste*r ohne Karten gewinnt, Rest nach Kartenzahl', () => {
   const r = table(3);
   const p = r.current();
