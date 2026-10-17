@@ -1161,6 +1161,51 @@ input, select { background: #2b2a45; color: #fff; }
   }
 }
 
+/* ── Transparenz-Badges & Indikatoren auf Karten ── */
+.hand-card-badge {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.hand-card-badge.badge-resonance {
+  background: linear-gradient(135deg, #ff0844, #ffb199);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 10px rgba(255, 8, 68, 0.7);
+}
+.hand-card-badge.badge-hero {
+  background: linear-gradient(135deg, #f12711, #f5af19);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+.hand-card-badge.badge-gambler {
+  background: linear-gradient(135deg, #8a2387, #e94057);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+.card-shield-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(18, 48, 80, 0.9);
+  color: #70e1ff;
+  border: 1px solid rgba(112, 225, 255, 0.6);
+  z-index: 10;
+  pointer-events: none;
+}
+
 
 
 

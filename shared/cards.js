@@ -84,7 +84,7 @@ export const BASIC_SPECIALS = {
 export const CHARACTERS = {
   adrian: { name: 'Adrian', title: 'Der Chef / Gildenleiter', emoji: '👔',
             effects: [{ type: 'reset' }, { type: 'again' }] },
-  aylen:  { name: 'Aylen',  title: 'Die Tauschbörse',  emoji: '💱',
+  ayleen: { name: 'Ayleen', title: 'Die Tauschbörse',  emoji: '💱',
             effects: [{ type: 'swap', target: 'fewest' }] },
   louis:  { name: 'Luis',   title: 'Der Dreizack (Pilzi)', emoji: '🔱', art: '/karten/art/louis.jpg', fullArt: true,
             effects: [{ type: 'give', n: 3, target: 'next' }] },
@@ -103,6 +103,10 @@ export const CHARACTERS = {
   maxime: { name: 'Maxime', title: 'Wien-Berlin Express', emoji: '🚄',
             effects: [{ type: 'skip', n: 1 }, { type: 'draw', n: 2, target: 'next' }] },
 };
+
+// Aliasse für Abwärtskompatibilität und Tippfehler-Resilienz
+CHARACTERS.aylen = CHARACTERS.ayleen;
+CHARACTERS.luis = CHARACTERS.louis;
 
 // ─────────────────────────────────────────────────────────────
 // ROLLEN – zu Spielbeginn zufällig verteilt, für alle sichtbar.

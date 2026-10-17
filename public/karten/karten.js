@@ -599,11 +599,18 @@ function render() {
   const topCard = v.pile[v.pile.length - 1];
   const topElem = topCard?.color ? COLOR_ELEMENTS[topCard.color] : null;
   const elemTag = topElem ? `  ·  ${topElem.icon} ${topElem.gem}` : '';
+  const streak = v.colorStreak;
+  const streakElem = streak?.color ? COLOR_ELEMENTS[streak.color] : null;
+  const streakTag = streak && streak.count >= 2
+    ? `  ·  ⚡ ${streak.count}/3 ${streakElem?.label || 'Kette'} (Überladung droht!)`
+    : streak && streak.count === 1 && streakElem
+    ? `  ·  ${streakElem.icon} 1/3 Kette`
+    : '';
   const dirArrow = v.dir === 1 ? '↻' : '↺';
   $('pile').querySelectorAll('.card').forEach((el) => { el.style.cursor = 'default'; });
   const deckTag = v.state === 'playing' && v.deckCount !== undefined ? `  ·  🎴 ${v.deckCount} im Deck` : '';
   $('pile-info').textContent = v.state === 'playing'
-    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + `  ·  ${v.pileCount} im Stapel` + deckTag + `  ·  ${dirArrow}`
+    ? (v.top ? `Zu toppen: ${v.lower ? '≤' : '≥'} ${v.top}` : 'Alles geht!') + (v.sphere && v.top ? ` (oder ${v.top - 1})` : '') + elemTag + streakTag + `  ·  ${v.pileCount} im Stapel` + deckTag + `  ·  ${dirArrow}`
     : v.state === 'over' ? 'Runde vorbei' : `${v.players.length} am Tisch`;
 
   // Nachziehstapel Visualisierung & Counter
@@ -674,7 +681,26 @@ function render() {
     if (isPlayable) el.classList.add('playable');
     if (isResonantBonus) {
       el.classList.add('resonant');
-      el.title = `Farb-Resonanz! Erlaubt unter ${v.top} zu legen.`;
+      el.title = `Farb-Resonanz! Erlaubt ${v.lower ? 'über' : 'unter'} ${v.top} zu legen (-2 Resonanz).`;
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-resonance';
+      badge.textContent = '🎵 -2';
+      badge.title = 'Farb-Resonanz: Erlaubt 2 Punkte Abweichung auf gleiche Farbe!';
+      el.append(badge);
+    }
+    const myRole = mine?.role;
+    if (myTurn && isPlayable && (myRole?.key === 'held' || myRole?.ability === 'hero') && v.hand?.length <= 2 && c.kind === 'number') {
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-hero';
+      badge.textContent = '🦸 Held';
+      badge.title = 'Heldenmut: Jede beliebige Zahl darf gelegt werden!';
+      el.append(badge);
+    } else if (myTurn && isPlayable && (myRole?.key === 'gluecksspieler' || myRole?.ability === 'gambler') && v.top > 0 && c.kind === 'number' && (c.value % 2 !== v.top % 2)) {
+      const badge = document.createElement('span');
+      badge.className = 'hand-card-badge badge-gambler';
+      badge.textContent = '🎲 Würfel';
+      badge.title = 'Gezinkte Würfel: Ungerade auf gerade und umgekehrt!';
+      el.append(badge);
     }
     el.onmouseenter = () => updateExplain(c);
     el.onmouseleave = () => updateExplain(null);
@@ -740,7 +766,10 @@ function updateExplain(hoverCard = null) {
     exp.querySelector('small').textContent = isHoverOnly
       ? (sp.key === 'custom' ? '✨ Selbstgebaute Bombe' : (sp.by ? `Club-Karte von ${sp.by}` : 'Spezial-Effekt'))
       : sp.ability === 'potato' ? (myTurn ? '→ „Weitergeben“ drücken und Person wählen.' : 'Weitergeben, wenn du dran bist.')
-      : sp.ability === 'luckyJester' && !isCombo ? 'Wirkt automatisch, solange du sie hältst.'
+      : sp.ability === 'luckyJester' && !isCombo ? '🛡️ Passiver Schelm: Wirkt automatisch bei Angriffen aus der Hand.'
+      : sp.ability === 'mirror' ? '🛡️ Reiner Passiv-Schutz! Bleibt auf der Hand und wirft Zieh-Angriffe zurück.'
+      : sp.ability === 'aegis' ? (myTurn ? '🛡️ Passiver Schutz (bleibt auf der Hand)! Aktives Legen setzt nur Tisch auf 0.' : '🛡️ Passiv: Blockt negative Effekte & Aussetzen automatisch ab!')
+      : sp.ability === 'phoenix' ? (myTurn ? '🪶 Aktiv: Verbrennt Tischstapel zu Asche & zieht 1 | Passiv: Schützt vor Stapel-Fressen.' : '🪶 Passiv: Verbrennt den Tisch bei Stapel-Fressen!')
       : myTurn ? 'Passt auf jede Karte → „Legen“ drücken.' : 'Passt auf jede Karte – leg sie, wenn du dran bist.';
   }
 }
@@ -748,7 +777,10 @@ function updateExplain(hoverCard = null) {
 // Gleiche Logik wie auf dem Server – nur damit man im Browser direkt sieht, was geht
 function playable(cards) {
   if (!cards.length) return false;
-  if (cards.some((c) => c.kind === 'special')) return cards.length === 1 || isJesterCombo(cards);
+  if (cards.some((c) => c.kind === 'special')) {
+    if (cards.length === 1 && cards[0].ability === 'mirror') return false; // Reiner Passiv-Schutz, kann nicht aktiv gelegt werden!
+    return cards.length === 1 || isJesterCombo(cards);
+  }
   if (cards.some((c) => c.value !== cards[0].value)) return false;
 
   const myRole = view.players?.find((p) => p.id === me)?.role;

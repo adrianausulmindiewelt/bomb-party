@@ -39,10 +39,21 @@
     </section>
 
     <section class="step">
-      <h2>2 · Deine Bomben-Karte 💣 (optional)</h2>
+      <h2>2 · Tisch wählen</h2>
+      <div id="tables"><p class="hint">Suche offene Tische …</p></div>
+      <div class="new-table">
+        <input id="room" maxlength="20" placeholder="Name für neuen Tisch" />
+        <button id="join" class="primary">➕ Neuer Tisch</button>
+      </div>
+      <p id="error"></p>
+      <p class="hint"><a href="editor.html">✏️ Charakterkarten-Bilder hochladen</a> · <a href="/">💣 Bomb Party</a></p>
+    </section>
+
+    <section class="step optional-step">
+      <h2>3 · Eigene Bombe mitbringen? 💣 (optional)</h2>
       <label class="custom-card-toggle" style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; padding: 6px 12px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);">
         <input type="checkbox" id="enable-custom-card" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" />
-        <span>Eigene Bombe zeichnen & bauen</span>
+        <span>Ja, eigene Bombe zeichnen & bauen</span>
       </label>
       <p id="custom-card-hint" class="hint">Standard: Du spielst direkt mit den offiziellen Club- & Charakterkarten.</p>
       <div id="builder-wrap" class="builder" hidden>
@@ -60,17 +71,6 @@
           <p id="special-desc" class="desc"></p>
         </div>
       </div>
-    </section>
-
-    <section class="step">
-      <h2>3 · Tisch wählen</h2>
-      <div id="tables"><p class="hint">Suche offene Tische …</p></div>
-      <div class="new-table">
-        <input id="room" maxlength="20" placeholder="Name für neuen Tisch" />
-        <button id="join" class="primary">➕ Neuer Tisch</button>
-      </div>
-      <p id="error"></p>
-      <p class="hint"><a href="editor.html">✏️ Charakterkarten-Bilder hochladen</a> · <a href="/">💣 Bomb Party</a></p>
     </section>
   </main>
 

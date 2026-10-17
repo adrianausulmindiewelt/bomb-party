@@ -47,6 +47,15 @@ export function cardEl(c, arts = {}) {
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
 
+  if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
+    el.classList.add('passive-guard');
+    const badge = document.createElement('span');
+    badge.className = 'card-shield-badge';
+    badge.textContent = '🛡️ Passiv';
+    badge.title = 'Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus!';
+    el.append(badge);
+  }
+
   const desc = cardText(c);
   const byText = c.by ? ` (von ${c.by})` : '';
   const titleText = c.title ? ` · ${c.title}` : '';
