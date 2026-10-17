@@ -4,41 +4,357 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#14121f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Bomb Party</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>" />
-  <link rel="stylesheet" href="style.css" />
+  <title>Club Bombe Spiel</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" />
+  <link rel="stylesheet" href="/brand/design-system.css" />
+  <link rel="stylesheet" href="/karten/karten.css" />
 </head>
 <body>
-  <!-- Lobby: Name, Foto, Farbe -->
+  <!-- ── Animierter Hintergrund (nur in der Lobby sichtbar) ── -->
+  <div id="bg" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="floaters">
+      <span style="--x:6%;--d:19s;--s:.9;--r:-14deg">🂡</span>
+      <span style="--x:18%;--d:24s;--s:.7;--r:12deg;--delay:-8s">💣</span>
+      <span style="--x:31%;--d:21s;--s:1.1;--r:-6deg;--delay:-14s">♥</span>
+      <span style="--x:46%;--d:27s;--s:.8;--r:18deg;--delay:-3s">🃏</span>
+      <span style="--x:59%;--d:22s;--s:1;--r:-20deg;--delay:-17s">♠</span>
+      <span style="--x:72%;--d:25s;--s:.75;--r:8deg;--delay:-10s">💣</span>
+      <span style="--x:84%;--d:20s;--s:1.05;--r:-10deg;--delay:-5s">♦</span>
+      <span style="--x:93%;--d:28s;--s:.85;--r:14deg;--delay:-20s">♣</span>
+    </div>
+    <div class="grain"></div>
+  </div>
+  <!-- ── Steuerleiste: Musik, Sound, Vibration, Vollbild, Almanach ── -->
+  <div id="audio-controls">
+    <button id="toggle-bgm" title="Hintergrundmusik an/aus" type="button">🎵</button>
+    <button id="toggle-sfx" title="Soundeffekte an/aus" type="button">🔊</button>
+    <button id="open-memes" title="Meme-Sounds: anhören, einstellen und herunterladen" aria-label="Meme-Sounds öffnen" type="button">😂</button>
+    <button id="toggle-vib" title="Haptisches Vibrations-Feedback an/aus" type="button">📳</button>
+    <button id="toggle-fullscreen" title="Vollbildmodus umschalten" type="button">⛶</button>
+    <button id="open-almanach" title="📖 Club-Almanach & Kartengalerie" type="button">📖</button>
+  </div>
+
+  <!-- ── Lobby: du + deine Bomben-Karte ── -->
   <main id="lobby">
-    <h1 id="title">BOMB PARTY</h1>
-    <p id="tagline"></p>
+    <header class="hero">
+      <div class="club">
+        <img src="/brand/wappen.svg" alt="Wappen" class="crest" />
+        <img src="/brand/vwbb-logo.png" alt="Von Wien bis Berlin" class="club-logo" />
+        <span class="club-tag">ClubApp</span>
+      </div>
+      <h1 id="title">Club Bombe Spiel</h1>
+      <p id="tagline"></p>
+      <div class="hero-cards" aria-hidden="true">
+        <div class="hc hc1"><b>7</b><i>♠</i></div>
+        <div class="hc hc2"><b>💣</b><i>Bombe</i></div>
+        <div class="hc hc3"><b>K</b><i>♥</i></div>
+      </div>
+      <a href="#step-you" class="cta">Karte bauen &amp; losspielen ↓</a>
+    </header>
 
-    <label class="avatar-pick">
-      <canvas id="avatar-preview" width="160" height="160"></canvas>
-      <span>📸 Foto von dir</span>
-      <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
-    </label>
+    <section class="step" id="step-you">
+      <div class="step-head"><span class="num">1</span><h2>Du</h2><span class="check">✓</span></div>
+      <label class="avatar-pick">
+        <canvas id="avatar-preview" width="160" height="160"></canvas>
+        <span>📸 Foto von dir</span>
+        <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
+      </label>
+      <input id="name" maxlength="16" placeholder="Dein Name" autocomplete="nickname" />
+    </section>
 
-    <input id="name" maxlength="16" placeholder="Dein Name" autocomplete="nickname" />
-    <div id="colors"></div>
-    <input id="room" maxlength="20" placeholder="Raum (leer = lobby)" />
-    <button id="play">Los geht's</button>
-    <p id="error"></p>
-    <p class="hint">Steuerung: WASD/Pfeile + Leertaste · Controller: Stick + A · Handy: Joystick + 💣</p>
-    <p class="hint"><a href="/karten/" style="color:inherit">🃏 Zum Kartenspiel „TOPP DAS!“</a></p>
+    <section class="step" id="step-card">
+      <div class="step-head"><span class="num">2</span><h2>Deine eigene Bomben-Karte 💣</h2><span class="check">✓</span></div>
+      <p class="hint">Pflicht für alle: Zeichne deine Bombe, gib ihr einen Namen und bau ihre Fähigkeit aus bis zu 2 Effekten. Beim Spielstart kommt sie in den großen Los-Topf.</p>
+      <div class="builder">
+        <div class="draw-wrap">
+          <div class="draw-box">
+            <canvas id="draw" width="300" height="300"></canvas>
+            <span class="draw-hint">✏️ Hier zeichnen</span>
+          </div>
+          <div class="draw-tools">
+            <span id="pens"></span>
+            <button id="draw-clear" type="button">🧽</button>
+            <label class="btn-like">🖼️<input id="draw-upload" type="file" accept="image/*" hidden /></label>
+          </div>
+        </div>
+        <div class="fx">
+          <input id="special-name" maxlength="24" placeholder="Name der Karte" />
+          <div id="effects"></div>
+          <p id="special-desc" class="desc"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="step-table">
+      <div class="step-head"><span class="num">3</span><h2>Tisch wählen</h2></div>
+      <div id="tables"><p class="hint">Suche offene Tische …</p></div>
+      <div class="new-table">
+        <input id="room" maxlength="20" placeholder="Name für neuen Tisch" />
+        <button id="join" class="primary">➕ Neuer Tisch</button>
+      </div>
+      <p id="error"></p>
+    </section>
+    <section class="step" id="step-dev">
+      <div class="step-head"><span class="num">🛠️</span><h2>Willst du selbst mitentwickeln?</h2></div>
+      <p class="hint">Neue Karten, Features, Ideen – bau sie mit deiner KI (Claude Code, Cursor …). Prompt kopieren, in deine KI einfügen, oben dein Feature reinschreiben. Die KI holt sich das Spiel, baut es sicher ein und reicht es auf GitHub ein. Adrian schaut drüber und schaltet es frei.</p>
+      <button id="dev-copy" class="primary" type="button">📋 Prompt kopieren</button>
+      <details class="dev-prompt"><summary>Prompt ansehen</summary><pre id="dev-prompt">Ich möchte beim „Club Bombe Spiel“ mitentwickeln:
+https://github.com/adrianausulmindiewelt/bomb-party
+
+Mein Feature: &lt;HIER BESCHREIBEN, z. B. „neue Karte ‚Doppelzug&#x27;: …“&gt;
+
+Bitte arbeite so:
+1. Repo klonen (oder meinen Fork, falls ich keine Schreibrechte habe), dann `npm install`.
+2. Vom aktuellen `main` einen neuen Branch anlegen: `&lt;meinname&gt;/&lt;kurzes-feature&gt;`.
+   Niemals direkt auf `main` und niemals auf fremde Branches pushen.
+3. Zuerst README.md, CONTRIBUTING.md und docs/MITMACHEN.md lesen und daran halten.
+
+TABU – diese Dinge NIE ändern, auch nicht „nur zum Testen“:
+- `GAME_SERVER_URL` in `shared/config.js` (Adresse des Live-Servers)
+- den Port in `server/index.js` (bleibt 3000)
+- `vercel.json`, `render.yaml`, `.github/`, `package-lock.json` (außer ich brauche wirklich ein neues Paket)
+- keine API-Keys, Passwörter oder `.env`-Dateien committen
+Zum Testen: `npm run dev` und http://localhost:3000 öffnen. Dafür braucht es keinen Tunnel und keine Config-Änderung.
+
+Neue Spezialkarte? Alles in `shared/cards.js`:
+- Karte in `PLAYER_CARDS` eintragen, Logik in `server/cards/game.js`
+- in `CARD_SHORT` einen Satz, was wirklich passiert (für Karte und Kartenauswahl)
+- in `VOICE_LINES` einen kurzen, witzigen Ansage-Satz (die Audiodatei erzeugt Adrian später)
+- NICHT in `DEFAULT_DECK` aufnehmen – der Host schaltet neue Karten selbst dazu
+
+Regeln für den Code:
+- Spiellogik nur auf dem Server (`server/`), der Browser zeigt nur an.
+- Der Server darf nie abstürzen: Rechne damit, dass Werte fehlen oder `null` sind, und prüfe das vorher.
+- Bestehende Karten und Funktionen nicht umbauen, nur das eigene Feature hinzufügen.
+- Für das neue Feature mindestens einen Test in `test/` schreiben.
+
+Bevor du fertig bist:
+- `npm test` muss komplett grün sein. Zusätzlich 2 Browserfenster mit localhost:3000 öffnen und eine Runde spielen.
+- `git diff main --stat` zeigen und prüfen, dass KEINE der Tabu-Dateien geändert ist.
+- Einen kleinen Pull Request gegen `main` öffnen (ein Feature pro PR), mit Beschreibung, was er macht und wie man es testet.</pre></details>
+      <p class="hint">Nur eine Kartenidee ohne Code? <a href="https://github.com/adrianausulmindiewelt/bomb-party/issues/new/choose" target="_blank" rel="noopener">Hier auf GitHub einreichen</a>.</p>
+    </section>
+    <footer class="lobby-foot">
+      <a href="/karten/editor.html">✏️ Charakterkarten-Bilder</a>
+      <span>·</span>
+      <a href="/bomb-party/">💣 Bomb Party (Bomberman)</a>
+    </footer>
   </main>
 
-  <!-- Spiel -->
-  <section id="game" hidden>
-    <canvas id="canvas"></canvas>
-    <div id="touch" hidden>
-      <div id="stick"><div id="knob"></div></div>
-      <button id="bomb-btn">💣</button>
+  <!-- ── Der Tisch (Ego-Perspektive) ── -->
+  <section id="table" hidden>
+    <div class="room-decor" aria-hidden="true">
+      <div class="ceiling-glow"></div>
+      <div class="wall-panel panel-left"></div>
+      <div class="wall-panel panel-right"></div>
+      <div class="lamp lamp-left"><i></i></div>
+      <div class="lamp lamp-right"><i></i></div>
+      <div class="room-monogram">CB</div>
     </div>
+    <div id="felt-wrap"><div id="felt"></div></div>
+    <div id="club-badge"><img src="/brand/wappen.svg" alt="" /><img src="/brand/vwbb-logo.png" alt="" class="wm-logo" /></div>
+    <button id="chat-btn" aria-label="Chat">💬<span id="chat-unread" hidden></span></button>
+    <aside id="chat" hidden>
+      <header><b>💬 Tisch-Chat</b><button id="chat-close" aria-label="Schließen">✕</button></header>
+      <ol id="chat-list"></ol>
+      <div class="chat-quick"></div>
+      <form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Nachricht …" autocomplete="off" /><button>➤</button></form>
+    </aside>
+    <div id="fx-banner"></div>
+    <div id="players"></div>
+    <div id="center">
+      <div id="last-action-pill" class="last-action-pill" hidden>
+        <span class="last-action-icon" id="last-action-icon">🃏</span>
+        <span class="last-action-text" id="last-action-text"></span>
+      </div>
+      <div class="table-stacks">
+        <div id="deck-wrap" class="deck-wrap" title="Nachziehstapel">
+          <div id="deck-card" class="card-stack-deck back-pattern">
+            <span class="deck-badge" id="deck-count">0</span>
+          </div>
+          <span class="stack-label">Nachziehen</span>
+        </div>
+        <div id="pile-wrap" class="pile-wrap">
+          <div id="pile"></div>
+          <span class="stack-label">Ablage</span>
+        </div>
+      </div>
+      <div id="pile-info"></div>
+      <div id="ticker"></div>
+    </div>
+    <ol id="log"></ol>
+    <div id="actions">
+      <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
+      <button id="deck-btn" type="button" hidden>🎴 Karten</button>
+      <button id="bot-add" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>🤖 Bot hinzufügen</button>
+      <button id="bot-remove" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>Bot entfernen</button>
+      <button id="start" class="primary" hidden>▶️ Spiel starten</button>
+      <button id="take">🗑️ Stapel nehmen</button>
+      <button id="play" class="primary">Legen ⬆️</button>
+    </div>
+    <div id="pov">
+      <!-- Elegante Spieler-Arme & Handschuhe (hinter den Karten) -->
+      <svg class="arm left" viewBox="0 0 340 340" aria-hidden="true">
+        <defs>
+          <linearGradient id="suit-grad" x1="0%" y1="100%" x2="80%" y2="0%">
+            <stop offset="0%" stop-color="#0a0914" />
+            <stop offset="50%" stop-color="#181528" />
+            <stop offset="100%" stop-color="#28233f" />
+          </linearGradient>
+          <linearGradient id="cuff-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="60%" stop-color="#e2e0ed" />
+            <stop offset="100%" stop-color="#b6b1cf" />
+          </linearGradient>
+          <linearGradient id="gold-gem" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fff285" />
+            <stop offset="50%" stop-color="#f5ba20" />
+            <stop offset="100%" stop-color="#8c6407" />
+          </linearGradient>
+          <linearGradient id="glove-grad" x1="15%" y1="90%" x2="85%" y2="10%">
+            <stop offset="0%" stop-color="#12101e" />
+            <stop offset="40%" stop-color="#1e1a30" />
+            <stop offset="75%" stop-color="#312c4c" />
+            <stop offset="100%" stop-color="#4a4470" />
+          </linearGradient>
+          <g id="pov-arm-left-g">
+            <!-- Sakko-Ärmel -->
+            <path class="sleeve" fill="url(#suit-grad)" stroke="#06050b" stroke-width="2.5"
+                  d="M-30 380 L-30 240 C30 190, 110 150, 185 125 L245 205 C170 260, 95 340, 50 380 Z" />
+            <!-- Stoff-Faltenlinie -->
+            <path d="M20 230 C80 195, 145 160, 185 125" fill="none" stroke="#3b3558" stroke-width="3.5" stroke-linecap="round" opacity="0.6" />
+            <!-- Hemdmanschette -->
+            <path class="cuff" fill="url(#cuff-grad)" stroke="#131120" stroke-width="2.5"
+                  d="M175 130 L205 110 C212 105, 222 108, 228 115 L255 152 C260 160, 258 170, 250 176 L220 196 Z" />
+            <!-- Goldener Manschettenknopf -->
+            <circle cx="230" cy="155" r="5.5" fill="url(#gold-gem)" stroke="#473202" stroke-width="1.5" />
+            <!-- Handfläche / Knöchel -->
+            <path class="glove-palm" fill="url(#glove-grad)" stroke="#0a0814" stroke-width="2.5" stroke-linejoin="round"
+                  d="M205 115 C222 98, 245 95, 265 106 L285 125 C304 144, 300 172, 280 188 L248 195 C228 190, 212 175, 205 150 Z" />
+            <!-- 4 Finger hinter den Karten -->
+            <path class="finger" fill="url(#glove-grad)" stroke="#0a0814" stroke-width="2"
+                  d="M260 102 C275 82, 290 76, 302 86 C310 95, 304 110, 284 122 Z" />
+            <path class="finger" fill="url(#glove-grad)" stroke="#0a0814" stroke-width="2"
+                  d="M280 120 C298 104, 316 102, 324 114 C330 126, 318 138, 296 145 Z" />
+            <path class="finger" fill="url(#glove-grad)" stroke="#0a0814" stroke-width="2"
+                  d="M292 142 C310 132, 325 136, 328 148 C330 160, 314 170, 288 172 Z" />
+            <path class="finger" fill="url(#glove-grad)" stroke="#0a0814" stroke-width="2"
+                  d="M286 170 C302 165, 314 170, 312 182 C310 192, 296 195, 276 190 Z" />
+          </g>
+        </defs>
+        <use href="#pov-arm-left-g" />
+      </svg>
+      <svg class="arm right" viewBox="0 0 340 340" aria-hidden="true">
+        <use href="#pov-arm-left-g" />
+      </svg>
+      <div id="hand"></div>
+      <!-- Daumen liegen DRÜBER und halten die Karten fest -->
+      <svg class="thumb left" viewBox="0 0 130 130" aria-hidden="true">
+        <defs>
+          <linearGradient id="thumb-grad" x1="15%" y1="95%" x2="85%" y2="5%">
+            <stop offset="0%" stop-color="#100f1c" />
+            <stop offset="40%" stop-color="#1f1b32" />
+            <stop offset="80%" stop-color="#383256" />
+            <stop offset="100%" stop-color="#554d80" />
+          </linearGradient>
+          <filter id="thumb-shadow" x="-30%" y="-30%" width="170%" height="170%">
+            <feDropShadow dx="3" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.75" />
+          </filter>
+          <g id="thumb-left-shape">
+            <path filter="url(#thumb-shadow)" fill="url(#thumb-grad)" stroke="#080710" stroke-width="2.5" stroke-linejoin="round"
+                  d="M16 128 C10 102, 18 78, 38 56 C52 42, 68 28, 86 18 C102 10, 116 14, 120 28 C124 42, 110 58, 92 72 C74 86, 56 104, 46 128 Z" />
+            <path d="M40 62 C58 48, 80 34, 98 26" fill="none" stroke="#7167a6" stroke-width="2.5" stroke-linecap="round" opacity="0.8" />
+            <path d="M64 58 C72 64, 82 62, 88 56" fill="none" stroke="#0e0d16" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
+            <path d="M44 90 C52 96, 62 94, 68 88" fill="none" stroke="#0e0d16" stroke-width="2.5" stroke-linecap="round" opacity="0.7" />
+          </g>
+        </defs>
+        <use href="#thumb-left-shape" />
+      </svg>
+      <svg class="thumb right" viewBox="0 0 130 130" aria-hidden="true">
+        <use href="#thumb-left-shape" />
+      </svg>
+    </div>
+    <div id="explain" hidden></div>
+    <div id="turn-banner">DU BIST DRAN</div>
+    <div id="intro" class="overlay" hidden></div>
+    <div id="ranking" class="overlay" hidden></div>
+    <div id="picker" class="overlay" hidden></div>
+    <div id="almanach-modal" class="overlay" hidden>
+      <div class="almanach-window">
+        <div class="almanach-header">
+          <h2>📖 Club-Almanach & Kartengalerie</h2>
+          <button id="almanach-close" type="button" class="close-btn" title="Schließen">✕</button>
+        </div>
+        <div class="almanach-tabs">
+          <button class="tab-btn active" data-tab="active">🎴 In diesem Spiel</button>
+          <button class="tab-btn" data-tab="club">🏛️ Club & Specials</button>
+          <button class="tab-btn" data-tab="characters">🎭 Charaktere</button>
+          <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
+          <button class="tab-btn" data-tab="custom">🎨 Spieler-Karten</button>
+          <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
+          <button class="tab-btn" data-tab="elements">⚡ Farb-Kräfte & Resonanz</button>
+        </div>
+        <div id="almanach-content" class="almanach-grid"></div>
+      </div>
+    </div>
+    <div id="deck-modal" class="overlay" hidden>
+      <div class="almanach-window deck-window">
+        <div class="almanach-header">
+          <h2>🎴 Karten fürs Spiel</h2>
+          <button id="deck-close" type="button" class="close-btn" title="Schließen">✕</button>
+        </div>
+        <p id="deck-preset-note" class="deck-note" role="status" hidden></p>
+        <div id="deck-content"></div>
+      </div>
+    </div>
+    <div id="chain-banner" class="chain-banner" hidden>
+      <div class="chain-banner-badge" id="chain-badge">⛓️ CHAIN TRIGGER</div>
+      <div class="chain-banner-content">
+        <div class="chain-banner-icon" id="chain-icon">✨</div>
+        <div class="chain-banner-text">
+          <div class="chain-banner-actor" id="chain-actor">Spieler</div>
+          <div class="chain-banner-title" id="chain-title">Kartenname</div>
+          <div class="chain-banner-desc" id="chain-desc">Effektbeschreibung</div>
+          <div class="chain-banner-voice" id="chain-voice" hidden></div>
+        </div>
+        <button id="chain-skip" class="chain-skip" type="button" hidden>⏭️ Überspringen</button>
+      </div>
+    </div>
+    <div id="toast"></div>
   </section>
 
-  <script type="module" src="js/main.js"></script>
+    <div id="meme-modal" class="overlay" hidden>
+      <section class="funke-modal meme-window" role="dialog" aria-modal="true" aria-labelledby="meme-title">
+        <div class="funke-row">
+          <h2 id="meme-title" class="funke-h2">😂 Meme-Sounds</h2>
+          <button id="meme-close" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" aria-label="Meme-Sounds schließen">✕</button>
+        </div>
+        <p class="funke-body">Kurze Reaktionen auf Spielmomente. Deine Vorschau hörst nur du.</p>
+        <label class="funke-body"><input id="meme-enabled" type="checkbox" /> Meme-Sounds automatisch spielen</label>
+        <label class="funke-body" for="meme-volume">Lautstärke <output id="meme-volume-value" for="meme-volume"></output></label>
+        <input id="meme-volume" type="range" min="0" max="100" step="5" aria-label="Meme-Lautstärke" />
+        <p id="meme-muted-note" class="funke-body" role="status" hidden>Zum Anhören Meme-Sounds und 🔊 Soundeffekte einschalten und die Lautstärke erhöhen. <button id="meme-unmute" class="funke-btn funke-btn--ghost funke-btn--sm" type="button">Sounds einschalten</button></p>
+        <p id="meme-playback-note" class="funke-body" role="status" aria-live="polite"></p>
+        <p><a class="funke-btn funke-btn--ghost funke-btn--sm" href="/karten/sounds/meme-sounds.zip" download>↓ Alle 7 als ZIP</a></p>
+        <div id="meme-list" class="funke-grid"></div>
+        <p class="funke-body"><a href="https://www.myinstants.com/en/index/de/" target="_blank" rel="noopener noreferrer">Mehr Sounds auf Myinstants ↗</a> · <a href="/karten/sounds/memes/manifest.json" target="_blank">Quellen</a></p>
+      </section>
+    </div>
+
+  <script type="module" src="/karten/karten.js"></script>
+  <script>
+    // „Prompt kopieren“ auf der Startseite
+    document.getElementById('dev-copy').onclick = async (e) => {
+      const text = document.getElementById('dev-prompt').textContent;
+      try { await navigator.clipboard.writeText(text); }
+      catch { const t = document.createElement('textarea'); t.value = text; document.body.append(t); t.select(); document.execCommand('copy'); t.remove(); }
+      e.target.textContent = '✅ Kopiert – jetzt in deine KI einfügen';
+      setTimeout(() => { e.target.textContent = '📋 Prompt kopieren'; }, 3000);
+    };
+  </script>
 </body>
 </html>

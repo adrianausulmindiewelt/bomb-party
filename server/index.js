@@ -107,13 +107,15 @@ cards.on('connection', (socket) => {
     const roomId = String(data.room || 'tisch').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'tisch';
     const img = (v) => (typeof v === 'string' && v.startsWith('data:image/') && v.length < MAX_AVATAR ? v : null);
     pid = String(data.pid || socket.id).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40) || socket.id;
-    const r = cardRooms.get(roomId) ?? new CardRoom(roomId);
+    const existingRoom = cardRooms.get(roomId);
+    const r = existingRoom ?? new CardRoom(roomId);
     const res = r.addPlayer(pid, {
       name: String(data.name || 'Anonym').trim().slice(0, 16) || 'Anonym',
       avatar: img(data.avatar),
       special: { name: data.special?.name, art: img(data.special?.art), effects: data.special?.effects },
     });
     if (res.error) return ack(res);
+    if (!existingRoom && data.deckChoice) r.configure(pid, data.deckChoice);
     cardRooms.set(roomId, r);
     room = r;
     r.players.find((p) => p.id === pid).socket = socket.id;
@@ -125,6 +127,10 @@ cards.on('connection', (socket) => {
   });
 
   on('start', act(() => room.start(pid)));
+  on('bot-add', act(() => room.addBot(pid)));
+  on('bot-remove', act((id) => room.removeBot(pid, id)));
+  on('configure', act((choice) => room.configure(pid, choice)));
+  on('voice-skip', act(() => room.skipVoice(pid)));
   on('play', act((ids) => room.play(pid, ids)));
   on('take', act(() => room.take(pid)));
   on('chat', (text) => {
@@ -151,7 +157,7 @@ function syncRoom(room) {
 setInterval(() => {
   for (const r of cardRooms.values()) {
     if (r.tick()) syncRoom(r);
-    if (!r.players.some((p) => p.connected)) cardRooms.delete(r.id);
+    if (!r.players.some((p) => !p.bot && p.connected)) cardRooms.delete(r.id);
   }
 }, 1000);
 
