@@ -3,7 +3,7 @@
 // Sperrbildschirm oder Funkloch wieder auf denselben Platz zurück.
 // Jede*r bekommt eine eigene Sicht (view): die eigene Hand ganz, von den anderen nur die Anzahl.
 
-import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, cardText, describe, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
+import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, VOICE_LINES, DEFAULT_DECK, cleanDeckChoice, cardText, describe, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
 
 let nextCardId = 1;
 const card = (props) => ({ id: nextCardId++, ...props });
@@ -15,6 +15,7 @@ export class CardRoom {
     this.state = 'lobby';     // 'lobby' | 'playing' | 'over'
     this.log = [];
     this.game = 0;            // zählt Spiele hoch – der Browser erkennt daran „neues Spiel → Intro zeigen“
+    this.deckChoice = { voice: DEFAULT_DECK.voice, specials: [...DEFAULT_DECK.specials], roles: [...DEFAULT_DECK.roles] }; // wählt der Host
     this.reset();
   }
 
@@ -39,6 +40,21 @@ export class CardRoom {
   triggerChainEvent(evt) {
     this.chainEventId = (this.chainEventId || 0) + 1;
     this.chainEvent = { id: this.chainEventId, time: Date.now(), ...evt };
+  }
+
+  // 🗣️ KI-Ansage für alle: was die gerade gelegte Spezialkarte macht (abschaltbar in der Kartenauswahl)
+  voiceFor(p, key, fallback) {
+    if (this.deckChoice.voice === false) return null;
+    const line = VOICE_LINES[key] ?? fallback;
+    return line ? { key: VOICE_LINES[key] ? key : null, line, by: p.id, skipped: false } : null;
+  }
+
+  // Wer die Karte gelegt hat, darf die Ansage für alle überspringen
+  skipVoice(pid) {
+    const v = this.chainEvent?.voice;
+    if (!v || v.by !== pid) return { error: 'Nur wer die Karte gelegt hat, kann überspringen.' };
+    v.skipped = true;
+    return { ok: true };
   }
 
   setLastAction(text, icon = '🃏') {
@@ -126,6 +142,16 @@ export class CardRoom {
     return changed;
   }
 
+  // ── Kartenauswahl (nur Host, nur zwischen den Spielen) ──────
+  configure(byId, choice) {
+    if (this.state === 'playing') return { error: 'Während des Spiels nicht änderbar.' };
+    if (this.host()?.id !== byId) return { error: 'Nur der Host wählt die Karten.' };
+    const clean = cleanDeckChoice(choice);
+    if (!clean) return { error: 'Mindestens 1 Rolle muss dabei sein.' };
+    this.deckChoice = clean;
+    return { ok: true };
+  }
+
   // ── Spielstart ────────────────────────────────────────────
   start(byId) {
     if (this.state === 'playing') return { error: 'Läuft schon.' };
@@ -147,21 +173,23 @@ export class CardRoom {
     }
     shuffle(this.deck);
 
-    // Los-Topf: alle selbstgebauten Bomben (falls vorhanden) + Charaktere + Standard-Specials + Spielerkarten
+    // Los-Topf: alle selbstgebauten Bomben + die Spezialkarten, die der Host ausgewählt hat
+    const chosen = new Set(this.deckChoice.specials);
+    const pick = (obj) => Object.entries(obj).filter(([key]) => chosen.has(key));
     const customCards = this.players
       .filter((p) => p.special && p.special.effects?.length)
       .map((p) => card({ kind: 'special', key: 'custom', owner: p.id, by: p.name, name: p.special.name, emoji: '💣', effects: p.special.effects }));
 
     const pot = shuffle([
       ...customCards,
-      ...Object.entries(CHARACTERS).map(([key, ch]) => card({ kind: 'special', key, name: ch.name, title: ch.title, emoji: ch.emoji, effects: ch.effects, art: ch.art ?? `/card-art/${key}.jpg`, fullArt: !!ch.fullArt })),
-      ...Object.keys(BASIC_SPECIALS).map(basicCard),
-      ...Object.entries(PLAYER_CARDS).map(([key, c]) => card({ kind: 'special', key, effects: [], ...c })),
+      ...pick(CHARACTERS).map(([key, ch]) => card({ kind: 'special', key, name: ch.name, title: ch.title, emoji: ch.emoji, effects: ch.effects, art: ch.art ?? `/card-art/${key}.jpg`, fullArt: !!ch.fullArt })),
+      ...pick(BASIC_SPECIALS).map(([key]) => basicCard(key)),
+      ...pick(PLAYER_CARDS).map(([key, c]) => card({ kind: 'special', key, effects: [], ...c })),
     ]);
 
     for (const p of this.players) {
       p.inGame = true;
-      p.role = pickRole();
+      p.role = pickRole(this.deckChoice.roles);
       p.stats = { resonance: 0, pileCards: 0, drawnCards: 0, specials: 0 };
       // Ausgeloste Specials: Standardmäßig RULES.specialsStart (2), Erzmagier bekommt 3
       const count = (this.hasRole(p, 'magier') || this.hasRole(p, 'mage')) ? 3 : (RULES.specialsStart || 2);
@@ -309,6 +337,7 @@ export class CardRoom {
         desc: `${a.name} mischt neu & ${b2.name} zieht 3!`,
         emoji: '🎭',
         actor: p.name,
+        voice: this.voiceFor(p, 'jester_combo'),
       });
       // Person 1: Hand (ohne Kartoffel) in den Ziehstapel mischen, gleich viele neu ziehen
       const keep = a.hand.filter((c) => c.ability === 'potato');
@@ -328,9 +357,10 @@ export class CardRoom {
     this.setLastAction(`${p.name}: ${sp.name}`, sp.emoji || '✨');
     this.triggerChainEvent({
       title: sp.name,
-      desc: sp.text || cardText(sp) || `${p.name} aktiviert Fähigkeit`,
+      desc: cardText(sp) || `${p.name} aktiviert Fähigkeit`,
       emoji: sp.emoji || '✨',
       actor: p.name,
+      voice: this.voiceFor(p, sp.key === 'custom' ? null : sp.key, `${sp.name}! ${cardText(sp)}.`),
     });
     if (sp.ability === 'twins') {
       this.wild = { colors: choice.colors, owner: p.id };
@@ -605,6 +635,7 @@ export class CardRoom {
       desc: `${p.name} wirft Kartoffel an ${t.name} weiter (+3 Strafkarten)`,
       emoji: '🥔',
       actor: p.name,
+      voice: this.voiceFor(p, 'kartoffel'),
     });
     if (this.hasRole(t, 'gott') || this.hasRole(t, 'god')) {
       this.say(`☀️ ${t.name} (Gott) verbrennt die Heiße Kartoffel mit heiligem Licht – sie fällt in den Ziehstapel!`);
@@ -1169,6 +1200,7 @@ export class CardRoom {
       game: this.game,
       introLeft: Math.max(0, this.introUntil - Date.now()),
       host: this.host()?.id,
+      deckChoice: this.deckChoice,
       turn: this.state === 'playing' ? this.current()?.id : null,
       winner: this.winner,
       ranking: this.ranking,
@@ -1218,8 +1250,8 @@ function basicCard(key) {
   return card({ kind: 'special', key, name: b.name, emoji: b.emoji, effects: b.effects, art: b.art, fullArt: !!b.fullArt });
 }
 
-function pickRole() {
-  const entries = Object.entries(ROLES);
+function pickRole(allowed = Object.keys(ROLES)) {
+  const entries = Object.entries(ROLES).filter(([key]) => allowed.includes(key));
   let r = Math.random() * entries.reduce((s, [, ro]) => s + ro.weight, 0);
   for (const [key, ro] of entries) { r -= ro.weight; if (r <= 0) return key; }
   return entries[0][0];

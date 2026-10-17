@@ -1,6 +1,6 @@
 // „TOPP DAS!“ im Browser: Lobby, Bomben-Karten-Baukasten, Tisch.
 
-import { CARD_BRAND, EFFECTS, TARGETS, MAX_EFFECTS_PER_CARD, ROLES, CHARACTERS, BASIC_SPECIALS, PLAYER_CARDS, JESTER_COMBO, RULES, describe, cardText, validateEffects, COLOR_ELEMENTS } from '/shared/cards.js';
+import { CARD_BRAND, EFFECTS, TARGETS, MAX_EFFECTS_PER_CARD, ROLES, CHARACTERS, BASIC_SPECIALS, PLAYER_CARDS, JESTER_COMBO, RULES, describe, cardText, validateEffects, COLOR_ELEMENTS, DEFAULT_DECK, SPECIAL_GROUPS, specialCatalog } from '/shared/cards.js';
 import { fileToAvatar } from '/js/avatar.js';
 import { cardEl } from './card-ui.js';
 import { connect, SERVER } from '/js/net.js';
@@ -79,7 +79,7 @@ document.addEventListener('webkitfullscreenchange', updateFsUI);
 updateFsUI();
 
 // ── Club-Almanach & Galerie ───────────────────────────────
-let activeTab = 'club';
+let activeTab = 'active';
 function renderAlmanachTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.almanach-tabs .tab-btn').forEach((b) => {
@@ -89,7 +89,23 @@ function renderAlmanachTab(tab) {
   almanachContent.innerHTML = '';
 
   let items = [];
-  if (tab === 'club') {
+  if (tab === 'active') {
+    // Nur was in diesem Spiel wirklich drin ist – kurz erklärt
+    const choice = view?.deckChoice ?? DEFAULT_DECK;
+    items = [
+      ...(view?.customCards ?? []).map((c) => ({
+        emoji: '💣', art: c.art || arts[c.owner]?.art || null, name: c.name,
+        title: 'Selbstgebaute Bombe', by: `von ${c.by}`, text: c.text || describe(c.effects ?? []),
+      })),
+      ...specialCatalog().filter((c) => choice.specials.includes(c.key)).map((c) => ({
+        emoji: c.emoji || '✨', name: c.name,
+        title: SPECIAL_GROUPS.find((g) => g.key === c.group)?.name ?? 'Spezialkarte', by: '', text: c.short,
+      })),
+      ...choice.roles.filter((k) => ROLES[k]).map((k) => ({
+        emoji: ROLES[k].emoji, name: ROLES[k].name, title: 'Geheime Rolle', by: '', text: ROLES[k].short ?? ROLES[k].text,
+      })),
+    ];
+  } else if (tab === 'club') {
     const liveCustom = (view?.customCards ?? []).map((c) => ({
       emoji: c.emoji || '💣',
       art: c.art || arts[c.owner]?.art || null,
@@ -421,9 +437,47 @@ let lastSeenLog = null;
 let lastSeenChainId = 0;
 let chainTimeout = null;
 
+// 🗣️ KI-Ansage: fertige MP3 aus /karten/voice/, sonst spricht der Browser selbst
+let voiceAudio = null;
+function stopVoice() {
+  if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (sound.bgmGain && sound.ctx) sound.bgmGain.gain.setTargetAtTime(sound.bgmEnabled ? 0.35 : 0, sound.ctx.currentTime, 0.2);
+}
+function hideChainBanner() {
+  const banner = $('chain-banner');
+  banner.classList.remove('show');
+  setTimeout(() => { if (!banner.classList.contains('show')) banner.hidden = true; }, 350);
+}
+function speak(voice, done) {
+  stopVoice();
+  if (!sound.sfxEnabled) return done(3000);          // Sound aus → nur lesen
+  if (sound.bgmGain && sound.ctx) sound.bgmGain.gain.setTargetAtTime(sound.bgmEnabled ? 0.08 : 0, sound.ctx.currentTime, 0.1);
+  const finish = () => { stopVoice(); done(600); };
+  const browserVoice = () => {
+    if (!('speechSynthesis' in window)) return done(4000);
+    const u = new SpeechSynthesisUtterance(voice.line);
+    u.lang = 'de-DE'; u.rate = 1.1; u.pitch = 1.1;
+    u.onend = finish; u.onerror = finish;
+    speechSynthesis.speak(u);
+  };
+  if (!voice.key) return browserVoice();
+  const a = new Audio(`/karten/voice/${voice.key}.mp3`);
+  voiceAudio = a;
+  a.onended = finish;
+  a.onerror = () => { if (voiceAudio === a) browserVoice(); };
+  a.play().catch(() => { if (voiceAudio === a) { voiceAudio = null; done(4500); } });
+}
+
 function showChainBanner(evt) {
-  if (!evt || evt.id === lastSeenChainId) return;
+  if (!evt) return;
+  if (evt.id === lastSeenChainId) {
+    // Gleiche Ansage, aber jetzt übersprungen → bei allen sofort aufhören
+    if (evt.voice?.skipped && !$('chain-banner').hidden) { stopVoice(); clearTimeout(chainTimeout); hideChainBanner(); }
+    return;
+  }
   lastSeenChainId = evt.id;
+  stopVoice();
   const banner = $('chain-banner');
   if (!banner) return;
 
@@ -436,6 +490,11 @@ function showChainBanner(evt) {
   if (actorEl) actorEl.textContent = evt.actor ? `👤 ${evt.actor}` : 'EFFEKT';
   if (titleEl) titleEl.textContent = evt.title || 'Karten-Effekt';
   if (descEl) descEl.textContent = evt.desc || '';
+  const voice = evt.voice && !evt.voice.skipped && Date.now() - (evt.time || 0) < 8000 ? evt.voice : null;
+  $('chain-voice').hidden = !voice;
+  $('chain-voice').textContent = voice ? `🗣️ ${voice.line}` : '';
+  $('chain-skip').hidden = !(voice && voice.by === me);
+  $('chain-skip').onclick = () => { act('voice-skip', null); stopVoice(); clearTimeout(chainTimeout); hideChainBanner(); };
 
   if (chainTimeout) clearTimeout(chainTimeout);
   banner.hidden = false;
@@ -444,10 +503,11 @@ function showChainBanner(evt) {
     vibrate([30, 40, 30]);
   });
 
-  chainTimeout = setTimeout(() => {
-    banner.classList.remove('show');
-    setTimeout(() => { banner.hidden = true; }, 350);
-  }, 3000);
+  const close = (ms) => { clearTimeout(chainTimeout); chainTimeout = setTimeout(hideChainBanner, ms); };
+  if (voice) {
+    close(12000);                                     // Sicherheitsnetz, falls Audio hängt
+    speak(voice, close);
+  } else close(3000);
 }
 
 socket.on('view', (v) => {
@@ -528,6 +588,92 @@ socket.on('hello', ({ build }) => {
   }
   knownBuild = build;
 });
+
+// ── Kartenauswahl vor dem Spiel: Host wählt, alle anderen sehen mit ──
+const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+let deckShown = '';
+function renderDeckModal(force = false) {
+  const v = view;
+  if (!v) return;
+  const canEdit = v.host === me && v.state !== 'playing';
+  const choice = v.deckChoice ?? DEFAULT_DECK;
+  const key = JSON.stringify([choice, canEdit, v.customCards?.length]);
+  if (!force && key === deckShown) return;     // nichts geändert → offene „Mehr“-Felder nicht zuklappen
+  deckShown = key;
+  const box = $('deck-content');
+  const scroll = box.scrollTop;
+  const row = (type, k, emoji, name, short, long, on) => `
+    <div class="deck-row${on ? ' on' : ''}">
+      <label>
+        <input type="checkbox" data-type="${type}" data-key="${k}" ${on ? 'checked' : ''} ${canEdit ? '' : 'disabled'} />
+        <span class="deck-emoji">${escHtml(emoji)}</span>
+        <span class="deck-info"><b>${escHtml(name)}</b><span>${escHtml(short)}</span></span>
+      </label>
+      ${long && long !== short ? `<details><summary>Original-Text</summary>${escHtml(long)}</details>` : ''}
+    </div>`;
+  const section = (type, gkey, title, hint, rows, onCount) => `
+    <section class="deck-group">
+      <header>
+        <div><h3>${title} <small>${onCount}/${rows.length}</small></h3><p>${hint}</p></div>
+        ${canEdit ? `<div class="deck-quick"><button type="button" data-all="${type}:${gkey}">alle</button><button type="button" data-none="${type}:${gkey}">keine</button></div>` : ''}
+      </header>
+      ${rows.join('')}
+    </section>`;
+  const catalog = specialCatalog();
+  const own = v.customCards?.length ?? 0;
+  box.innerHTML = `
+    <p class="deck-summary">Im Spiel: <b>${choice.specials.length} Spezialkarten</b>${own ? ` + <b>${own} eigene Bomben</b>` : ''} · <b>${choice.roles.length} Rollen</b>.
+      Jede*r bekommt zum Start 2 Spezialkarten, der Rest liegt im Stapel.</p>
+    <div class="deck-row deck-voice${choice.voice !== false ? ' on' : ''}">
+      <label>
+        <input type="checkbox" id="deck-voice" ${choice.voice !== false ? 'checked' : ''} ${canEdit ? '' : 'disabled'} />
+        <span class="deck-emoji">🗣️</span>
+        <span class="deck-info"><b>Ansage bei Spezialkarten</b><span>Eine KI-Stimme erklärt allen kurz, was gerade passiert. Wer die Karte legt, kann überspringen.</span></span>
+      </label>
+    </div>
+    ${canEdit
+      ? `<div class="deck-quick deck-presets"><button type="button" id="deck-default">↺ Grundspiel</button><button type="button" id="deck-everything">Alles rein</button></div>`
+      : '<p class="deck-note">👑 Nur der Host kann die Auswahl ändern.</p>'}
+    ${SPECIAL_GROUPS.map((g) => {
+      const list = catalog.filter((c) => c.group === g.key);
+      return section('specials', g.key, g.name, g.hint,
+        list.map((c) => row('specials', c.key, c.emoji, c.name + (c.by ? ` · von ${c.by}` : ''), c.short, c.long, choice.specials.includes(c.key))),
+        list.filter((c) => choice.specials.includes(c.key)).length);
+    }).join('')}
+    ${section('roles', 'roles', 'Geheime Rollen', 'Jede*r bekommt zufällig eine davon – mindestens 1 muss an sein.',
+      Object.entries(ROLES).map(([k, r]) => row('roles', k, r.emoji, r.name, r.short ?? r.text, r.text, choice.roles.includes(k))),
+      choice.roles.length)}`;
+  box.scrollTop = scroll;
+  if (!canEdit) return;
+
+  const send = (next) => act('configure', next);
+  const groupKeys = (type, gkey) => type === 'roles' ? Object.keys(ROLES) : catalog.filter((c) => c.group === gkey).map((c) => c.key);
+  box.querySelectorAll('input[type=checkbox]').forEach((cb) => {
+    cb.onchange = () => {
+      const { type, key: k } = cb.dataset;
+      const list = new Set(choice[type]);
+      if (cb.checked) list.add(k); else list.delete(k);
+      if (type === 'roles' && !list.size) { cb.checked = true; return toast('Mindestens 1 Rolle muss dabei sein.'); }
+      send({ ...choice, [type]: [...list] });
+    };
+  });
+  box.querySelectorAll('[data-all],[data-none]').forEach((b) => {
+    b.onclick = () => {
+      const [type, gkey] = (b.dataset.all ?? b.dataset.none).split(':');
+      const keys = groupKeys(type, gkey);
+      const list = new Set(choice[type]);
+      for (const k of keys) b.dataset.all ? list.add(k) : list.delete(k);
+      if (type === 'roles' && !list.size) return toast('Mindestens 1 Rolle muss dabei sein.');
+      send({ ...choice, [type]: [...list] });
+    };
+  });
+  $('deck-voice').onchange = (e) => send({ ...choice, voice: e.target.checked });
+  $('deck-default').onclick = () => send(DEFAULT_DECK);
+  $('deck-everything').onclick = () => send({ specials: catalog.map((c) => c.key), roles: Object.keys(ROLES) });
+}
+$('deck-btn').onclick = () => { $('deck-modal').hidden = false; renderDeckModal(true); };
+$('deck-close').onclick = () => { $('deck-modal').hidden = true; };
+$('deck-modal').onclick = (e) => { if (e.target === $('deck-modal')) $('deck-modal').hidden = true; };
 
 // Aktion senden – war der Server „vergesslich“ (Neustart), erst wieder hinsetzen, dann nochmal
 function act(event, data, onError = toast) {
@@ -713,6 +859,10 @@ function render() {
 
   // Knöpfe
   const isHost = v.host === me;
+  const nChosen = (v.deckChoice?.specials.length ?? 0) + (v.customCards?.length ?? 0);
+  $('deck-btn').hidden = v.state === 'playing';
+  $('deck-btn').textContent = `🎴 Karten (${nChosen})`;
+  if (!$('deck-modal').hidden) renderDeckModal();
   $('start').hidden = !(isHost && v.state !== 'playing');
   $('start').textContent = v.state === 'over' ? '🔁 Nochmal' : '▶️ Spiel starten';
   $('start').disabled = v.players.length < 2;
@@ -985,7 +1135,7 @@ function showRoleCard(role, v) {
     </div>`;
   ov.querySelector('.big-emoji').textContent = role.emoji;
   ov.querySelector('h2').textContent = role.name;
-  ov.querySelector('.role-text').textContent = role.text;
+  ov.querySelector('.role-text').textContent = role.short ?? role.text;
   $('skip-role').onclick = () => drawSpecial(v);
   introTimers.push(setTimeout(() => { if (!$('intro').hidden && $('skip-role')) drawSpecial(v); }, 9000));
 }
@@ -1001,11 +1151,15 @@ function drawSpecial(v) {
       <button class="skip" id="skip-intro" hidden>Los geht's ▶</button>
     </div>`;
   // Kisten-Öffnen: Streifen voller möglicher Specials rauscht vorbei und stoppt bei deiner
+  // Nur Karten, die in diesem Spiel wirklich drin sind (Auswahl des Hosts + eigene Bomben)
+  const chosen = new Set(v.deckChoice?.specials ?? []);
   const pool = [
     ...Object.entries(CHARACTERS).map(([key, c]) => ({ kind: 'special', key, ...c })),
     ...Object.entries(BASIC_SPECIALS).map(([key, c]) => ({ kind: 'special', key, ...c })),
     ...Object.entries(PLAYER_CARDS).map(([key, c]) => ({ kind: 'special', key, effects: [], ...c })),
-  ];
+  ].filter((c) => chosen.has(c.key));
+  pool.push(...(v.customCards ?? []).map((c) => ({ kind: 'special', ...c })));
+  if (!pool.length) pool.push(v.drawn);
   const strip = $('case-strip');
   const target = 30;
   const cw = 110, gap = 12;

@@ -125,6 +125,8 @@ cards.on('connection', (socket) => {
   });
 
   on('start', act(() => room.start(pid)));
+  on('configure', act((choice) => room.configure(pid, choice)));
+  on('voice-skip', act(() => room.skipVoice(pid)));
   on('play', act((ids) => room.play(pid, ids)));
   on('take', act(() => room.take(pid)));
   on('chat', (text) => {

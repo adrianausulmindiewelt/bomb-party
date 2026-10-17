@@ -2,7 +2,7 @@
 
 **Von Wien bis Berlin – ClubApp.** Zwei Multiplayer-Browserspiele, die wir im Workshop gemeinsam bauen.
 
-👉 **Spielen:** https://bomb-party-henna.vercel.app/ (Bomberman: /bomb-party/) · **Mitmachen ohne Code:** [docs/MITMACHEN.md](docs/MITMACHEN.md)
+👉 **Spielen:** https://bomb-party-henna.vercel.app/ (Bomberman: /bomb-party/) · **Mitmachen ohne Code:** [docs/MITMACHEN.md](docs/MITMACHEN.md) · **Mit KI mitentwickeln:** [docs/KI-PROMPT.md](docs/KI-PROMPT.md)
 
 ## Bomb Party
 Prinzip: Bomberman. Kisten sprengen, Power-ups sammeln, die anderen erwischen.

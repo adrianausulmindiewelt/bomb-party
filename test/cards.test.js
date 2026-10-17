@@ -1252,3 +1252,70 @@ test('Ohne eigene Bomben-Karte stürzt arts() nicht ab (hat am 15.10. den Server
   assert.equal(arts.a.art, null);
   assert.ok('b' in arts);
 });
+
+// ── Kartenauswahl durch den Host ───────────────────────────
+import { DEFAULT_DECK, specialCatalog } from '../shared/cards.js';
+
+function lobby(n = 3) {
+  const r = new CardRoom('auswahl');
+  for (let i = 0; i < n; i++) r.addPlayer('p' + i, { name: 'P' + i, special: { effects: [{ type: 'reset' }] } });
+  return r;
+}
+const allCards = (r) => [...r.deck, ...r.players.flatMap((p) => p.hand)];
+
+test('Kartenauswahl: Grundspiel ist voreingestellt, nur diese Specials kommen ins Spiel', () => {
+  const r = lobby(4);
+  assert.deepEqual(r.deckChoice, DEFAULT_DECK);
+  r.start('p0');
+  const keys = new Set(allCards(r).filter((c) => c.kind === 'special' && c.key !== 'custom').map((c) => c.key));
+  for (const k of keys) assert.ok(DEFAULT_DECK.specials.includes(k), `${k} ist nicht im Grundspiel`);
+  for (const p of r.players) assert.ok(DEFAULT_DECK.roles.includes(p.role));
+});
+
+test('Kartenauswahl: Host wählt Specials und Rollen, eigene Bomben bleiben immer drin', () => {
+  const r = lobby(3);
+  assert.equal(r.configure('p0', { specials: ['kartoffel', 'gibtsnicht'], roles: ['gott'] }).ok, true);
+  assert.deepEqual(r.deckChoice, { voice: true, specials: ['kartoffel'], roles: ['gott'] });
+  r.start('p0');
+  const specials = allCards(r).filter((c) => c.kind === 'special');
+  assert.deepEqual([...new Set(specials.map((c) => c.key))].sort(), ['custom', 'kartoffel']);
+  assert.equal(specials.filter((c) => c.key === 'custom').length, 3);
+  assert.ok(r.players.every((p) => p.role === 'gott'));
+});
+
+test('Kartenauswahl: nur der Host, nicht während des Spiels, mindestens 1 Rolle', () => {
+  const r = lobby(3);
+  assert.ok(r.configure('p1', { specials: [], roles: ['held'] }).error);
+  assert.ok(r.configure('p0', { specials: [], roles: [] }).error);
+  assert.equal(r.configure('p0', { specials: [], roles: ['held'] }).ok, true);
+  r.start('p0');
+  assert.ok(r.configure('p0', { specials: ['reset'], roles: ['held'] }).error);
+  // ohne gewählte Specials: nur die eigenen Bomben, niemand zieht die eigene
+  for (const p of r.players) assert.ok(p.hand.every((c) => c.owner !== p.id));
+});
+
+test('Jede wählbare Karte hat eine kurze Erklärung', () => {
+  for (const c of specialCatalog()) assert.ok(c.short && c.short.length <= 120, `${c.key}: ${c.short}`);
+  for (const [k, ro] of Object.entries(ROLES)) assert.ok(ro.short, `Rolle ${k} ohne Kurz-Erklärung`);
+});
+
+test('Ansage: Spezialkarte bringt den Satz mit, nur die legende Person kann überspringen, abschaltbar', () => {
+  const r = table(3);
+  const p = r.current();
+  const other = r.players.find((o) => o !== p);
+  p.hand.push({ id: 'rs', kind: 'special', key: 'reset', name: 'Reset', emoji: '🔄', effects: [{ type: 'reset' }] });
+  assert.equal(r.play(p.id, ['rs']).ok, true);
+  assert.equal(r.chainEvent.voice.key, 'reset');
+  assert.ok(r.chainEvent.voice.line.startsWith('Reset!'));
+  assert.ok(r.skipVoice(other.id).error);
+  assert.equal(r.skipVoice(p.id).ok, true);
+  assert.equal(r.chainEvent.voice.skipped, true);
+
+  const q = lobby(2);
+  q.configure('p0', { voice: false, specials: ['reset'], roles: ['buerger'] });
+  q.start('p0'); q.introUntil = 0;
+  const c = q.current();
+  c.hand.push({ id: 'rs2', kind: 'special', key: 'reset', name: 'Reset', emoji: '🔄', effects: [{ type: 'reset' }] });
+  q.play(c.id, ['rs2']);
+  assert.equal(q.chainEvent.voice, null);
+});

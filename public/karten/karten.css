@@ -1261,3 +1261,49 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 body:has(#lobby:not([hidden])) #audio-controls { flex-direction: row; top: 12px; right: 12px; }
 body:has(#lobby:not([hidden])) #audio-controls button { width: 38px; height: 38px; }
 body:has(#lobby:not([hidden])) .hero { padding-top: 56px; }
+
+/* ═════════ Kartenauswahl vor dem Spiel ═════════ */
+.deck-window { text-align: left; }
+#deck-content { overflow-y: auto; max-height: calc(88vh - 90px); padding-right: 6px;
+  scrollbar-width: thin; scrollbar-color: var(--accent) #141226; }
+.deck-summary { margin: 0 0 10px; line-height: 1.45; color: #ddd; }
+.deck-note { margin: 0 0 12px; color: #ffd23d; font-size: .9rem; }
+.deck-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.deck-quick button { background: #2b2a45; border-radius: 99px; padding: 6px 12px; font-size: .82rem; font-weight: 700; }
+.deck-quick button:hover { background: #3a3760; }
+.deck-presets { margin-bottom: 14px; }
+.deck-presets button:first-child { background: var(--accent); }
+.deck-group { margin-bottom: 18px; }
+.deck-group header { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 6px; margin-bottom: 8px; }
+.deck-group h3 { margin: 0; font-size: 1.05rem; color: #fff; }
+.deck-group h3 small { color: #ffd23d; font-weight: 700; margin-left: 4px; }
+.deck-group header p { margin: 2px 0 0; font-size: .82rem; color: #aaa; }
+.deck-row { border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; background: rgba(255,255,255,.03);
+  border: 1px solid transparent; opacity: .6; transition: opacity .15s, border-color .15s; }
+.deck-row.on { opacity: 1; border-color: rgba(255, 61, 127, .45); background: rgba(255, 61, 127, .08); }
+.deck-row label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.deck-row input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); flex: none; }
+.deck-row input:disabled { cursor: default; }
+.deck-emoji { font-size: 1.5rem; line-height: 1; flex: none; width: 1.8rem; text-align: center; }
+.deck-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.deck-info b { font-size: .95rem; }
+.deck-info span { font-size: .86rem; color: #ddd; line-height: 1.35; }
+.deck-row details { margin: 4px 0 0 64px; font-size: .78rem; color: #aaa; line-height: 1.4; }
+.deck-row summary { cursor: pointer; color: #ffd23d; }
+.deck-voice { margin-bottom: 12px; }
+
+/* KI-Ansage im Effekt-Banner */
+.chain-banner-voice { margin-top: 6px; font-size: .95rem; line-height: 1.35; color: #ffd23d; font-weight: 700; }
+.chain-skip { margin-top: 4px; align-self: center; flex: none; background: rgba(255,255,255,.14); border-radius: 99px;
+  padding: 8px 12px; font-size: .82rem; font-weight: 800; pointer-events: auto; }
+.chain-skip:hover { background: var(--accent); }
+
+/* Mitentwickeln-Kasten auf der Startseite */
+#step-dev #dev-copy { width: 100%; padding: 14px; font-size: 1rem; margin: 6px 0 10px; }
+.dev-prompt summary { cursor: pointer; color: #ffd23d; font-size: .88rem; }
+.dev-prompt pre { white-space: pre-wrap; word-break: break-word; font-size: .78rem; line-height: 1.45; text-align: left;
+  background: rgba(10, 9, 20, .7); border: 1px solid var(--line); border-radius: 12px; padding: 12px; max-height: 320px; overflow: auto; }
+/* Offene Fenster nicht von der Musik-Leiste verdecken lassen (Handy) */
+body:has(#deck-modal:not([hidden])) #audio-controls,
+body:has(#almanach-modal:not([hidden])) #audio-controls { visibility: hidden; }
