@@ -1362,3 +1362,11 @@ body:has(#almanach-modal:not([hidden])) #audio-controls { visibility: hidden; }
   70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; }
 }
+
+/* Zwischen den Runden: Bot-Verwaltung erreichbar, Tischmitte bleibt frei. */
+#actions.setup {
+  top: auto; bottom: 18%; right: auto; left: 50%; transform: translateX(-50%);
+  width: min(540px, 92%); flex-direction: row; flex-wrap: wrap; justify-content: center;
+}
+#actions.setup #my-role-badge { display: none !important; }
+#actions.setup button { min-height: 44px; }

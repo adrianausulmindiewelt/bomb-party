@@ -3,6 +3,7 @@
 // Sperrbildschirm oder Funkloch wieder auf denselben Platz zurück.
 // Jede*r bekommt eine eigene Sicht (view): die eigene Hand ganz, von den anderen nur die Anzahl.
 
+import { randomUUID } from 'node:crypto';
 import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, VOICE_LINES, DEFAULT_DECK, cleanDeckChoice, cardText, describe, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
 
 let nextCardId = 1;
@@ -35,6 +36,7 @@ export class CardRoom {
     this.lastAction = null;   // Letzter Spielzug für die Info-Pille am Tisch
     this.chainEvent = null;   // Aktiver Chain-Banner (Yu-Gi-Oh / Master Duel Effekt-Popup)
     this.chainEventId = 0;
+    this.botPending = null;
   }
 
   triggerChainEvent(evt) {
@@ -71,6 +73,7 @@ export class CardRoom {
   // ── Leute ──────────────────────────────────────────────────
   addPlayer(pid, { name, avatar, special }) {
     const back = this.players.find((p) => p.id === pid);
+    if (back?.bot) return { error: 'Dieser Platz gehört einem Bot.' };
     if (back) {                                   // Wiederkehr nach Verbindungsabbruch
       back.connected = true;
       back.awaySince = 0;
@@ -92,6 +95,57 @@ export class CardRoom {
     });
     this.say(this.state === 'playing' ? `${name} schaut zu und steigt nächste Runde ein.` : `${name} ist da.`);
     return { ok: true };
+  }
+
+  // Bots bleiben echte Mitspieler: dieselben Züge und Regeln, keine fremden Hände.
+  addBot(byId) {
+    if (this.host()?.id !== byId) return { error: 'Nur der Host kann Bots hinzufügen.' };
+    if (this.state === 'playing') return { error: 'Bots nur zwischen den Spielen ändern.' };
+    const id = `bot-${randomUUID()}`;
+    let n = 1;
+    while (this.players.some((p) => p.name === `Bot ${n}`)) n++;
+    const result = this.addPlayer(id, { name: `Bot ${n}`, avatar: null, special: null });
+    if (result.ok) this.players.find((p) => p.id === id).bot = true;
+    return result;
+  }
+
+  removeBot(byId, botId) {
+    if (this.host()?.id !== byId) return { error: 'Nur der Host kann Bots entfernen.' };
+    if (this.state === 'playing') return { error: 'Bots nur zwischen den Spielen ändern.' };
+    if (!this.players.some((p) => p.id === botId && p.bot)) return { error: 'Bot nicht gefunden.' };
+    this.removePlayer(botId);
+    return { ok: true };
+  }
+
+  playBot() {
+    const p = this.current();
+    if (this.state !== 'playing' || !p?.bot || Date.now() < this.introUntil) return false;
+    const others = this.active().filter((o) => o !== p).sort((a, b) => a.hand.length - b.hand.length);
+    const groups = new Map();
+    for (const c of p.hand.filter((c) => c.kind === 'number')) {
+      if (!groups.has(c.value)) groups.set(c.value, []);
+      groups.get(c.value).push(c);
+    }
+    // Erst möglichst viele Zahlen loswerden; hohe Werte als Reserve halten.
+    const numbers = [...groups.values(), ...p.hand.filter((c) => c.kind === 'number').map((c) => [c])]
+      .sort((a, b) => b.length - a.length || (this.lower ? b[0].value - a[0].value : a[0].value - b[0].value));
+    const specials = p.hand.filter((c) => c.kind === 'special').map((c) => [c]);
+    const happy = p.hand.find((c) => c.ability === 'luckyJester');
+    const sad = p.hand.find((c) => c.ability === 'sadJester');
+    const combos = happy && sad && others.length >= 2 ? [[happy, sad]] : [];
+    for (const cards of [...combos, ...numbers, ...specials]) {
+      if (this.whyNot(cards)) continue;
+      const c = cards[0];
+      const targets = c.ability === 'potato' ? others.filter((o) => o.id !== c.cameFrom) : others;
+      const target = targets[0] ?? others[0];
+      const colors = [...RULES.colors].sort((a, b) =>
+        p.hand.filter((x) => x.color === b).length - p.hand.filter((x) => x.color === a).length).slice(0, 2);
+      const result = this.play(p.id, { ids: cards.map((c) => c.id), choice: {
+        target: target?.id, targets: others.slice(0, 2).map((o) => o.id), colors,
+      } });
+      if (result.ok) return true;
+    }
+    return !!this.take(p.id).ok;
   }
 
   // Verbindung weg: im laufenden Spiel Platz freihalten, sonst sofort gehen
@@ -139,6 +193,15 @@ export class CardRoom {
       this.advance(1);
       changed = true;
     }
+    const bot = this.current();
+    if (this.state === 'playing' && bot?.bot && now >= this.introUntil
+        && this.players.some((p) => !p.bot && p.connected)) {
+      if (this.botPending?.id !== bot.id) this.botPending = { id: bot.id, due: now + 1500 };
+      if (now >= this.botPending.due) {
+        this.botPending = null;
+        changed = this.playBot() || changed;
+      }
+    } else this.botPending = null;
     return changed;
   }
 
@@ -1174,7 +1237,7 @@ export class CardRoom {
   // ── Was die Browser sehen ─────────────────────────────────
   active() { return this.players.filter((p) => p.inGame); }
   current() { return this.players[this.turn]; }
-  host() { return this.players.find((p) => p.connected) ?? this.players[0]; }
+  host() { return this.players.find((p) => !p.bot && p.connected) ?? this.players.find((p) => !p.bot); }
   say(text) { this.log.push(text); this.log = this.log.slice(-8); }
   // Großes Banner für alle (z. B. Münzwurf-Ergebnis)
   fx(text) { this.lastFx = { id: (this.lastFx?.id ?? 0) + 1, text }; this.say(text); }
@@ -1217,7 +1280,7 @@ export class CardRoom {
       chainEvent: this.chainEvent ?? null,
       log: this.log,
       players: this.players.map((p) => ({
-        id: p.id, name: p.name, count: p.hand.length, inGame: p.inGame, connected: p.connected,
+        id: p.id, name: p.name, bot: !!p.bot, count: p.hand.length, inGame: p.inGame, connected: p.connected,
         // Rollen sind geheim – man sieht nur die eigene, der Spion sieht alle, und alle am Spielende
         role: p.role && (p.id === forId || reveal || this.hasRole(me, 'spion') || this.hasRole(me, 'spy')) ? { key: p.role, ...ROLES[p.role] } : null,
         secret: !!p.role && !(p.id === forId || reveal || this.hasRole(me, 'spion') || this.hasRole(me, 'spy')),

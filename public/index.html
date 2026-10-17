@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" />
+  <link rel="stylesheet" href="/brand/design-system.css" />
   <link rel="stylesheet" href="/karten/karten.css" />
 </head>
 <body>
@@ -188,6 +189,8 @@ Bevor du fertig bist:
     <div id="actions">
       <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
       <button id="deck-btn" type="button" hidden>🎴 Karten</button>
+      <button id="bot-add" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>🤖 Bot hinzufügen</button>
+      <button id="bot-remove" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>Bot entfernen</button>
       <button id="start" class="primary" hidden>▶️ Spiel starten</button>
       <button id="take">🗑️ Stapel nehmen</button>
       <button id="play" class="primary">Legen ⬆️</button>
@@ -303,6 +306,7 @@ Bevor du fertig bist:
           <h2>🎴 Karten fürs Spiel</h2>
           <button id="deck-close" type="button" class="close-btn" title="Schließen">✕</button>
         </div>
+        <p id="deck-preset-note" class="deck-note" role="status" hidden></p>
         <div id="deck-content"></div>
       </div>
     </div>

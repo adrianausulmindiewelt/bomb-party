@@ -5,6 +5,7 @@ import { fileToAvatar } from '/js/avatar.js';
 import { cardEl } from './card-ui.js';
 import { connect, SERVER } from '/js/net.js';
 import { sound } from './audio.js';
+import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
 
 const $ = (id) => document.getElementById(id);
 const saved = JSON.parse(localStorage.getItem('karten-profile') || '{}');
@@ -385,7 +386,7 @@ function join(roomName) {
   $('error').textContent = '';
   const art = draw.toDataURL('image/jpeg', 0.75);
   localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects }));
-  lastJoin = { pid, name, avatar, room: roomName, special: { name: specialName, art, effects } };
+  lastJoin = { pid, name, avatar, room: roomName, deckChoice: loadDeckPreset(), special: { name: specialName, art, effects } };
   socket.emit('join', lastJoin, (res) => {
     if (res.error) { $('error').textContent = res.error; return; }
     me = res.id;
@@ -400,6 +401,11 @@ function join(roomName) {
     initControls();
   });
 }
+$('bot-add').onclick = () => act('bot-add', null);
+$('bot-remove').onclick = () => {
+  const bot = [...(view?.players ?? [])].reverse().find((p) => p.bot);
+  if (bot) act('bot-remove', bot.id);
+};
 $('join').onclick = () => join($('room').value.trim() || `tisch-${Math.floor(Math.random() * 900 + 100)}`);
 
 // Offene Tische anzeigen (alle 3 Sekunden aktualisiert)
@@ -513,6 +519,13 @@ function showChainBanner(evt) {
 socket.on('view', (v) => {
   const myTurnBefore = view?.turn === me;
   view = v;
+  if (v.host === me && v.deckChoice) {
+    const stored = saveDeckPreset(v.deckChoice);
+    if (lastJoin) lastJoin.deckChoice = v.deckChoice;
+    $('deck-preset-note').textContent = stored
+      ? '✓ Auswahl gespeichert – gilt automatisch für deinen nächsten neuen Tisch in diesem Browser.'
+      : 'Die Auswahl gilt an diesem Tisch. Dein Browser erlaubt gerade kein dauerhaftes Speichern.';
+  }
   const ids = new Set(v.hand.map((c) => c.id));
   selected = new Set([...selected].filter((id) => ids.has(id)));
   focus = Math.min(focus, Math.max(0, v.hand.length - 1));
@@ -713,7 +726,7 @@ function render() {
     const face = arts[p.id]?.avatar;
     seat.innerHTML = '<div class="face"></div><div class="nm"></div><div class="role"></div><div class="backs"></div>';
     if (face) seat.querySelector('.face').style.backgroundImage = `url("${face}")`;
-    else seat.querySelector('.face').textContent = p.name.slice(0, 2).toUpperCase();
+    else seat.querySelector('.face').textContent = p.bot ? '🤖' : p.name.slice(0, 2).toUpperCase();
     seat.querySelector('.nm').textContent = p.name + (p.id === v.host ? ' 👑' : '');
     if (p.inGame) seat.querySelector('.nm').dataset.count = p.count;
     seat.querySelector('.role').textContent = p.role ? `${p.role.emoji} ${p.role.name}` : p.secret ? '❓ geheim' : (v.state === 'lobby' ? 'wartet …' : 'schaut zu');
@@ -867,10 +880,18 @@ function render() {
 
   // Knöpfe
   const isHost = v.host === me;
+  $('actions').classList.toggle('setup', v.state !== 'playing');
+  $('take').hidden = v.state !== 'playing';
+  $('play').hidden = v.state !== 'playing';
   const nChosen = (v.deckChoice?.specials.length ?? 0) + (v.customCards?.length ?? 0);
   $('deck-btn').hidden = v.state === 'playing';
   $('deck-btn').textContent = `🎴 Karten (${nChosen})`;
   if (!$('deck-modal').hidden) renderDeckModal();
+  $('bot-add').hidden = !(isHost && v.state !== 'playing');
+  $('bot-add').disabled = v.players.length >= RULES.maxPlayers;
+  $('bot-remove').hidden = !(isHost && v.state !== 'playing');
+  $('bot-remove').disabled = !v.players.some((p) => p.bot);
+  $('deck-preset-note').hidden = !isHost || v.state === 'playing';
   $('start').hidden = !(isHost && v.state !== 'playing');
   $('start').textContent = v.state === 'over' ? '🔁 Nochmal' : '▶️ Spiel starten';
   $('start').disabled = v.players.length < 2;
