@@ -119,6 +119,7 @@ cards.on('connection', (socket) => {
   socket.on('start', act(() => room.start(pid)));
   socket.on('play', act((ids) => room.play(pid, ids)));
   socket.on('take', act(() => room.take(pid)));
+  socket.on('skip-narration', act((id) => room.skipNarration(pid, id)));
   socket.on('chat', (text) => {
     const msg = room?.chatSay(pid, text);
     if (msg) cards.to(room.id).emit('chat', msg);

@@ -578,6 +578,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   font-size: clamp(1.6rem, 6vw, 3.2rem); font-weight: 900; text-align: center; color: #ffd23d; white-space: nowrap;
   text-shadow: 0 0 30px #ffd23daa, 0 4px 0 #000; }
 #fx-banner.show { animation: fxpop 2.4s ease-out; }
+#skip-narration { position: fixed; z-index: 46; left: 50%; top: calc(42% + 82px); transform: translateX(-50%);
+  width: auto; max-width: 90vw; padding: 12px 18px; border: 1px solid #ffd23d; border-radius: 999px;
+  background: rgba(20, 18, 31, .94); color: #fff; box-shadow: 0 8px 30px #0009; font-weight: 800; }
 @keyframes fxpop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
   22% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
 /* ═════════ Audio-Steuerung ═════════ */

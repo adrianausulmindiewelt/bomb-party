@@ -74,6 +74,20 @@ test('Nicht dran → kein Zug', () => {
   assert.match(r.play(notMe.id, [notMe.hand[0].id]).error, /nicht dran/);
 });
 
+test('Nur die Person, die das Special spielt, kann die Ansage für alle überspringen', () => {
+  const r = table(2);
+  const p = r.current();
+  const other = r.players.find((candidate) => candidate !== p);
+  const special = { id: 'voice-special', kind: 'special', key: 'reset', name: 'Erzähler', emoji: '🎙️', effects: [{ type: 'reset' }] };
+  p.hand = [special, num(3)];
+  assert.equal(r.play(p.id, [special.id]).ok, true);
+  assert.equal(r.narration.playerId, p.id);
+  assert.ok(r.narration.description.length > 0);
+  assert.ok(r.skipNarration(other.id, r.narration.id).error);
+  assert.equal(r.skipNarration(p.id, r.narration.id).ok, true);
+  assert.equal(r.narration.skipped, true);
+});
+
 test('Verbindung weg und zurück: Platz und Karten bleiben', () => {
   const r = table(3);
   const p = r.players[1];
@@ -867,6 +881,8 @@ test('📋 Die Musterlösung (Adrian - Chef-Dekret): Reinigt Tisch, gibt Extra-Z
   const r = table(3);
   const p0 = r.current();
   const others = r.players.filter((p) => p !== p0);
+  // Zufällige Schutz-/Reflexionsrollen dürfen diesen Karteneffekt-Test nicht beeinflussen.
+  others.forEach((p) => { p.role = 'buerger'; });
   others[0].hand = [num(1), num(2), num(3), num(4)]; // > 3 Karten -> zieht 1 -> 5
   others[1].hand = [num(1), num(2)];                  // <= 3 Karten -> bleibt bei 2
   const sol = sp('adrian_muster');

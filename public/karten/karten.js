@@ -349,6 +349,7 @@ socket.on('view', (v) => {
   selected = new Set([...selected].filter((id) => ids.has(id)));
   focus = Math.min(focus, Math.max(0, v.hand.length - 1));
   render();
+  handleNarration(v.narration);
 
   // Akustische Rückmeldung für Spielereignisse am Tisch
   const lastLog = v.log[v.log.length - 1];
@@ -1030,3 +1031,46 @@ function showFx(fx) {
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   navigator.vibrate?.([40, 30, 40]);
 }
+
+// ══════════ Synchronisierte Spezialkarten-Ansage ══════════
+let currentNarrationId = null;
+const skipNarration = $('skip-narration');
+
+function stopNarration() {
+  window.speechSynthesis?.cancel();
+  if (skipNarration) skipNarration.hidden = true;
+}
+
+function handleNarration(narration) {
+  if (!narration) {
+    if (currentNarrationId !== null) stopNarration();
+    currentNarrationId = null;
+    return;
+  }
+  if (narration.skipped) {
+    if (narration.id === currentNarrationId) stopNarration();
+    currentNarrationId = narration.id;
+    return;
+  }
+  if (narration.id === currentNarrationId) return;
+  currentNarrationId = narration.id;
+  stopNarration();
+  if (skipNarration) skipNarration.hidden = narration.playerId !== me;
+  if (!('speechSynthesis' in window)) return;
+
+  const speech = new SpeechSynthesisUtterance(`${narration.cardName}. ${narration.description}`);
+  speech.lang = 'de-DE';
+  speech.rate = 0.92;
+  const germanVoice = speechSynthesis.getVoices().find((voice) => voice.lang?.toLowerCase().startsWith('de'));
+  if (germanVoice) speech.voice = germanVoice;
+  speech.onend = speech.onerror = () => {
+    if (currentNarrationId === narration.id && skipNarration) skipNarration.hidden = true;
+  };
+  speechSynthesis.speak(speech);
+}
+
+if (skipNarration) skipNarration.onclick = () => {
+  if (currentNarrationId === null) return;
+  skipNarration.hidden = true;
+  socket.emit('skip-narration', currentNarrationId, (res) => res?.error && toast(res.error));
+};
