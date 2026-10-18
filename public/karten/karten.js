@@ -400,7 +400,7 @@ function renderEffects() {
     box.append(row);
     if (!e) break;
   }
-  $('special-desc').textContent = effects.length ? '💣 ' + describe(effects) : 'Wähle mindestens einen Effekt.';
+  $('special-desc').textContent = effects.length ? '💣 ' + describe(effects) : 'Optional: Wähle Effekte oder spiele direkt ohne eigene Bombe mit.';
   updateSteps();
 }
 
@@ -436,25 +436,21 @@ let lastJoin = null;
 
 function join(roomName) {
   const name = $('name').value.trim();
-  const specialName = $('special-name').value.trim();
-  // Die eigene Karte ist Pflicht: Bild, Name und mindestens ein Effekt
-  const missing = !name ? ['Erst deinen Namen eingeben.', 'step-you', $('name')]
-    : !drawn ? ['Zeichne zuerst deine Bomben-Karte (oder lade ein Bild hoch).', 'step-card', draw]
-    : !specialName ? ['Gib deiner Karte noch einen Namen.', 'step-card', $('special-name')]
-    : !effects.length ? ['Deine Karte braucht mindestens einen Effekt.', 'step-card', $('effects')]
-    : null;
-  if (missing) {
-    const [msg, step, el] = missing;
-    $('error').textContent = '👆 ' + msg;
-    $(step).scrollIntoView({ behavior: 'smooth', block: 'center' });
-    $(step).classList.remove('shake'); void $(step).offsetWidth; $(step).classList.add('shake');
-    el.focus?.({ preventScroll: true });
+  if (!name) {
+    $('error').textContent = '👆 Erst deinen Namen eingeben.';
+    $('step-you').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('step-you').classList.remove('shake'); void $('step-you').offsetWidth; $('step-you').classList.add('shake');
+    $('name').focus?.({ preventScroll: true });
     return;
   }
   $('error').textContent = '';
-  const art = draw.toDataURL('image/jpeg', 0.75);
-  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName, effects }));
-  lastJoin = { pid, name, avatar, room: roomName, deckChoice: loadDeckPreset(), special: { name: specialName, art, effects } };
+  const specialName = $('special-name').value.trim();
+  // Eigene Bombe ist optional: Nur mitsenden, wenn vollständig gestaltet
+  const hasCard = drawn && Boolean(specialName) && effects.length > 0;
+  const art = hasCard ? draw.toDataURL('image/jpeg', 0.75) : null;
+  const special = hasCard ? { name: specialName, art, effects } : null;
+  localStorage.setItem('karten-profile', JSON.stringify({ name, avatar, art, specialName: hasCard ? specialName : '', effects: hasCard ? effects : [] }));
+  lastJoin = { pid, name, avatar, room: roomName, deckChoice: loadDeckPreset(), special };
   socket.emit('join', lastJoin, (res) => {
     if (res.error) { $('error').textContent = res.error; return; }
     me = res.id;
