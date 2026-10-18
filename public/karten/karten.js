@@ -603,6 +603,7 @@ socket.on('view', (v) => {
   if (v.chainEvent) {
     showChainBanner(v.chainEvent);
   }
+  showDrawMeme(v.drawMeme);
 
   // Akustische Rückmeldung für Spielereignisse am Tisch
   const lastLog = v.log[v.log.length - 1];
@@ -1470,4 +1471,29 @@ function showFx(fx) {
   el.textContent = fx.text;
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   navigator.vibrate?.([40, 30, 40]);
+}
+
+// ══════════ Meme beim Kartenziehen ══════════
+let lastDrawMemeId = null;
+let drawMemeReady = false;
+let drawMemeTimer = null;
+function showDrawMeme(evt) {
+  if (!evt) { drawMemeReady = true; return; }
+  if (evt.id === lastDrawMemeId) return;
+  if (!drawMemeReady) { drawMemeReady = true; lastDrawMemeId = evt.id; return; }
+  lastDrawMemeId = evt.id;
+  if (Date.now() - (evt.time || 0) > 5000) return;
+
+  const popup = $('draw-meme');
+  if (!popup) return;
+  $('draw-meme-player').textContent = `${evt.playerName} zieht ${evt.count} ${evt.count === 1 ? 'Karte' : 'Karten'}!`;
+  clearTimeout(drawMemeTimer);
+  popup.hidden = false;
+  popup.classList.remove('show'); void popup.offsetWidth; popup.classList.add('show');
+  vibrate([70, 35, 70]);
+  speak({ key: null, line: 'Grrrrrrrr. Karten ziehen!' }, () => {});
+  drawMemeTimer = setTimeout(() => {
+    popup.classList.remove('show');
+    setTimeout(() => { if (!popup.classList.contains('show')) popup.hidden = true; }, 250);
+  }, 2800);
 }

@@ -833,7 +833,16 @@ export class CardRoom {
     if (got && isPenalty) {
       t.stats.drawnCards = (t.stats.drawnCards || 0) + got;
     }
-    if (got) this.say(`   → ${t.name} zieht ${got}${got < n ? ' (Stapel leer)' : ''}`);
+    if (got) {
+      this.say(`   → ${t.name} zieht ${got}${got < n ? ' (Stapel leer)' : ''}`);
+      this.drawMeme = {
+        id: (this.drawMeme?.id ?? 0) + 1,
+        time: Date.now(),
+        playerId: t.id,
+        playerName: t.name,
+        count: got,
+      };
+    }
     if ((this.hasRole(t, 'pechvogel') || this.hasRole(t, 'unlucky')) && from && from !== t && !global && got > 0) {
       this.say(`🐦‍⬛ Geteiltes Pech: Weil ${t.name} zieht, muss ${from.name} auch 1 Karte ziehen!`);
       this.triggerChainEvent({
@@ -1272,6 +1281,7 @@ export class CardRoom {
       wild: this.wild?.colors ?? null,
       sphere: this.pile[this.pile.length - 1]?.ability === 'twins',
       fx: this.lastFx ?? null,
+      drawMeme: this.drawMeme ?? null,
       colorStreak: this.colorStreak,
       deckCount: this.deck.length,
       pile: this.pile.slice(-4),
