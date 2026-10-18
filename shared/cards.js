@@ -373,7 +373,7 @@ export const VOICE_LINES = {
 // ─────────────────────────────────────────────────────────────
 export const DEFAULT_DECK = {
   voice: true,   // KI-Ansage bei Spezialkarten
-  specials: ['reset', 'burn', 'lower', 'reverse', 'skip', 'joker', 'adrian', 'andre', 'kartoffel', 'gluecksspiel', 'igel'],
+  specials: ['reset', 'burn', 'lower', 'reverse', 'skip', 'joker', 'adrian', 'andre', 'kartoffel', 'gluecksspiel'],
   roles: ['buerger', 'dorfdepp', 'pechvogel', 'held', 'spion'],
 };
 
