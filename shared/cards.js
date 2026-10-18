@@ -245,6 +245,12 @@ export const PLAYER_CARDS = {
     name: 'Pyrotechnik-Knall', title: 'Das Feuerwerk (Ruben)', emoji: '🎆', by: 'Ruben', ability: 'fireworkBlast',
     text: 'Aktiv: Zündet das große Club-Feuerwerk! Der Tischstapel detoniert vollständig (verbrennt auf 0). Alle Spieler*innen am Tisch müssen gleichzeitig ihre höchste Zahlenkarte verbrennen!',
   },
+  igel: {
+    name: 'Igel der Blätter', title: 'Raschelndes Laub (Shaymin)', emoji: '🦔', by: 'NoRevanell Morningstar',
+    effects: [{ type: 'again' }, { type: 'draw', n: 2, target: 'next' }],
+    art: '/karten/art/igel.svg', fullArt: true,
+    text: 'Aktiv: Raschelndes Laub! Du bist sofort noch einmal dran und legst noch ein Blatt ab. Die nächste Person am Tisch muss 2 Strafkarten ziehen.',
+  },
 };
 export const JESTER_COMBO = {
   name: 'Lachen und Weinen',
@@ -283,6 +289,7 @@ const CARD_SHORT = {
   ayleen_observer: 'Stapel sinkt um 5 und du wirst 1 zufällige Karte los.',
   niclas_turbo:    'Die nächsten 2 Personen setzen aus und ziehen je 1.',
   ruben_firework:  'Stapel verbrennt. Alle verlieren ihre höchste Zahlenkarte.',
+  igel:            'Du bist nochmal dran und legst ein Blatt ab – die nächste Person zieht 2 Karten.',
 };
 for (const [k, short] of Object.entries(CARD_SHORT)) if (PLAYER_CARDS[k]) PLAYER_CARDS[k].short = short;
 
@@ -356,6 +363,7 @@ export const VOICE_LINES = {
   niclas_turbo:    'Turbo-Abreise! Die nächsten zwei setzen aus und ziehen je eine Karte. Zu langsam!',
   ruben_firework:  'Großes Feuerwerk! Der Stapel explodiert, und alle verlieren ihre höchste Zahlenkarte. Ooooh!',
   jester_combo:    'Lachen und Weinen! Eine Person mischt ihre ganze Hand neu, die andere zieht drei.',
+  igel:            'Raschelndes Laub – der Igel der Blätter rollt an! Du bist nochmal dran und die nächste Person zieht zwei Karten.',
 };
 
 // ─────────────────────────────────────────────────────────────

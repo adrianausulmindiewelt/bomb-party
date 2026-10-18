@@ -1457,3 +1457,24 @@ test('👯 Kombi-Ablage: Gleiche Zahlen (z. B. zwei 7er) können zusammen abgele
   assert.ok(!p0.hand.includes(c1) && !p0.hand.includes(c2));
 });
 
+test('🦔 Igel der Blätter: Raschelndes Laub gewährt Extra-Zug und lässt die nächste Person 2 Karten ziehen', () => {
+  assert.ok(PLAYER_CARDS.igel, 'Igel existiert in PLAYER_CARDS');
+  assert.equal(PLAYER_CARDS.igel.name, 'Igel der Blätter');
+  assert.equal(PLAYER_CARDS.igel.emoji, '🦔');
+  assert.deepEqual(PLAYER_CARDS.igel.effects, [{ type: 'again' }, { type: 'draw', n: 2, target: 'next' }]);
+
+  const r = table(2);
+  const p0 = r.current();
+  const nextSeat = r.seatFrom(p0, 1);
+  nextSeat.role = 'buerger';
+  nextSeat.hand = [num(5)];
+  const p1HandBefore = nextSeat.hand.length;
+
+  const igelCard = { id: 'igel-test', kind: 'special', key: 'igel', ...PLAYER_CARDS.igel };
+  p0.hand = [igelCard, num(10)]; // p0 behält noch eine Karte für den Folgezug
+
+  assert.equal(r.play(p0.id, ['igel-test']).ok, true);
+  assert.equal(r.current().id, p0.id, 'p0 ist für seinen Folgezug sofort noch einmal dran');
+  assert.equal(nextSeat.hand.length, p1HandBefore + 2, 'Die nächste Person hat 2 Strafkarten gezogen');
+});
+
