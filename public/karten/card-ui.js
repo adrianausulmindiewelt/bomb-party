@@ -1,4 +1,4 @@
-import { cardText, CHARACTERS, COLOR_ELEMENTS } from '/shared/cards.js';
+import { cardText, CHARACTERS, COLOR_ELEMENTS, BASIC_SPECIALS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
 
 export function cardEl(c, arts = {}) {
@@ -48,12 +48,17 @@ export function cardEl(c, arts = {}) {
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
 
-  // 🏷️ Corner-Glyph oben links für blitzschnelle Erkennung im Fächer
-  const cornerGlyph = c.emoji || (isCustom ? '💣' : '✨');
-  const cornerTl = document.createElement('div');
-  cornerTl.className = 'corner tl special-corner';
-  cornerTl.innerHTML = `<span class="corner-icon">${cornerGlyph}</span>`;
-  el.append(cornerTl);
+  // 🏷️ Category-Corner oben rechts (dezent & kompakt, verdeckt kein Zentrums-Motiv)
+  const isPassive = ['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability);
+  const isBasic = !!BASIC_SPECIALS?.[c.key];
+  const categoryGlyph = isCustom ? '💣' : isChar ? '🎭' : isPassive ? '🛡️' : isBasic ? '⚡' : '✨';
+  const categoryTitle = isCustom ? 'Eigene Bombe' : isChar ? 'Charakterkarte' : isPassive ? 'Passiver Schutz' : isBasic ? 'Aktionskarte' : 'Spezialkarte';
+
+  const cornerTr = document.createElement('div');
+  cornerTr.className = 'corner tr special-corner';
+  cornerTr.title = categoryTitle;
+  cornerTr.innerHTML = `<span class="corner-icon">${categoryGlyph}</span>`;
+  el.append(cornerTr);
 
   if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
     el.classList.add('passive-guard');

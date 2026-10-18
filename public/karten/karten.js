@@ -8,6 +8,7 @@ import { sound } from './audio.js';
 import { MEME_SOUNDS, MemeEvents } from './meme-sounds.js';
 const memeEvents = new MemeEvents();
 import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
+import { getBotAvatar } from './bot-avatar.js';
 
 const $ = (id) => document.getElementById(id);
 let saved = {};
@@ -794,10 +795,10 @@ function render() {
     seat.className = 'seat' + (p.id === v.turn ? ' turn' : '') + (p.inGame || v.state === 'lobby' ? '' : ' out');
     seat.style.left = `${12 + t * 76}%`;
     seat.style.top = `${10 + Math.sin(Math.PI * t) * -6 + 6}%`;
-    const face = arts[p.id]?.avatar;
+    const face = arts[p.id]?.avatar || (p.bot ? getBotAvatar(p.name || p.id) : null);
     seat.innerHTML = '<div class="face"></div><div class="nm"></div><div class="role"></div><div class="backs"></div>';
     if (face) seat.querySelector('.face').style.backgroundImage = `url("${face}")`;
-    else seat.querySelector('.face').textContent = p.bot ? '🤖' : p.name.slice(0, 2).toUpperCase();
+    else seat.querySelector('.face').textContent = p.name.slice(0, 2).toUpperCase();
     seat.querySelector('.nm').textContent = p.name + (p.id === v.host ? ' 👑' : '');
     if (p.inGame) seat.querySelector('.nm').dataset.count = p.count;
     seat.querySelector('.role').textContent = p.role ? `${p.role.emoji} ${p.role.name}` : p.secret ? '❓ geheim' : (v.state === 'lobby' ? 'wartet …' : 'schaut zu');
@@ -1200,7 +1201,7 @@ function pick(title, people) {
     for (const p of people) {
       const b = document.createElement('button');
       b.className = 'pick';
-      const face = arts[p.id]?.avatar;
+      const face = arts[p.id]?.avatar || (p.bot || p.name?.startsWith('Bot ') ? getBotAvatar(p.name || p.id) : null);
       b.innerHTML = '<span class="pf"></span><b></b><small></small>';
       if (face) b.querySelector('.pf').style.backgroundImage = `url("${face}")`; else b.querySelector('.pf').textContent = p.name.slice(0, 2).toUpperCase();
       b.querySelector('b').textContent = p.name;
@@ -1397,7 +1398,8 @@ function showRanking(v) {
   } else {
     vibrate([60, 60, 100]);
   }
-  const winnerAvatar = winner ? arts[winner.id]?.avatar : null;
+  const isWinnerBot = winner?.bot || winner?.name?.startsWith('Bot ');
+  const winnerAvatar = winner ? (arts[winner.id]?.avatar || (isWinnerBot ? getBotAvatar(winner.name || winner.id) : null)) : null;
   const isHost = v.host === me;
 
   let awardsHtml = '';
@@ -1430,7 +1432,8 @@ function showRanking(v) {
       <div class="section-title">🤫 Enthüllte Rollen</div>
       <div class="roles-reveal-grid">
         ${v.ranking.map((r) => {
-          const av = arts[r.id]?.avatar;
+          const isBot = r.bot || r.name?.startsWith('Bot ');
+          const av = arts[r.id]?.avatar || (isBot ? getBotAvatar(r.name || r.id) : null);
           const role = r.role;
           const isMe = r.id === me;
           const faceStyle = av ? `background-image: url("${av}")` : '';
