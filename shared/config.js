@@ -46,4 +46,4 @@ export const POWERUPS = {
 
 // Wo läuft der Spielserver? Leer = gleiche Adresse wie die Webseite (lokal, Tunnel).
 // Auf Vercel liegt nur die Webseite – der Server läuft auf Render.
-export const GAME_SERVER_URL = 'https://attempting-reaction-chance-acquire.trycloudflare.com'; // übergangsweise Laptop-Tunnel → später Render
+export const GAME_SERVER_URL = 'https://spiel.srv1459170.hstgr.cloud'; // Dauerbetrieb auf dem Hostinger-VPS (/opt/club-bombe)
