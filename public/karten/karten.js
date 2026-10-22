@@ -8,6 +8,7 @@ import { sound } from './audio.js';
 import { MEME_SOUNDS, MemeEvents } from './meme-sounds.js';
 const memeEvents = new MemeEvents();
 import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
+import { STICKERS, stickerUrl, randomSticker, stickerMsg, parseSticker } from './stickers.js';
 
 const $ = (id) => document.getElementById(id);
 const saved = JSON.parse(localStorage.getItem('karten-profile') || '{}');
@@ -345,6 +346,33 @@ function showAvatar() {
 showAvatar();
 $('avatar-input').onchange = async (e) => { if (e.target.files[0]) { avatar = await fileToAvatar(e.target.files[0]); showAvatar(); } };
 
+// Profilbild aus einem Club-Sticker (Kopf der Figur am Tisch)
+function stickerToAvatar(id) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = c.height = 160;
+      const x = c.getContext('2d');
+      x.fillStyle = '#f3efe4'; x.fillRect(0, 0, 160, 160);
+      const k = Math.max(160 / img.width, 160 / img.height);
+      x.drawImage(img, (160 - img.width * k) / 2, (160 - img.height * k) / 2, img.width * k, img.height * k);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+    img.src = stickerUrl(id);
+  });
+}
+{
+  const grid = $('avatar-stickers');
+  for (const st of STICKERS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = st.name;
+    b.style.backgroundImage = `url("${stickerUrl(st.id)}")`;
+    b.onclick = async () => { avatar = await stickerToAvatar(st.id); showAvatar(); grid.querySelectorAll('.on').forEach((o) => o.classList.remove('on')); b.classList.add('on'); };
+    grid.append(b);
+  }
+}
+
 // ── 2 · Zeichenfläche ────────────────────────────────────
 const draw = $('draw');
 const dctx = draw.getContext('2d');
@@ -599,7 +627,37 @@ function showChainBanner(evt) {
   } else close(3000);
 }
 
+// Sticker-Reaktionen: wer viele Karten aufnehmen muss, regt sich auf; der Sieger feiert
+const reactions = {};
+let prevCounts = null, prevState = null;
+function stickerReactions(v) {
+  const counts = Object.fromEntries(v.players.map((p) => [p.id, p.count]));
+  if (prevCounts && v.state === 'playing' && prevState === 'playing') {
+    for (const p of v.players) {
+      const gained = p.count - (prevCounts[p.id] ?? p.count);
+      if (gained >= 2) {
+        const st = randomSticker(gained >= 6 ? 'sad' : 'rage', 'rage');
+        reactions[p.id] = { id: st.id, until: Date.now() + 3200 };
+        if (p.id === me) {
+          const img = document.createElement('img'); img.className = 'my-react'; img.src = stickerUrl(st.id); img.alt = '';
+          document.body.append(img); setTimeout(() => img.remove(), 3300);
+        }
+        // die anderen lachen manchmal mit
+        const others = v.players.filter((o) => o.id !== p.id && o.id !== me);
+        if (others.length && Math.random() < 0.35) {
+          const o = others[Math.floor(Math.random() * others.length)];
+          reactions[o.id] = { id: randomSticker('laugh').id, until: Date.now() + 2800 };
+        }
+      }
+    }
+  }
+  if (prevState === 'playing' && v.state === 'over' && v.winner) reactions[v.winner] = { id: randomSticker('win').id, until: Date.now() + 5000 };
+  prevCounts = counts; prevState = v.state;
+  if (Object.values(reactions).some((r) => r.until > Date.now())) setTimeout(() => view && render(), 3300);
+}
+
 socket.on('view', (v) => {
+  stickerReactions(v);
   const meme = memeEvents.observe(v, me);
   if (meme) void sound.memes.play(meme, { priority: v.state === 'over' });
   const myTurnBefore = view?.turn === me;
@@ -930,9 +988,16 @@ function render() {
     const bb = bubbles[p.id];
     if (bb && bb.until > Date.now()) {
       const b = document.createElement('div');
-      b.className = 'bubble';
-      b.textContent = bb.text;
+      b.className = 'bubble' + (bb.sticker ? ' sticker' : '');
+      if (bb.sticker) { const img = document.createElement('img'); img.src = stickerUrl(bb.sticker); img.alt = ''; b.append(img); }
+      else b.textContent = bb.text;
       seat.append(b);
+    }
+    const rx = reactions[p.id];
+    if (rx && rx.until > Date.now()) {
+      const img = document.createElement('img');
+      img.className = 'react-sticker'; img.src = stickerUrl(rx.id); img.alt = '';
+      seat.append(img);
     }
     $('players').append(seat);
   });
@@ -1605,6 +1670,17 @@ for (const q of QUICK) {
   b.onclick = () => socket.emit('chat', q);
   document.querySelector('.chat-quick').append(b);
 }
+{
+  const tray = $('sticker-tray');
+  for (const st of STICKERS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = st.name;
+    b.style.backgroundImage = `url("${stickerUrl(st.id)}")`;
+    b.onclick = () => { socket.emit('chat', stickerMsg(st.id)); tray.hidden = true; };
+    tray.append(b);
+  }
+  $('sticker-toggle').onclick = () => { tray.hidden = !tray.hidden; };
+}
 $('chat-btn').onclick = () => { $('chat').hidden = !$('chat').hidden; if (!$('chat').hidden) { unread = 0; showUnread(); $('chat-input').focus(); scrollChat(); } };
 $('chat-close').onclick = () => { $('chat').hidden = true; };
 $('chat-form').onsubmit = (e) => {
@@ -1621,7 +1697,9 @@ function addChat(m, live) {
   if (m.id === me) li.className = 'mine';
   li.innerHTML = '<b></b><span></span>';
   li.querySelector('b').textContent = m.name;
-  li.querySelector('span').textContent = m.text;
+  const st = parseSticker(m.text);
+  if (st) { const img = document.createElement('img'); img.className = 'chat-sticker'; img.src = stickerUrl(st); img.alt = 'Sticker'; li.querySelector('span').append(img); }
+  else li.querySelector('span').textContent = m.text;
   $('chat-list').append(li);
   while ($('chat-list').children.length > 60) $('chat-list').firstChild.remove();
   scrollChat();
@@ -1633,7 +1711,8 @@ const scrollChat = () => { $('chat-list').scrollTop = $('chat-list').scrollHeigh
 function showUnread() { $('chat-unread').hidden = !unread; $('chat-unread').textContent = unread > 9 ? '9+' : unread; }
 // Sprechblase über dem Kopf der Person am Tisch (überlebt das Neuzeichnen bei jedem Zug)
 function bubble(m) {
-  bubbles[m.id] = { text: m.text.length > 60 ? m.text.slice(0, 57) + '…' : m.text, until: Date.now() + 4500 };
+  const st = parseSticker(m.text);
+  bubbles[m.id] = { text: st ? '' : m.text.length > 60 ? m.text.slice(0, 57) + '…' : m.text, sticker: st, until: Date.now() + 4500 };
   if (view) render();
   setTimeout(() => view && render(), 4600);
 }

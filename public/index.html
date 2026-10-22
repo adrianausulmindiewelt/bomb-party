@@ -68,6 +68,10 @@
         <span>📸 Foto von dir</span>
         <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
       </label>
+      <details class="avatar-sticker-pick">
+        <summary>…oder einen Club-Sticker als Kopf nehmen 😜</summary>
+        <div id="avatar-stickers" class="sticker-grid"></div>
+      </details>
       <input id="name" maxlength="16" placeholder="Dein Name" autocomplete="nickname" />
     </section>
 
@@ -194,7 +198,8 @@ Bevor du fertig bist:
       <header><b>💬 Tisch-Chat</b><button id="chat-close" aria-label="Schließen">✕</button></header>
       <ol id="chat-list"></ol>
       <div class="chat-quick"></div>
-      <form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Nachricht …" autocomplete="off" /><button>➤</button></form>
+      <div id="sticker-tray" class="sticker-grid" hidden></div>
+      <form id="chat-form"><button id="sticker-toggle" type="button" title="Sticker schicken" class="sticker-toggle">🖼️</button><input id="chat-input" maxlength="200" placeholder="Nachricht …" autocomplete="off" /><button>➤</button></form>
     </aside>
     <div id="fx-banner"></div>
     <div id="players"></div>

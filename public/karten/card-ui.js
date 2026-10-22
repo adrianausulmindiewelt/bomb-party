@@ -1,5 +1,14 @@
 import { cardText, CHARACTERS, COLOR_ELEMENTS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
+import { stickerUrl } from './stickers.js';
+
+// Spezialkarten ohne eigenes Bild bekommen einen passenden Club-Sticker (WhatsApp-Gruppe „Coding“)
+const STICKER_ART = {
+  reset: '53', burn: '37', lower: '13', reverse: '06', skip: '54', kartoffel: '24', zwillinge: '57', spiegel: '18',
+  schwarzes_loch: '50', zeitstopp: '29', dieb: '23', gluecklich: '14', traurig: '49', gluecksspiel: '10', portal: '40',
+  phoenix: '05', himmelszorn: '22', zeitschleife: '09', erdbeben: '38', kettenfluch: '36', pizza_hunger: '17',
+  fee_trick: '35', cookie_chaos: '32',
+};
 
 export function cardEl(c, arts = {}) {
   const el = document.createElement('div');
@@ -32,7 +41,9 @@ export function cardEl(c, arts = {}) {
   const art = document.createElement('div');
   art.className = 'art';
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const src = isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
+  const sticker = !isCustom && !isChar && !c.art && STICKER_ART[c.key];
+  if (sticker) el.classList.add('sticker-art');
+  const src = sticker ? stickerUrl(sticker) : isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
   if (src) {
     // Erst prüfen, ob das Bild existiert – sonst bleibt das Emoji stehen
     const probe = new Image();
