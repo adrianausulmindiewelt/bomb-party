@@ -131,6 +131,7 @@ cards.on('connection', (socket) => {
   on('bot-remove', act((id) => room.removeBot(pid, id)));
   on('configure', act((choice) => room.configure(pid, choice)));
   on('voice-skip', act(() => room.skipVoice(pid)));
+  on('quiz-answer', act((d) => room.quizAnswer(pid, d)));
   on('stake-vote', act((d) => room.stakeVote(pid, d)));
   on('stake-suggest', act((d) => room.stakeSuggest(pid, d)));
   on('play', act((ids) => room.play(pid, ids)));

@@ -656,8 +656,60 @@ function stickerReactions(v) {
   if (Object.values(reactions).some((r) => r.until > Date.now())) setTimeout(() => view && render(), 3300);
 }
 
+// ── Quiz ──
+let quizShown = null, quizResultShown = null, quizTimer = null, quizSeen = new Set();
+function renderQuiz(v) {
+  const q = v.state === 'playing' ? v.quiz : null;
+  const box = $('quiz');
+  if (!q) { box.hidden = true; clearInterval(quizTimer); quizShown = null; }
+  else {
+    if (quizShown !== q.id) {
+      quizShown = q.id;
+      quizSeen.add(q.id);
+      void sound.memes.play('vine-boom', { priority: true });
+      vibrate([40, 40, 40]);
+      const end = Date.now() + q.left;
+      clearInterval(quizTimer);
+      quizTimer = setInterval(() => {
+        const left = Math.max(0, end - Date.now());
+        $('quiz-left').textContent = `${Math.ceil(left / 1000)} s`;
+        $('quiz-bar').style.width = `${left / 200}%`;
+        if (!left) clearInterval(quizTimer);
+      }, 200);
+    }
+    box.hidden = false;
+    $('quiz-q').textContent = q.question;
+    const opts = $('quiz-options');
+    opts.innerHTML = '';
+    q.options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'quiz-opt' + (q.mine === i ? ' mine' : '');
+      b.textContent = `${'ABCDE'[i]} · ${o}`;
+      b.disabled = q.mine !== null;
+      b.onclick = () => act('quiz-answer', { id: q.id, idx: i });
+      opts.append(b);
+    });
+    $('quiz-note').textContent = q.mine !== null ? '✅ Abgegeben – warte auf die anderen …' : 'Richtig = Zufallsbonus: Karten abwerfen, Spezialkarte oder jemanden strafziehen lassen.';
+  }
+  const r = v.quizResult;
+  if (r && r.id !== quizResultShown) {
+    quizResultShown = r.id;
+    if (!quizSeen.has(r.id)) return;   // beim Beitreten keine alte Auflösung zeigen
+    const el = $('quiz-result');
+    const iWon = r.results.some((x) => x.id === me);
+    el.innerHTML = '<b></b><span></span>';
+    el.querySelector('b').textContent = `🧠 Richtig war: ${r.answer}`;
+    el.querySelector('span').textContent = r.nobody ? 'Niemand wusste es 💀' : r.results.map((x) => `${x.name} ${x.text}`).join(' · ');
+    el.hidden = false;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    void sound.memes.play(iWon ? 'yippee' : 'bruh', { priority: true });
+    setTimeout(() => { el.hidden = true; }, 5200);
+  }
+}
+
 socket.on('view', (v) => {
   stickerReactions(v);
+  renderQuiz(v);
   const meme = memeEvents.observe(v, me);
   if (meme) void sound.memes.play(meme, { priority: v.state === 'over' });
   const myTurnBefore = view?.turn === me;

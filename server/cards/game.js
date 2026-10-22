@@ -5,6 +5,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { STAKE_DEFAULTS, STAKE_KINDS, STAKE_LIMITS } from '../../shared/stakes.js';
+import { QUIZ, QUIZ_RULES } from '../../shared/quiz.js';
 import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, VOICE_LINES, DEFAULT_DECK, cleanDeckChoice, cardText, describe, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
 
 let nextCardId = 1;
@@ -44,6 +45,10 @@ export class CardRoom {
     this.chainEvent = null;   // Aktiver Chain-Banner (Yu-Gi-Oh / Master Duel Effekt-Popup)
     this.chainEventId = 0;
     this.botPending = null;
+    this.quiz = null;         // laufende Quizfrage
+    this.quizResult = null;   // letzte Auflösung (für das Banner)
+    this.quizSeq = 0;
+    this.nextQuizAt = 0;
   }
 
   triggerChainEvent(evt) {
@@ -200,6 +205,7 @@ export class CardRoom {
       this.advance(1);
       changed = true;
     }
+    changed = this.quizTick(now) || changed;
     const bot = this.current();
     if (this.state === 'playing' && bot?.bot && now >= this.introUntil
         && this.players.some((p) => !p.bot && p.connected)) {
@@ -234,6 +240,7 @@ export class CardRoom {
     this.game++;
     this.log = [];
     this.introUntil = Date.now() + RULES.introSeconds * 1000;
+    this.nextQuizAt = this.introUntil + (Number(process.env.QUIZ_FIRST) || QUIZ_RULES.firstAfterSeconds) * 1000;   // QUIZ_FIRST nur zum Testen
 
     // Deck: nur Zahlenkarten (bei vielen Leuten doppelt). Specials gibt es nur über das Los.
     const copies = this.players.length > 4 ? 2 : 1;
@@ -1256,6 +1263,89 @@ export class CardRoom {
   fx(text) { this.lastFx = { id: (this.lastFx?.id ?? 0) + 1, text }; this.say(text); }
 
   // ── Chat ──────────────────────────────────────────────────
+  // ── Quiz: alle ~2 Minuten eine Frage an alle, richtige Antwort = Zufallsbonus ──
+  quizTick(now = Date.now()) {
+    if (this.state !== 'playing') return false;
+    if (this.quiz) {
+      const humans = this.players.filter((p) => p.inGame && p.connected && !p.bot);
+      const allIn = humans.length && humans.every((p) => this.quiz.answers.has(p.id));
+      if (now >= this.quiz.until || allIn) { this.resolveQuiz(); return true; }
+      return false;
+    }
+    if (!this.nextQuizAt || now < this.nextQuizAt) return false;
+    const recent = this.quizRecent ?? [];
+    let qi;
+    do { qi = Math.floor(Math.random() * QUIZ.length); } while (recent.includes(qi) && recent.length < QUIZ.length);
+    this.quizRecent = [...recent, qi].slice(-Math.floor(QUIZ.length * 0.8));
+    const [question, right, ...wrong] = QUIZ[qi];
+    const options = [right, ...wrong].sort(() => Math.random() - 0.5);
+    this.quiz = { id: ++this.quizSeq, question, options, correct: options.indexOf(right), until: now + QUIZ_RULES.answerSeconds * 1000, answers: new Map() };
+    this.quizResult = null;
+    // Bots raten mit (60 % richtig), damit es auch gegen sie spannend ist
+    for (const b of this.players.filter((p) => p.bot && p.inGame)) {
+      this.quiz.answers.set(b.id, Math.random() < 0.6 ? this.quiz.correct : Math.floor(Math.random() * options.length));
+    }
+    this.say('🧠 Quizfrage! Wer richtig antwortet, bekommt einen Bonus.');
+    return true;
+  }
+
+  quizAnswer(pid, { id, idx } = {}) {
+    const q = this.quiz;
+    if (!q || q.id !== id) return { error: 'Die Frage ist schon vorbei.' };
+    const p = this.players.find((o) => o.id === pid && o.inGame);
+    if (!p) return { error: 'Du spielst gerade nicht mit.' };
+    if (q.answers.has(pid)) return { error: 'Du hast schon geantwortet.' };
+    if (!Number.isInteger(idx) || idx < 0 || idx >= q.options.length) return { error: 'Ungültige Antwort.' };
+    q.answers.set(pid, idx);
+    if (this.quizTick()) return { ok: true };
+    return { ok: true };
+  }
+
+  resolveQuiz() {
+    const q = this.quiz;
+    if (!q) return;
+    this.quiz = null;
+    const winners = this.players.filter((p) => p.inGame && q.answers.get(p.id) === q.correct);
+    const results = [];
+    for (const p of winners) {
+      if (this.state !== 'playing') break;
+      results.push({ id: p.id, name: p.name, ...this.quizBonus(p) });
+    }
+    this.quizResult = { id: q.id, question: q.question, answer: q.options[q.correct], results, nobody: !winners.length };
+    this.say(winners.length ? `🧠 Richtig: ${q.options[q.correct]} – ${results.map((r) => `${r.name} ${r.text}`).join(' · ')}` : `🧠 Niemand wusste es: ${q.options[q.correct]}`);
+    const j = QUIZ_RULES.jitterSeconds;
+    this.nextQuizAt = Date.now() + (QUIZ_RULES.everySeconds + Math.round((Math.random() * 2 - 1) * j)) * 1000;
+  }
+
+  quizBonus(p) {
+    const others = this.active().filter((o) => o !== p);
+    const kinds = ['drop3', 'special', 'punish'];
+    if (p.hand.length <= 1) kinds.splice(0, 1);                  // sonst gewinnt man per Quiz
+    if (!others.length) kinds.splice(kinds.indexOf('punish'), 1);
+    const kind = kinds[Math.floor(Math.random() * kinds.length)] ?? 'special';
+    if (kind === 'drop3') {
+      const n = Math.min(3, p.hand.length - 1);
+      const nums = p.hand.filter((c) => c.kind === 'number').sort((a, b) => b.value - a.value);
+      const gone = (nums.length >= n ? nums : p.hand).slice(0, n);
+      p.hand = p.hand.filter((c) => !gone.includes(c));
+      this.deck.unshift(...gone);
+      return { kind, text: `wirft ${n} Karte${n === 1 ? '' : 'n'} ab 🗑️` };
+    }
+    if (kind === 'special') {
+      const pool = [
+        ...Object.entries(BASIC_SPECIALS).filter(([k]) => k !== 'joker').map(([key, c]) => card({ kind: 'special', key, ...c })),
+        ...Object.entries(PLAYER_CARDS).map(([key, c]) => card({ kind: 'special', key, effects: [], ...c })),
+      ];
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      p.hand.push(c);
+      return { kind, text: `bekommt ${c.emoji ?? '✨'} ${c.name}` };
+    }
+    // Strafe: wer am wenigsten Karten hat (also führt), zieht 3
+    const target = others.sort((a, b) => a.hand.length - b.hand.length)[0];
+    this.draw(target, 3, { global: true, penalty: true });
+    return { kind, text: `lässt ${target.name} 3 Karten ziehen 🎯` };
+  }
+
   // ── Einsatz der Runde ─────────────────────────────────────
   stakeVote(pid, { kind, id } = {}) {
     if (!STAKE_KINDS.includes(kind)) return { error: 'Unbekannte Kategorie.' };
@@ -1340,6 +1430,8 @@ export class CardRoom {
       winner: this.winner,
       ranking: this.ranking,
       stakes: this.stakeView(forId),
+      quiz: this.quiz ? { id: this.quiz.id, question: this.quiz.question, options: this.quiz.options, left: Math.max(0, this.quiz.until - Date.now()), mine: this.quiz.answers.get(forId) ?? null, answered: this.quiz.answers.size } : null,
+      quizResult: this.quizResult,
       stake: this.stake,
       awards: this.awards ?? [],
       top: this.top, lower: this.lower, dir: this.dir,
