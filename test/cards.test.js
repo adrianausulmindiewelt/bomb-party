@@ -48,14 +48,29 @@ test('Man muss gleich hoch oder höher legen', () => {
 
 test('Wer nicht kann, nimmt den Stapel', () => {
   const r = table(2);
-  for (const pl of r.players) pl.role = 'buerger';
+  for (const pl of r.players) pl.role = 'held';
   const p = r.current();
-  p.hand = p.hand.filter((c) => c.ability !== 'phoenix');
+  p.hand = [num(1), num(2), num(3)]; // > 2 Karten
   r.pile = [num(10), num(12)];
   r.top = 12;
   const before = p.hand.length;
   assert.equal(r.take(p.id).ok, true);
   assert.equal(p.hand.length, before + 2);
+  assert.equal(r.top, 0);
+});
+
+test('🧑 Bürger*in Bürgergeld: Erhält 1 Spezialkarte als Ausgleich beim Kassieren des Stapels', () => {
+  const r = table(2);
+  for (const pl of r.players) pl.role = 'buerger';
+  const p = r.current();
+  p.hand = [num(1)];
+  r.pile = [num(10), num(12)];
+  r.top = 12;
+  const beforeSpecials = p.hand.filter((c) => c.kind === 'special').length;
+  assert.equal(r.take(p.id).ok, true);
+  // Hat 2 Stapelkarten + 1 Bürgergeld-Spezialkarte erhalten
+  assert.equal(p.hand.length, 1 + 2 + 1);
+  assert.equal(p.hand.filter((c) => c.kind === 'special').length, beforeSpecials + 1);
   assert.equal(r.top, 0);
 });
 
@@ -351,16 +366,75 @@ test('🪞 Prismatischer Spiegel: wirft Zieh-Strafe auf den Angreifer zurück', 
   const c = drawFx(3);
   p.hand = [c, num(5)];
   r.play(p.id, [c.id]);
-  assert.equal(p.hand.length, 1 + 3); // Angreifer muss 3 ziehen!
-  assert.equal(t.hand.length, 1 + 3); // Verteidiger zieht auch 3, Spiegel verbraucht
+  assert.equal(p.hand.length, 1 + 3); // Angreifer muss volle 3 ziehen!
+  assert.equal(t.hand.length, 1 + 2); // Verteidiger dämpft auf zwei Drittel (Math.ceil(3 * 2 / 3) = 2)
 });
 
-test('🕳️ Schwarzes Loch: verbrennt Stapel und lässt alle anderen 1 Handkarte opfern', () => {
+test('🛡️ Aegis-Nachhall: Nach erstem Block bleibt Spieler bis zum eigenen Zug immun gegen Folgeangriffe', () => {
+  const r = table(3);
+  for (const pl of r.players) pl.role = 'buerger';
+  const p0 = r.current();
+  const p1 = r.seatFrom(p0, 1);
+  const p2 = r.seatFrom(p0, 2);
+
+  p1.hand = [sp('aegis'), num(1)];
+  const c1 = drawFx(3);
+  p0.hand = [c1, num(5)];
+  r.play(p0.id, [c1.id]); // p0 greift p1 an
+
+  assert.equal(p1.hand.length, 1); // Aegis verbraucht
+  assert.equal(p1.aegisEcho, true); // Nachhall aktiv!
+
+  // p2 greift p1 nun ebenfalls mit Zieh-Angriff an (prev von p2 ist p1)
+  const c2 = drawFx(4, 'prev');
+  p2.hand = [c2, num(6)];
+  r.turn = r.players.indexOf(p2);
+  r.play(p2.id, [c2.id]);
+
+  // p1 hat keine weitere Aegis, aber der Nachhall wehrt den Angriff kostenlos ab!
+  assert.equal(p1.hand.length, 1);
+  assert.equal(p1.hand[0].value, 1);
+  assert.ok(r.log.some((msg) => msg.includes('goldene Nachhall der Aegis schützt')));
+
+  // Wenn der Zug nun zu p1 rotiert, verblasst der Nachhall
+  r.turn = r.players.indexOf(p0);
+  r.advance(1); // landet auf p1
+  assert.equal(r.current().id, p1.id);
+  assert.equal(p1.aegisEcho, undefined); // Nachhall abgelaufen!
+  assert.ok(r.log.some((msg) => msg.includes('verblasst mit Beginn des Zuges')));
+});
+
+test('🛡️ Aegis aktiv gespielt: erzeugt goldenen Nachhall bis zum nächsten eigenen Zug', () => {
+  const r = table(2);
+  for (const pl of r.players) pl.role = 'buerger';
+  const p0 = r.current();
+  const p1 = r.seatFrom(p0, 1);
+
+  const aegis = sp('aegis');
+  p0.hand = [aegis, num(5)];
+  r.play(p0.id, [aegis.id]); // p0 spielt Aegis aktiv: Tisch auf 0, p0 erhält aegisEcho
+
+  assert.equal(p0.aegisEcho, true);
+  assert.equal(r.current().id, p1.id); // Nun ist p1 dran
+
+  // p1 greift p0 mit Zieh-Effekt an
+  const c = drawFx(3);
+  p1.hand = [c, num(6)];
+  r.play(p1.id, [c.id]);
+
+  // p0 zieht 0 Karten dank aegisEcho
+  assert.equal(p0.hand.length, 1);
+  assert.equal(p0.hand[0].value, 5);
+  assert.ok(r.log.some((msg) => msg.includes('goldene Nachhall der Aegis schützt')));
+});
+
+test('🕳️ Schwarzes Loch: verbrennt Stapel und lässt alle anderen 1 Handkarte opfern (bevorzugt Spezialkarte)', () => {
   const r = table(3);
   for (const o of r.players) o.role = 'buerger';
   const p = r.current();
   const [a, b] = r.players.filter((o) => o !== p);
-  a.hand = [num(2), num(3)];
+  const specA = sp('kartoffel');
+  a.hand = [specA, num(3)];
   b.hand = [num(4), num(5)];
   r.pile = [num(1), num(2), num(3)];
   r.top = 10;
@@ -369,7 +443,8 @@ test('🕳️ Schwarzes Loch: verbrennt Stapel und lässt alle anderen 1 Handkar
   assert.equal(r.play(p.id, [hole.id]).ok, true);
   assert.equal(r.pile.length, 0); // Stapel verbrannt
   assert.equal(r.top, 0);
-  assert.equal(a.hand.length, 1); // a hat 1 Karte verloren
+  assert.equal(a.hand.length, 1); // a hat Spezialkarte verloren
+  assert.ok(!a.hand.includes(specA));
   assert.equal(b.hand.length, 1); // b hat 1 Karte verloren
 });
 
@@ -385,7 +460,7 @@ test('⏳ Chronos-Siegel: Zeitstopp gibt sofortigen Extra-Zug und freie Wahl', (
   assert.equal(r.play(p.id, [p.hand[0].id]).ok, true);
 });
 
-test('🥷 Meisterdieb: stiehlt verdeckt 1 Handkarte vom Ziel', () => {
+test('🥷 Meisterdieb: stiehlt Handkarte vom Ziel und vernichtet sie im Schatten', () => {
   const r = table(2);
   const p = r.current();
   const victim = r.seatFrom(p, 1);
@@ -394,17 +469,17 @@ test('🥷 Meisterdieb: stiehlt verdeckt 1 Handkarte vom Ziel', () => {
   p.hand = [thief, num(1)];
   assert.equal(r.play(p.id, { ids: [thief.id], choice: { target: victim.id } }).ok, true);
   assert.equal(victim.hand.length, 1);
-  assert.equal(p.hand.length, 2); // 1 eigene + 1 gestohlene
+  assert.equal(p.hand.length, 1); // 1 eigene verbleibend - Karte belastet nicht die eigene Hand!
 });
 
-test('🤪 Dorfdepp Bauernschläue: nimmt maximal 3 Karten vom Stapel, Rest verbrennt', () => {
+test('🤪 Dorfdepp Bauernschläue: nimmt maximal 2 Karten vom Stapel, Rest verbrennt', () => {
   const r = table(2);
   const p = r.current();
   p.role = 'dorfdepp';
   p.hand = [num(1)];
   r.pile = [num(2), num(3), num(4), num(5), num(6), num(7), num(8)]; // 7 Karten
   r.take(p.id);
-  assert.equal(p.hand.length, 1 + 3); // nur 3 genommen!
+  assert.equal(p.hand.length, 1 + 2); // nur 2 genommen!
   assert.equal(r.pile.length, 0);
 });
 
@@ -485,17 +560,18 @@ test('☀️ Gott: immun gegen Hand-Tausch (swap)', () => {
   assert.equal(god.hand.length, 1); // Hand von Gott bleibt unangetastet!
 });
 
-test('☀️ Gott: immun gegen Stapel-Kassieren (takePile)', () => {
+test('☀️ Gott: nimmt den Stapel bei takePile (Immunität entfernt für Balance)', () => {
   const r = table(2);
-  const p = r.current();
-  const god = r.seatFrom(p, 1);
-  god.role = 'god';
-  god.hand = [num(1)];
-  r.pile = [num(5), num(6)];
-  const tpCard = { id: 202, kind: 'special', key: 'take', name: 'Friss', emoji: '🗑️', effects: [{ type: 'takePile', target: 'next' }] };
-  p.hand = [tpCard];
-  r.play(p.id, [tpCard.id]);
-  assert.equal(god.hand.length, 1); // Gott nimmt den Stapel nicht!
+  const p0 = r.players[0];
+  const god = r.players[1];
+  god.role = 'gott';
+  god.hand = [num(5)];
+  r.pile = [num(2), num(3), num(4), num(5), num(6)];
+  const berndCard = { id: 'bernd_gott', kind: 'special', key: 'bernd', name: 'Bernd', effects: [{ type: 'takePile', target: 'next' }] };
+  p0.hand = [berndCard];
+  r.turn = 0;
+  assert.equal(r.play(p0.id, [berndCard.id]).ok, true);
+  assert.equal(god.hand.length, 7); // 1 Handkarte + 5 vom Stapel + 1 Bernd-Karte
 });
 
 test('☀️ Gott: reflektiert gezielte Zieh-Angriffe per göttlichem Karma', () => {
@@ -828,16 +904,18 @@ test('🍕 Pizza-Raid (Club-Karte): Reinigt Tisch und lässt Spieler*innen mit >
   assert.ok(r.log.some((msg) => msg.includes('Pizza-Raid')));
 });
 
-test('🧘‍♀️ Džanas Zen-Gong (Club-Karte): Wirft bis zu 2 Handkarten des Ziels ab und setzt Tisch auf Boss (15)', () => {
+test('🧘‍♀️ Džanas Zen-Gong (Club-Karte): Wirft zwingend die 2 niedrigsten Zahlen ab und setzt Tisch auf Boss (15)', () => {
   const r = table(2);
   const p0 = r.current();
-  const p1 = r.seatFrom(p0, 1);
-  p1.hand = [num(3), num(4), num(5)];
   const zen = sp('dzana_zen');
-  p0.hand = [zen, num(8)];
+  // Hand enthält die Zahlen 1, 9, 2, 8
+  p0.hand = [zen, num(1), num(9), num(2), num(8)];
 
-  assert.equal(r.play(p0.id, { ids: [zen.id], choice: { target: p1.id } }).ok, true);
-  assert.equal(p1.hand.length, 1);
+  assert.equal(r.play(p0.id, [zen.id]).ok, true);
+  // Muss die beiden niedrigsten Zahlen (1 und 2) abwerfen -> 9 und 8 verbleiben
+  assert.equal(p0.hand.length, 2);
+  assert.ok(p0.hand.some((c) => c.value === 9));
+  assert.ok(p0.hand.some((c) => c.value === 8));
   assert.equal(r.top, 15);
   assert.ok(r.log.some((msg) => msg.includes('Zen-Gong')));
 });
@@ -855,6 +933,28 @@ test('🧚‍♀️ Feen-Streich (Club-Karte): Stiehlt Spezialkarte aus Hand des
   assert.ok(p0.hand.some((c) => c.ability === 'potato'));
   assert.equal(p1.hand.length, 1);
   assert.ok(r.log.some((msg) => msg.includes('Feen-Streich')));
+});
+
+test('♾️ Ouroboros (Club-Karte): Holt letzte Spezialkarte zurück und bürdet 2 Mitspielern letzte Zahlen auf', () => {
+  const r = table(3);
+  const p0 = r.current();
+  const [p1, p2] = r.players.filter((o) => o !== p0);
+  const oldSpecial = sp('skip');
+  const numA = num(7);
+  const numB = num(9);
+  r.pile = [oldSpecial, numA, numB];
+  const ouro = sp('zeitschleife');
+  p0.hand = [ouro, num(1)];
+  p1.hand = [num(2)];
+  p2.hand = [num(3)];
+
+  assert.equal(r.play(p0.id, [ouro.id]).ok, true);
+  // p0 erhält die alte Spezialkarte zurück
+  assert.ok(p0.hand.some((c) => c.id === oldSpecial.id));
+  // p1 und p2 bekommen je eine alte Zahl (7 und 9)
+  assert.equal(p1.hand.length, 2);
+  assert.equal(p2.hand.length, 2);
+  assert.ok(r.log.some((msg) => msg.includes('Ouroboros')));
 });
 
 test('🏛️ Sanctuary-Protokoll (André - Gruppenleiter): Reinigt Tisch und lässt Person mit den meisten Karten 2 abwerfen', () => {
@@ -908,10 +1008,9 @@ test('🍪 Der Cookie-Crunch (Cookie - Amelie): Invertiert Richtung, rotiert Han
   assert.ok(r.log.some((msg) => msg.includes('Cookie-Crunch')));
 });
 
-test('🎨 Scribbl-Meisterwerk (Teya - 12): Hebt Farbregeln auf & Gankoomon-Schutz fängt Ziehstrafe ab', () => {
+test('🎨 Scribbl-Meisterwerk (Teya - 12): Lädt Farb-Resonanz Stufe 3 vor und zündet mit nächster Karte Farb-Überladung', () => {
   const r = table(3);
   const p0 = r.current();
-  const others = r.players.filter((p) => p !== p0);
   const teya = sp('teya_scribbl');
   p0.hand = [teya, num(3)];
   r.top = 10;
@@ -919,17 +1018,15 @@ test('🎨 Scribbl-Meisterwerk (Teya - 12): Hebt Farbregeln auf & Gankoomon-Schu
   assert.equal(r.play(p0.id, [teya.id]).ok, true);
   assert.equal(r.top, 0);
   assert.ok(r.wild); // Alle Farben erlaubt
+  assert.equal(r.colorStreak.count, 2);
+  assert.equal(r.colorStreak.color, 'wild');
 
-  // Passiv: Ziel hält Teya-Karte, Angreifer zwingt zum Ziehen
-  const target = others[0];
-  const bigHandPlayer = others[1];
-  target.hand = [sp('teya_scribbl')];
-  bigHandPlayer.hand = [num(1), num(2), num(3), num(4)];
-
-  r.draw(target, 2, { from: p0 });
-  assert.equal(target.hand.length, 1); // Wurde beschützt!
-  assert.equal(bigHandPlayer.hand.length, 6); // Hat die 2 Karten abgefangen!
-  assert.ok(r.log.some((msg) => msg.includes('Gankoomon-Schutz')));
+  // Nächste Person legt eine beliebige Farbkarte -> zündet Farb-Überladung Stufe 3!
+  const p1 = r.current();
+  const card1 = num(5, RULES.colors[0]);
+  p1.hand = [card1];
+  assert.equal(r.play(p1.id, [card1.id]).ok, true);
+  assert.ok(r.log.some((msg) => msg.includes('Farb-Überladung')));
 });
 
 test('👀 Stille Beobachterin (Ayleen - 13): Senkt Tischwert um 5 und legt heimlich Karte ab', () => {
@@ -1153,7 +1250,7 @@ test('🕊️ Pazifist: Wehrt gezielte Zieh- und Tauschangriffe ab, wenn Hand > 
   assert.equal(attacker.hand.length, 1);
 });
 
-test('🪓 Berserker & 🤪 Dorfdepp: halbieren bzw. cappen den Stapel auf 3', () => {
+test('🪓 Berserker & 🤪 Dorfdepp: halbieren bzw. cappen den Stapel auf 2', () => {
   const r = table(3);
   const dorf = r.players[0];
   const berserk = r.players[1];
@@ -1167,7 +1264,7 @@ test('🪓 Berserker & 🤪 Dorfdepp: halbieren bzw. cappen den Stapel auf 3', (
   r.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
   const res1 = r.take(dorf.id);
   assert.equal(res1.ok, true);
-  assert.equal(dorf.hand.length, 4); // 1 vorher + max 3 = 4
+  assert.equal(dorf.hand.length, 3); // 1 vorher + max 2 = 3
 
   r.turn = 1;
   r.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
@@ -1253,6 +1350,154 @@ test('Ohne eigene Bomben-Karte stürzt arts() nicht ab (hat am 15.10. den Server
   assert.ok('b' in arts);
 });
 
+test('🛡️ Aegis der Nullifizierung: Annulliert Aussetzen (skip) und schützt den eigenen Zug', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+
+  const aegisCard = sp('aegis');
+  p1.hand = [aegisCard, num(10)];
+  r.turn = 0; // p0 ist dran
+
+  const skipCard = { id: 'skip1', kind: 'special', key: 'skip', name: 'Stopp', effects: [{ type: 'skip', n: 1 }] };
+  p0.hand = [skipCard, num(5)];
+  assert.equal(r.play(p0.id, [skipCard.id]).ok, true);
+
+  // Aegis hat Aussetzen geblockt, p1 setzt nicht aus, sondern ist regulär dran!
+  assert.equal(r.current().id, p1.id);
+  assert.ok(!p1.hand.includes(aegisCard), 'Aegis wurde abgeworfen');
+  assert.ok(r.pile.includes(aegisCard), 'Aegis liegt auf dem Ablagestapel');
+  assert.ok(r.log.some((msg) => msg.includes('annulliert das Aussetzen mit der Aegis')));
+});
+
+test('🚚 Bernd (takePile): Wendet Phönix-Asche, Dorfdepp und Berserker zuverlässig an', () => {
+  const r2 = table(2);
+  const berndPlayer = r2.players[0];
+  const victimDorf = r2.players[1];
+  victimDorf.role = 'dorfdepp';
+  victimDorf.hand = [num(100)];
+  r2.pile = [num(1), num(2), num(3), num(4), num(5), num(6), num(7), num(8), num(9), num(10)];
+  const berndCard = { id: 'bernd1', kind: 'special', key: 'bernd', name: 'Bernd', effects: [{ type: 'takePile', target: 'next' }] };
+  berndPlayer.hand = [berndCard];
+  r2.turn = 0;
+  assert.equal(r2.play(berndPlayer.id, [berndCard.id]).ok, true);
+  assert.equal(victimDorf.hand.length, 3, 'Dorfdepp nimmt maximal 2 Karten vom 10er Stapel (+1 vorherige Handkarte)');
+  assert.equal(victimDorf.trinkgeld, true, 'Empfänger von Lieferdienst erhält Trinkgeld');
+
+  // Phönix bei takePile
+  const r3 = table(2);
+  const pA = r3.players[0];
+  const pB = r3.players[1];
+  pB.role = 'held';
+  const ph = sp('phoenix');
+  pB.hand = [ph, num(50)];
+  r3.pile = [num(1), num(2), num(3)];
+  r3.deck = [num(99)];
+  const berndCard2 = { id: 'bernd2', kind: 'special', key: 'bernd', name: 'Bernd', effects: [{ type: 'takePile', target: 'next' }] };
+  pA.hand = [berndCard2];
+  r3.turn = 0;
+  assert.equal(r3.play(pA.id, [berndCard2.id]).ok, true);
+  assert.ok(!pB.hand.includes(ph), 'Phönix wurde verbraucht');
+  assert.equal(r3.pile.length, 0, 'Tischstapel wurde zu Asche verbrannt');
+});
+
+test('🪶 Phönix-Asche (aktiv gespielt): Verbrennt Tischstapel und zieht 1 frische Karte', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const phCard = sp('phoenix');
+  p0.hand = [phCard, num(10)];
+  r.pile = [num(1), num(2), num(3)];
+  r.deck = [num(77)];
+  r.top = 10;
+
+  assert.equal(r.play(p0.id, [phCard.id]).ok, true);
+  assert.equal(r.top, 0, 'Tischwert wurde auf 0 gereinigt');
+  assert.equal(r.pile.length, 0, 'Stapel wurde zu Asche verbrannt');
+  assert.equal(p0.hand.length, 2, 'Phönix abgelegt (-1) und 1 frische Karte gezogen (+1)');
+  assert.ok(p0.hand.some((c) => c.value === 77), 'Gezogene Karte stammt vom Deck');
+});
+
+test('🧑 Bürger*in: Lässt sich von Richtungswechseln nicht beirren (behält regulären nächsten Zug)', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+  const p2 = r.players[2];
+
+  p1.role = 'buerger';
+  p2.role = 'held';
+  r.dir = 1;
+  r.turn = 0; // p0 ist am Zug, nächster in normaler Richtung wäre p1
+
+  const reverseCard = { id: 'rev1', kind: 'special', key: 'reverse', name: 'Wende', effects: [{ type: 'reverse' }] };
+  p0.hand = [reverseCard, num(5)];
+
+  assert.equal(r.play(p0.id, [reverseCard.id]).ok, true);
+  assert.equal(r.dir, -1, 'Richtung wurde umgekehrt');
+  // Weil p1 Bürger*in ist, wurde p1 nicht übergangen, sondern darf regulär ziehen:
+  assert.equal(r.current().id, p1.id, 'Bürger*in p1 behält den nächsten Zug');
+});
+
+test('🔱 Poseidon-Dreizack (give): Strafkarten werden an das Ziel übergeben, die gespielte Karte selbst landet auf dem Ablagestapel', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const victim = r.seatFrom(p0, 1);
+  victim.role = 'held';
+
+  const cardA = num(1);
+  const cardB = num(2);
+  const dreizack = { id: 'drei', kind: 'special', key: 'louis', name: 'Dreizack', effects: [{ type: 'give', n: 2, target: 'next' }] };
+  p0.hand = [dreizack, cardA, cardB];
+  victim.hand = [num(10)];
+  r.pile = [];
+
+  assert.equal(r.play(p0.id, [dreizack.id]).ok, true);
+  // Die Strafkarte Dreizack selbst landet auf dem Ablagestapel (wird nicht übergeben):
+  assert.ok(r.pile.includes(dreizack), 'Der Dreizack selbst liegt auf dem Ablagestapel');
+  // Die 2 Strafkarten wurden als Strafe an das Ziel übergeben:
+  assert.equal(victim.hand.length, 3, 'Ziel hat 2 Strafkarten kassiert (+1 vorherige)');
+  assert.ok(victim.hand.includes(cardA) && victim.hand.includes(cardB), 'Strafkarten sind in der Hand des Ziels');
+  assert.equal(p0.hand.length, 0, 'Angreifer hat die 2 Strafkarten abgegeben');
+});
+
+test('🔱 Luis (Der Dreizack): Bei ≤ 5 Handkarten werden nur 2 Karten abgegeben (statt 3)', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const victim = r.seatFrom(p0, 1);
+  const dreizack = { id: 'drei3', kind: 'special', key: 'louis', name: 'Luis', effects: [{ type: 'give', n: 3, target: 'next' }] };
+
+  // Fall 1: p0 hat 4 Handkarten nach Ausspielen (<= 5) -> gibt nur 2 ab
+  p0.hand = [dreizack, num(1), num(2), num(3), num(4)];
+  victim.hand = [num(10)];
+  assert.equal(r.play(p0.id, [dreizack.id]).ok, true);
+  assert.equal(victim.hand.length, 1 + 2); // nur 2 erhalten!
+  assert.equal(p0.hand.length, 2);         // 4 - 2 = 2 verbleibend!
+
+  // Fall 2: pA hat 6 Handkarten nach Ausspielen (> 5) -> gibt 3 ab
+  const r2 = table(2);
+  const pA = r2.current();
+  const vicA = r2.seatFrom(pA, 1);
+  const dreizack2 = { id: 'drei3_2', kind: 'special', key: 'louis', name: 'Luis', effects: [{ type: 'give', n: 3, target: 'next' }] };
+  pA.hand = [dreizack2, num(1), num(2), num(3), num(4), num(5), num(6)];
+  vicA.hand = [num(10)];
+  assert.equal(r2.play(pA.id, [dreizack2.id]).ok, true);
+  assert.equal(vicA.hand.length, 1 + 3); // volle 3 erhalten!
+  assert.equal(pA.hand.length, 3);         // 6 - 3 = 3 verbleibend!
+});
+
+test('🪞 Letzte Karte: Passiv-Schutzkarte (z. B. Spiegel) kann als letzte Handkarte gelegt werden und gewinnt die Runde', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const mirrorCard = sp('mirror');
+  p0.hand = [mirrorCard]; // Nur 1 Karte auf der Hand!
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [mirrorCard.id]).ok, true);
+  assert.equal(p0.hand.length, 0, 'Spiegel wurde abgelegt');
+  assert.equal(r.state, 'over', 'Runde ist vorbei');
+  assert.equal(r.winner, p0.id, 'Spieler mit letzter Passivkarte gewinnt');
+});
+
 // ── Kartenauswahl durch den Host ───────────────────────────
 import { DEFAULT_DECK, specialCatalog } from '../shared/cards.js';
 
@@ -1319,3 +1564,425 @@ test('Ansage: Spezialkarte bringt den Satz mit, nur die legende Person kann übe
   q.play(c.id, ['rs2']);
   assert.equal(q.chainEvent.voice, null);
 });
+
+test('👯 Kombi-Ablage: Gleiche Zahlen (z. B. zwei 7er) können zusammen abgelegt werden und ziehen die Hand um 2 ab', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const c1 = num(7, '#ff3d7f');
+  const c2 = num(7, '#3dc6ff');
+  p0.hand = [c1, c2, num(9)];
+  r.pile = [num(5)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [c1.id, c2.id]).ok, true);
+  assert.equal(r.top, 7);
+  assert.equal(p0.hand.length, 1);
+  assert.ok(!p0.hand.includes(c1) && !p0.hand.includes(c2));
+});
+
+test('🦔 Igel der Blätter: Raschelndes Laub gewährt Extra-Zug und lässt die nächste Person 2 Karten ziehen', () => {
+  assert.ok(PLAYER_CARDS.igel, 'Igel existiert in PLAYER_CARDS');
+  assert.equal(PLAYER_CARDS.igel.name, 'Igel der Blätter');
+  assert.equal(PLAYER_CARDS.igel.emoji, '🦔');
+  assert.deepEqual(PLAYER_CARDS.igel.effects, [{ type: 'again' }, { type: 'draw', n: 2, target: 'next' }]);
+
+  const r = table(2);
+  const p0 = r.current();
+  const nextSeat = r.seatFrom(p0, 1);
+  nextSeat.role = 'buerger';
+  nextSeat.hand = [num(5)];
+  const p1HandBefore = nextSeat.hand.length;
+
+  const igelCard = { id: 'igel-test', kind: 'special', key: 'igel', ...PLAYER_CARDS.igel };
+  p0.hand = [igelCard, num(10)]; // p0 behält noch eine Karte für den Folgezug
+
+  assert.equal(r.play(p0.id, ['igel-test']).ok, true);
+  assert.equal(r.current().id, p0.id, 'p0 ist für seinen Folgezug sofort noch einmal dran');
+  assert.equal(nextSeat.hand.length, p1HandBefore + 2, 'Die nächste Person hat 2 Strafkarten gezogen');
+});
+
+test('🚛 Optimus Prime: Autobots Roll Out dreht Richtung um und zwingt nächste Person zum Ziehen von 2 Karten', () => {
+  assert.ok(PLAYER_CARDS.optimus, 'Optimus existiert in PLAYER_CARDS');
+  assert.equal(PLAYER_CARDS.optimus.name, 'Optimus Prime');
+  assert.equal(PLAYER_CARDS.optimus.emoji, '🚛');
+  assert.deepEqual(PLAYER_CARDS.optimus.effects, [{ type: 'reverse' }, { type: 'draw', n: 2, target: 'next' }]);
+
+  const r = table(3);
+  const p0 = r.current();
+  const dirBefore = r.dir;
+  const target = r.seatFrom(p0, 1 * (dirBefore * -1)); // in der NEUEN Spielrichtung!
+  target.role = 'buerger';
+  target.hand = [num(5)];
+  const targetHandBefore = target.hand.length;
+
+  const optimusCard = { id: 'optimus-test', kind: 'special', key: 'optimus', ...PLAYER_CARDS.optimus };
+  p0.hand = [optimusCard, num(10)];
+
+  assert.equal(r.play(p0.id, ['optimus-test']).ok, true);
+  assert.equal(r.dir, -dirBefore, 'Spielrichtung hat sich umgedreht');
+  assert.equal(target.hand.length, targetHandBefore + 2, 'Die Person in der neuen Fahrtrichtung hat 2 Karten gezogen');
+});
+
+test('👯 Triple-Cap: Bis zu 3 gleiche Zahlen erlaubt, aber 4 gleiche Zahlen werden abgewiesen', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const c1 = num(7, 'rot');
+  const c2 = num(7, 'blau');
+  const c3 = num(7, 'gelb');
+  const c4 = num(7, 'gruen');
+  p0.hand = [c1, c2, c3, c4, num(10)];
+  r.pile = [num(5)];
+  r.top = 5;
+
+  // 4 gleiche Zahlen -> abgelehnt
+  const res4 = r.play(p0.id, [c1.id, c2.id, c3.id, c4.id]);
+  assert.equal(res4.ok, undefined);
+  assert.equal(res4.error, 'Maximal 3 Karten derselben Zahl zusammen ablegen.');
+
+  // 3 gleiche Zahlen -> erfolgreich
+  const res3 = r.play(p0.id, [c1.id, c2.id, c3.id]);
+  assert.equal(res3.ok, true);
+  assert.equal(r.top, 7);
+  assert.equal(p0.hand.length, 2);
+});
+
+test('✨ Geheime Interaktionen & Easter-Egg-Voicelines (Optimus, Phönix, Scribbl, Ouroboros, Luis, Igel)', () => {
+  const r = table(2);
+  const p0 = r.current();
+
+  // 1. Optimus Prime nach 2 gelben Karten -> Bumblebee-Call
+  r.pile = [num(3, 'gelb'), num(6, 'gelb')];
+  r.top = 6;
+  const optimus = { id: 'opt1', kind: 'special', key: 'optimus', ability: 'optimus', name: 'Optimus Prime' };
+  p0.hand = [optimus, num(9)];
+  r.play(p0.id, [optimus.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Bumblebee, sicher die Flanke! Autobots, Transformation und Abmarsch!');
+
+  // 2. Phönix-Asche nach 2 roten Zahlenkarten -> Glut-Call
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(2, 'rot'), num(4, 'rot')];
+  r.top = 4;
+  const phoenix = { id: 'ph1', kind: 'special', key: 'phoenix', ability: 'phoenix', name: 'Phönix-Asche' };
+  p0.hand = [phoenix, num(8)];
+  r.play(p0.id, [phoenix.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Aus der doppelten roten Glut neu geboren! Die Asche erwacht zu ewigem Leben!');
+
+  // 3. Teyas Scribbl nach Cookie-Crunch -> Snack-Call
+  r.turn = r.players.indexOf(p0);
+  r.pile = [{ id: 'cookie1', kind: 'special', key: 'cookie_chaos', name: 'Der Cookie-Crunch' }];
+  r.top = 5;
+  const scribbl = { id: 'sc1', kind: 'special', key: 'teya_scribbl', ability: 'teyaScribbl', name: 'Scribbl-Meisterwerk' };
+  p0.hand = [scribbl, num(9)];
+  r.play(p0.id, [scribbl.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Erst ein Snack zur Stärkung – und jetzt entsteht das nächste Scribbl-Meisterwerk!');
+
+  // 4. Ouroboros nach Chronos-Siegel (Zeitstopp) -> Raumzeit-Paradoxon
+  r.turn = r.players.indexOf(p0);
+  r.pile = [{ id: 'time1', kind: 'special', key: 'zeitstopp', ability: 'timestop', name: 'Chronos-Siegel' }];
+  r.top = 0;
+  const ouroboros = { id: 'ouro1', kind: 'special', key: 'zeitschleife', ability: 'timeloop', name: 'Ouroboros' };
+  p0.hand = [ouroboros, num(9)];
+  r.play(p0.id, [ouroboros.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Raumzeit-Paradoxon! Die ewige Schlange beißt Chronos direkt in die Sanduhr!');
+
+  // 5. Luis (Der Dreizack) nach 2 blauen Karten -> Meeresflut
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(3, 'blau'), num(5, 'blau')];
+  r.top = 5;
+  const trident = { id: 'tri1', kind: 'special', key: 'louis', ability: 'give', name: 'Luis' };
+  p0.hand = [trident, num(9), num(10), num(11)];
+  r.play(p0.id, [trident.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Doppelte Meeresflut! Poseidons Dreizack beherrscht den Ozean!');
+
+  // 6. Igel der Blätter nach 2 grünen Karten -> Blätterdickicht
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(2, 'gruen'), num(5, 'gruen')];
+  r.top = 5;
+  const igel = { id: 'ig1', kind: 'special', key: 'igel', ability: 'leaves', name: 'Igel der Blätter' };
+  p0.hand = [igel, num(8)];
+  r.play(p0.id, [igel.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Mitten durch das dichte grüne Blätterdickicht! Raschelndes Laub kündigt den Igel an!');
+});
+
+test('✨ Seltene Easter-Eggs: Pizza-Cookie-Gelage, Notbremse, Tisch 15 Unter, Unglück 13 Blitz, Pasch Zwillinge, Tisch 1 Floris', () => {
+  const r = table(2);
+  const p0 = r.current();
+
+  // 1. Pizza auf Cookie -> Club-Küche
+  r.pile = [{ id: 'c1', kind: 'special', key: 'cookie_chaos', name: 'Der Cookie-Crunch' }];
+  r.top = 5;
+  const pizza = { id: 'piz1', kind: 'special', key: 'pizza_hunger', ability: 'pizzaRaid', name: 'Pizza-Raid' };
+  p0.hand = [pizza, num(9)];
+  r.play(p0.id, [pizza.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Pizza und Cookies auf einmal?! Wer räumt diese gigantische Club-Küche wieder auf?!');
+
+  // 2. Notbremse: Stopp auf Maxime Orient-Express
+  r.turn = r.players.indexOf(p0);
+  r.pile = [{ id: 'm1', kind: 'special', key: 'maxime', name: 'Maxime' }];
+  r.top = 5;
+  const stopp = { id: 'stp1', kind: 'special', key: 'skip', effects: [{ type: 'skip', n: 1 }], name: 'Stopp' };
+  p0.hand = [stopp, num(8)];
+  r.play(p0.id, [stopp.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Notbremse gezogen! Der Orient-Express quietscht funkensprühend zum Stillstand!');
+
+  // 3. Unter auf Tisch 15
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(15)];
+  r.top = 15;
+  const unter = { id: 'unt1', kind: 'special', key: 'lower', effects: [{ type: 'lower' }], name: 'Unter' };
+  p0.hand = [unter, num(8)];
+  r.play(p0.id, [unter.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Hochmut kommt vor dem Fall! Vom Gipfel der 15 fährt der Fahrstuhl direkt nach unten!');
+
+  // 4. Unglückszahl 13 Gelb auf Göttlicher Blitz
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(13, 'gelb')];
+  r.top = 13;
+  const blitz = { id: 'blz1', kind: 'special', key: 'himmelszorn', ability: 'divineWrath', name: 'Göttlicher Blitz' };
+  p0.hand = [blitz, num(8)];
+  const p1 = r.players.find((o) => o !== p0);
+  r.play(p0.id, { ids: [blitz.id], choice: { target: p1.id } });
+  assert.equal(r.chainEvent.voice?.line, 'Zorn des Pantheons! Dreizehnfach geladener Blitz zerschmettert das Unglück!');
+
+  // 5. Pasch auf Zwillings-Parade
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(6), num(6)];
+  r.top = 6;
+  const twins = { id: 'zw1', kind: 'special', key: 'zwillinge', ability: 'twins', name: 'Zwillings-Parade' };
+  p0.hand = [twins, num(8)];
+  r.play(p0.id, { ids: [twins.id], choice: { colors: [RULES.colors[0], RULES.colors[1]] } });
+  assert.equal(r.chainEvent.voice?.line, 'Zwillings-Resonanz! Ein echter Pasch ruft die Zwillings-Parade der zwei Welten herbei!');
+
+  // 6. Tisch 1 auf Floris (Boss 16)
+  r.turn = r.players.indexOf(p0);
+  r.pile = [num(1)];
+  r.top = 1;
+  const floris = { id: 'fl1', kind: 'special', key: 'floris', ability: 'boss', name: 'Flo' };
+  p0.hand = [floris, num(8)];
+  r.play(p0.id, [floris.id]);
+  assert.equal(r.chainEvent.voice?.line, 'Vom Tellerwäscher zum Millionär! Von der 1 katapultiert Floris direkt auf die Boss-Ebene!');
+});
+
+test('🎭 Rollen-Voicelines beim aktiven Zünden der Passives (Alchemist, Berserker, Dorfdepp, Bürgergeld, Pechvogel, Gott)', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const p1 = r.players.find((o) => o !== p0);
+
+  // 1. Alchemist Transmutation
+  p0.role = 'alchemist';
+  p0.hand = [num(7), num(7), num(2), num(10), num(11)];
+  r.top = 5;
+  r.play(p0.id, [p0.hand[0].id, p0.hand[1].id]);
+  assert.equal(r.chainEvent.voice?.line, 'Transmutation! Die niedere Materie zerfällt zu Gold!');
+
+  // 2. Berserker Blutrausch
+  p0.role = 'berserker';
+  p0.hand = [num(1), num(2)];
+  r.pile = [num(5), num(8), num(12), num(14)];
+  r.top = 14;
+  r.state = 'playing';
+  r.turn = r.players.indexOf(p0);
+  assert.equal(r.take(p0.id).ok, true);
+  assert.equal(r.chainEvent.voice?.line, 'Blutrausch! Der Stapel wird in Stücke gehackt!');
+
+  // 3. Dorfdepp Bauernschläue
+  p0.role = 'dorfdepp';
+  p0.hand = [num(1), num(2)];
+  r.pile = [num(5), num(8), num(12), num(14)];
+  r.top = 14;
+  r.state = 'playing';
+  r.turn = r.players.indexOf(p0);
+  assert.equal(r.take(p0.id).ok, true);
+  assert.equal(r.chainEvent.voice?.line, 'Bauernschläue! Der Depp lässt den Stapel brennen!');
+
+  // 4. Bürger*in Bürgergeld
+  p0.role = 'buerger';
+  p0.hand = [num(1), num(2)];
+  r.pile = [num(5)];
+  r.top = 5;
+  r.deck = [{ id: 'spec1', kind: 'special', key: 'reset', name: 'Reset' }];
+  r.state = 'playing';
+  r.turn = r.players.indexOf(p0);
+  assert.equal(r.take(p0.id).ok, true);
+  assert.equal(r.chainEvent.voice?.line, 'Solidaritäts-Ausgleich! Das Bürgergeld regelt den Schaden!');
+
+  // 5. Pechvogel Geteiltes Pech
+  p1.role = 'pechvogel';
+  p1.hand = [num(1), num(2)];
+  r.turn = r.players.indexOf(p0);
+  r.deck = [num(10), num(11)];
+  r.draw(p1, 1, { from: p0 });
+  assert.equal(r.chainEvent.voice?.line, 'Geteiltes Leid ist doppeltes Pech! Du ziehst mit mir in den Abgrund!');
+
+  // 6. Gott Göttliche Majestät (Reflexion)
+  p1.role = 'gott';
+  r.turn = r.players.indexOf(p0);
+  r.deck = [num(10), num(11)];
+  r.draw(p1, 1, { from: p0 });
+  assert.equal(r.chainEvent.voice?.line, 'Göttliche Majestät! Niedere Flüche prallen an mir ab!');
+});
+
+test('💧 Schleim (Rimuru): Verschlingt die oberste Karte in den Magenraum, setzt Tisch zurück und gewährt Extra-Zug', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const c5 = num(5);
+  const c12 = num(12);
+  r.pile = [c5, c12];
+  r.top = 12;
+
+  const slime = sp('schleim');
+  p0.hand = [slime, num(7)];
+  assert.equal(r.play(p0.id, [slime.id]).ok, true);
+
+  assert.equal(r.top, 5, 'Tischwert fällt auf die Karte vor der verschlungenen 12 zurück');
+  assert.ok(!r.pile.includes(c12), 'Die 12 wurde in den Magenraum verschlungen');
+  assert.equal(r.current().id, p0.id, 'Schleim gewährt Extra-Zug');
+});
+
+test('👑 Dämonenkönig (Anos Voldigoad): Passt auf alles; verbietet nachfolgende Spezialkarten, erlaubt reguläre Zahlen', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const p1 = r.seatFrom(p0, 1);
+
+  const anos = sp('daemonenkoenig');
+  p0.hand = [anos, num(99)];
+  assert.equal(r.play(p0.id, [anos.id]).ok, true);
+
+  // Nächste Person darf keine Spezialkarte auf Anos legen
+  const timeStop = sp('zeitstopp');
+  p1.hand = [timeStop, num(4)];
+  assert.equal(r.current().id, p1.id);
+  assert.equal(r.whyNot([timeStop]), 'Venuzdonoa herrscht: Auf den Dämonenkönig dürfen keine Spezialkarten gelegt werden!');
+
+  // Aber jede reguläre Zahlenkarte ist erlaubt!
+  assert.equal(r.whyNot([p1.hand[1]]), null);
+  assert.equal(r.play(p1.id, [p1.hand[1].id]).ok, true);
+  assert.equal(r.top, 4);
+});
+
+test('🐉 Drache (Smaug): Schmilzt Tischstapel zu Gold ein (verbrennt auf 0) und zwingt nächste Person zum Ziehen von 3 Karten', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const p1 = r.seatFrom(p0, 1);
+  p1.role = 'buerger';
+  p1.hand = [num(1), num(2), num(3)];
+
+  r.pile = [num(2), num(8), num(11)];
+  r.top = 11;
+  const initialHandLen = p1.hand.length;
+
+  const dragon = sp('drache');
+  p0.hand = [dragon, num(99)];
+  assert.equal(r.play(p0.id, [dragon.id]).ok, true);
+
+  assert.equal(r.pile.length, 0, 'Tischstapel wurde zu Gold eingeschmolzen und verbrannt');
+  assert.equal(r.top, 0, 'Tischwert ist 0');
+  assert.equal(p1.hand.length, initialHandLen + 3, 'Nächste Person hat 3 Strafkarten gezogen');
+});
+
+test('🦎 Mimik: Kopiert verdeckt die Rolle eines Mitspielers und erbt dessen Passive', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+  p1.role = 'held';
+
+  p0.role = 'mimik';
+  p0.mimicRole = 'held';
+  p0.mimicTargetName = p1.name;
+
+  assert.ok(r.hasRole(p0, 'held'), 'Mimik gilt für Rollenabfragen als Held');
+
+  // Heldenmut-Fähigkeit testen: mit <= 2 Handkarten jede Zahl legen
+  p0.hand = [num(2), num(3)];
+  r.top = 14;
+  r.turn = 0;
+  assert.equal(r.whyNot([p0.hand[0]]), null, 'Mimik darf dank Heldenmut jede Zahl auf 14 legen');
+
+  const view = r.view(p0.id);
+  const selfPlayer = view.players.find((p) => p.id === p0.id);
+  assert.equal(selfPlayer.role.key, 'mimik');
+  assert.equal(selfPlayer.role.mimicRole, 'Held*in');
+});
+
+test('🏹 Meisterschütze: Darf bei Tisch ≥ 12 jede Zahl legen und weicht Boss-Karten beim Nehmen des Stapels aus', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'meisterschuetze';
+  p0.hand = [num(2), num(3), num(4), num(5)]; // Mehr als 2 Karten, damit nicht Heldenmut triggert
+
+  r.top = 13;
+  assert.equal(r.whyNot([p0.hand[0]]), null, 'Darf bei Tisch ≥ 12 eine 2 legen');
+
+  // Boss-Ausweichmanöver testen
+  r.top = 16;
+  r.pile = [num(1), num(5), num(16)];
+  const handBefore = p0.hand.length;
+  assert.equal(r.take(p0.id).ok, true);
+  assert.equal(p0.hand.length, handBefore, 'Meisterschütze hat bei Boss keine Karten aufgenommen');
+  assert.equal(r.pile.length, 0, 'Stapel wurde verbrannt');
+});
+
+test('🩹 Feldsanitäter: Wirft Hilfsgüter ab, wenn jemand ≥ 3 Strafkarten zieht oder den Stapel nimmt', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+  const p2 = r.players[2];
+
+  p1.role = 'feldsanitaeter';
+  p1.hand = [num(3), num(8), num(10)];
+  r.deck = [num(1), num(2), num(3), num(4)];
+
+  // Fall 1: p2 zieht 3 Strafkarten -> Sanitäter p1 wirft 1 Karte ab
+  r.draw(p2, 3, { from: p0, penalty: true });
+  assert.equal(p1.hand.length, 2, 'Feldsanitäter hat 1 Karte als Hilfsgüter abgeworfen');
+
+  // Fall 2: p0 nimmt den Stapel -> Sanitäter p1 wirft erneut 1 Karte ab
+  r.pile = [num(5), num(7)];
+  r.turn = 0;
+  r.take(p0.id);
+  assert.equal(p1.hand.length, 1, 'Feldsanitäter wirft erneut 1 Karte ab');
+});
+
+test('🧨 Anarchist: Kehrt bei 7 oder 13 sofort die Richtung um und würfelt bei Strafkarten', () => {
+  const r = table(3);
+  const p0 = r.players[0];
+  const p1 = r.players[1];
+  p1.role = 'anarchist';
+
+  r.dir = 1;
+  r.turn = 0;
+  p0.hand = [num(7)];
+  r.top = 5;
+
+  assert.equal(r.play(p0.id, [p0.hand[0].id]).ok, true);
+  assert.equal(r.dir, -1, 'Anarchist am Tisch kehrt bei 7 die Richtung um');
+
+  // Münzwurf testen: Strafe wird entweder verdoppelt (Kopf) oder halbiert (Zahl)
+  p1.hand = [];
+  r.deck = [num(1), num(2), num(3), num(4), num(5), num(6)];
+  r.draw(p1, 2, { from: p0, penalty: true });
+  assert.ok(p1.hand.length === 4 || p1.hand.length === 1, 'Münzwurf hat Strafe 2 zu 4 oder 1 gemacht');
+});
+
+test('✨ Geheime Easter-Eggs: Schleim nach Drache, Meisterschütze auf Smaug, Dämonenkönig nach Souveränin', () => {
+  const r = table(2);
+  const p0 = r.current();
+  p0.role = 'meisterschuetze';
+
+  // 1. Schleim nach Drache
+  const dragonCard = sp('drache');
+  const slimeCard = sp('schleim');
+  const secret1 = r.checkSecretLoreVoice([slimeCard], [dragonCard], p0);
+  assert.equal(secret1, 'Drachen-Verschlinger! Der Schleim schließt ein ewiges Bündnis mit dem Drachen!');
+
+  // 2. Meisterschütze auf Drache
+  const arrowHit = r.checkSecretLoreVoice([num(9)], [dragonCard], p0);
+  assert.equal(arrowHit, 'Der Schwarze Pfeil trifft die kahle Stelle an der linken Brust! Smaug stürzt herab!');
+
+  // 3. Dämonenkönig nach Souveränin des Äthers
+  const andreCard = { id: 'andre1', kind: 'special', key: 'andre', name: 'Souveränin des Äthers' };
+  const anosCard = sp('daemonenkoenig');
+  const secret3 = r.checkSecretLoreVoice([anosCard], [andreCard], p0);
+  assert.equal(secret3, 'Audienz der Tyrannen! Die Herrscher von Dämonen und Äther blicken auf den Tisch herab!');
+});
+

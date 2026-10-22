@@ -1,16 +1,16 @@
-import { cardText, CHARACTERS, COLOR_ELEMENTS } from '/shared/cards.js';
+import { cardText, CHARACTERS, COLOR_ELEMENTS, BASIC_SPECIALS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
 
 export function cardEl(c, arts = {}) {
+  if (!c) return document.createElement('div');
   const el = document.createElement('div');
-  el.className = 'card ' + c.kind;
+  el.className = 'card ' + (c.kind || '');
   el.dataset.id = c.id;
-
   if (c.kind === 'number') {
-    const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '' };
+    const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '', label: 'Zahlenkarte' };
     el.classList.add('element-' + (elem.element || 'neutral'));
-    el.style.setProperty('--c', c.color);
-    el.title = `${c.value} · ${elem.label || elem.name || c.color}`;
+    el.style.setProperty('--c', c.color || '#fff');
+    el.title = `${elem.icon ? elem.icon + ' ' : ''}${elem.label || elem.name || 'Zahlenkarte'} (${c.value})`;
     el.innerHTML = `
       <div class="corner tl"><span class="corner-val">${c.value}</span><span class="corner-icon">${elem.icon}</span></div>
       <div class="card-center">
@@ -26,26 +26,50 @@ export function cardEl(c, arts = {}) {
   // Special-Karte: Bild oben, Name + Fähigkeit unten
   const isCustom = c.key === 'custom';
   const isChar = !!CHARACTERS[c.key];
-  if (c.fullArt) el.classList.add('full');
   if (isCustom) el.classList.add('custom');
   if (isChar) el.classList.add('character');
   const art = document.createElement('div');
   art.className = 'art';
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const src = isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
+  const src = isCustom ? (arts[c.owner]?.art || c.art) : (typeof c.art === 'string' && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art));
   if (src) {
-    // Erst prüfen, ob das Bild existiert – sonst bleibt das Emoji stehen
+    // Erst prüfen, ob das Bild existiert – erst bei erfolgreichem Laden auf Vollbild schalten
     const probe = new Image();
-    probe.onload = () => { art.style.backgroundImage = `url("${src}")`; art.textContent = ''; };
+    probe.onload = () => {
+      art.style.backgroundImage = `url("${src}")`;
+      art.textContent = '';
+      if (c.fullArt) el.classList.add('full');
+    };
     probe.src = src;
   }
-  art.textContent = c.emoji || (isCustom ? '💣' : '✨');
+  art.textContent = c.emoji || (isCustom ? '🎨' : '✨');
   const label = document.createElement('div');
   label.className = 'label';
   label.innerHTML = `<b></b><i></i>`;
   label.querySelector('b').textContent = c.title ? `${c.name} · ${c.title}` : c.name;
   label.querySelector('i').textContent = cardText(c);
   el.append(art, label);
+
+  // 🏷️ Category-Corner oben rechts (dezent & kompakt, verdeckt kein Zentrums-Motiv)
+  const isPassive = ['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability);
+  const isBasic = !!BASIC_SPECIALS?.[c.key];
+  const categoryGlyph = isCustom ? '🎨' : isChar ? '🎭' : isPassive ? '🛡️' : isBasic ? '⚡' : '✨';
+  const categoryTitle = isCustom ? 'Spieler-Karte' : isChar ? 'Charakterkarte' : isPassive ? 'Passiver Schutz' : isBasic ? 'Aktionskarte' : 'Spezialkarte';
+
+  const cornerTr = document.createElement('div');
+  cornerTr.className = 'corner tr special-corner';
+  cornerTr.title = categoryTitle;
+  cornerTr.innerHTML = `<span class="corner-icon">${categoryGlyph}</span>`;
+  el.append(cornerTr);
+
+  if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
+    el.classList.add('passive-guard');
+    const badge = document.createElement('span');
+    badge.className = 'card-shield-badge';
+    badge.textContent = '🛡️ Passiv';
+    badge.title = 'Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus!';
+    el.append(badge);
+  }
 
   const desc = cardText(c);
   const byText = c.by ? ` (von ${c.by})` : '';

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { CardRoom } from '../server/cards/game.js';
 import { RULES, PLAYER_CARDS, specialCatalog, ROLES } from '../shared/cards.js';
 import { loadDeckPreset, saveDeckPreset } from '../public/karten/deck-preset.js';
+import { getBotAvatar, getBotTheme } from '../public/karten/bot-avatar.js';
 
 function lobby() {
   const r = new CardRoom('bots');
@@ -56,7 +57,7 @@ test('Bots: passende Zahlen zusammen legen und unspielbaren Stapel nehmen', () =
   r.top = 6; r.pile = [num(4, 6, RULES.colors[1])];
   assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 1);
   r.turn = 1; bot.hand = [num(5, 1)]; r.top = 15; r.pile = [num(6, 15, RULES.colors[1])];
-  assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 2);
+  assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 3); // 1 Hand + 1 Stapel + 1 Bürgergeld-Bonuskarte
 });
 
 test('Bots: alle Spielerkarten inklusive Ziel- und Farbauswahl spielbar', () => {
@@ -100,4 +101,18 @@ test('Bots: 100 komplette Partien mit allen wählbaren Karten', () => {
     while (r.state === 'playing' && moves++ < 3000) assert.equal(r.playBot(), true, `Partie ${i}, Zug ${moves}`);
     assert.equal(r.state, 'over', `Partie ${i} endet`);
   }
+});
+
+test('Bots: Prozedurale Bot-Avatare liefern distinkte Farben und Pinökel-SVGs', () => {
+  const t1 = getBotTheme('Bot 1');
+  const t2 = getBotTheme('Bot 2');
+  const t3 = getBotTheme('Bot 3');
+  assert.notEqual(t1.primary, t2.primary);
+  assert.notEqual(t2.primary, t3.primary);
+
+  const av1 = getBotAvatar('Bot 1');
+  assert.ok(av1.startsWith('data:image/svg+xml;utf8,'));
+  const decoded = decodeURIComponent(av1.replace('data:image/svg+xml;utf8,', ''));
+  assert.ok(decoded.includes(t1.primary));
+  assert.ok(decoded.includes('Pinökel'));
 });

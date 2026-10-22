@@ -339,6 +339,8 @@ class SoundEngine {
     if (ab === 'ayleenObserver') return this.playThief();
     if (ab === 'turboDash') return this.playSkip();
     if (ab === 'fireworkBlast') return this.playBurn();
+    if (card.key === 'igel') return this.playLeafRustle();
+    if (card.key === 'optimus') return this.playRollout();
 
     // Effekte aus BASIC_SPECIALS & CHARACTERS
     const eff = card.effects?.[0]?.type;
@@ -352,6 +354,90 @@ class SoundEngine {
 
     // Standard-Spezialkarten-Sound: Magischer Klang
     this.playMagicChime();
+  }
+
+  // 🦔 Igel der Blätter: Raschelndes Laub & anrollendes Kichern
+  playLeafRustle() {
+    if (!this.sfxEnabled) return;
+    this.unlock();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const dur = 0.55;
+    const bufferSize = Math.floor(this.ctx.sampleRate * dur);
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const crackle = Math.random() > 0.85 ? Math.random() * 2 - 1 : 0;
+      data[i] = (Math.random() * 0.4 - 0.2) + crackle * 0.6;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2600, now);
+    filter.frequency.exponentialRampToValueAtTime(1200, now + dur);
+    filter.Q.setValueAtTime(2.2, now);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+    noise.start(now);
+
+    // Munteres Kuller-Anrollen
+    [330, 440, 587, 880].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.25, now + idx * 0.09 + 0.12);
+      g.gain.setValueAtTime(0.18, now + idx * 0.09);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.12);
+      osc.connect(g);
+      g.connect(this.sfxGain);
+      osc.start(now + idx * 0.09);
+      osc.stop(now + idx * 0.09 + 0.13);
+    });
+  }
+
+  // 🚛 Optimus Prime: Heroische Transformation & mächtiges Anrollen
+  playRollout() {
+    if (!this.sfxEnabled) return;
+    this.unlock();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    
+    // Metallischer Transformations-Akkord
+    [146.83, 220.00, 293.66, 440.00].forEach((f, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, now);
+      osc.frequency.exponentialRampToValueAtTime(f * 1.5, now + 0.45);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(now);
+      osc.stop(now + 0.72);
+    });
+
+    // Brachialer Motor-Wumms
+    const bass = this.ctx.createOscillator();
+    const bGain = this.ctx.createGain();
+    bass.type = 'square';
+    bass.frequency.setValueAtTime(73.42, now);
+    bass.frequency.exponentialRampToValueAtTime(110.00, now + 0.5);
+    bGain.gain.setValueAtTime(0.3, now);
+    bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    bass.connect(bGain);
+    bGain.connect(this.sfxGain);
+    bass.start(now);
+    bass.stop(now + 0.62);
   }
 
   // 🛡️ Aegis: Kristalline Äther-Barriere

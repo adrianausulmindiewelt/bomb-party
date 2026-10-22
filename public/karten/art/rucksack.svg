@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1f182b"/>
+      <stop offset="50%" stop-color="#100b17"/>
+      <stop offset="100%" stop-color="#060408"/>
+    </radialGradient>
+    <linearGradient id="leatherDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3d1e11"/>
+      <stop offset="50%" stop-color="#5a2e19"/>
+      <stop offset="100%" stop-color="#381a0e"/>
+    </linearGradient>
+    <linearGradient id="leatherLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8c4724"/>
+      <stop offset="60%" stop-color="#6b3519"/>
+      <stop offset="100%" stop-color="#45200d"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe27a"/>
+      <stop offset="50%" stop-color="#c69532"/>
+      <stop offset="100%" stop-color="#805b12"/>
+    </linearGradient>
+    <radialGradient id="magicBeam" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#ffea75"/>
+      <stop offset="60%" stop-color="#ffaa00" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ff7700" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="goldGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="24" result="blur2"/>
+      <feGaussianBlur stdDeviation="8" result="blur1"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="800" height="1120" fill="url(#bg)"/>
+
+  <!-- ==================== RADIANT GOLDEN LIGHT BEAM (BURSTING FROM INSIDE) ==================== -->
+  <g filter="url(#goldGlow)">
+    <!-- Light cone expanding upward -->
+    <polygon points="340,490 460,490 620,180 180,180" fill="url(#magicBeam)" opacity="0.85"/>
+    <polygon points="360,480 440,480 540,220 260,220" fill="#ffffff" opacity="0.6"/>
+  </g>
+
+  <!-- ==================== BACKPACK MAIN BODY ==================== -->
+  <!-- Shadow on floor -->
+  <ellipse cx="400" cy="850" rx="220" ry="40" fill="#000000" opacity="0.6"/>
+
+  <!-- Main leather body pack -->
+  <rect x="250" y="470" width="300" height="350" rx="40" fill="url(#leatherLight)" stroke="#2b140a" stroke-width="6"/>
+
+  <!-- Side pockets -->
+  <rect x="200" y="550" width="60" height="180" rx="18" fill="url(#leatherDark)" stroke="#2b140a" stroke-width="4"/>
+  <rect x="540" y="550" width="60" height="180" rx="18" fill="url(#leatherDark)" stroke="#2b140a" stroke-width="4"/>
+  <!-- Side pocket straps & brass buckles -->
+  <rect x="225" y="540" width="10" height="200" fill="#2b140a"/>
+  <rect x="220" y="620" width="20" height="16" fill="url(#brass)" rx="3"/>
+  <rect x="565" y="540" width="10" height="200" fill="#2b140a"/>
+  <rect x="560" y="620" width="20" height="16" fill="url(#brass)" rx="3"/>
+
+  <!-- Front pocket -->
+  <rect x="290" y="620" width="220" height="160" rx="20" fill="url(#leatherDark)" stroke="#2b140a" stroke-width="4"/>
+  <!-- Front pocket straps -->
+  <rect x="330" y="610" width="16" height="180" fill="#2b140a"/>
+  <rect x="454" y="610" width="16" height="180" fill="#2b140a"/>
+  <rect x="325" y="680" width="26" height="20" fill="url(#brass)" rx="4"/>
+  <rect x="449" y="680" width="26" height="20" fill="url(#brass)" rx="4"/>
+
+  <!-- ==================== TOP FLAP (PARTIALLY OPEN) ==================== -->
+  <!-- The flap is lifted upward at an angle, exposing the radiant golden interior -->
+  <path d="M 230 460 C 230 420 270 380 400 370 C 530 380 570 420 570 460 C 510 440 460 450 400 440 C 340 450 290 440 230 460 Z" 
+        fill="url(#leatherLight)" stroke="#2b140a" stroke-width="6"/>
+
+  <!-- Glowing slit inside the opening -->
+  <ellipse cx="400" cy="460" rx="90" ry="18" fill="#ffffff" filter="url(#goldGlow)"/>
+
+  <!-- Unlatched top leather strap & open brass buckle -->
+  <path d="M 390 380 L 390 480 L 415 495 L 415 380 Z" fill="#2b140a"/>
+  <!-- Dangling open buckle -->
+  <rect x="382" y="475" width="38" height="26" rx="4" fill="url(#brass)" stroke="#5c3f0b" stroke-width="3" transform="rotate(-12, 400, 485)"/>
+  <rect x="390" y="482" width="22" height="12" rx="2" fill="#2b140a" transform="rotate(-12, 400, 485)"/>
+
+  <!-- Magical sparkles rising from the open backpack -->
+  <circle cx="360" cy="330" r="4" fill="#ffffff" filter="url(#goldGlow)"/>
+  <circle cx="430" cy="270" r="5" fill="#ffe066" filter="url(#goldGlow)"/>
+  <circle cx="390" cy="210" r="3.5" fill="#ffffff"/>
+  <circle cx="450" cy="360" r="3" fill="#ffaa00"/>
+  <circle cx="330" cy="250" r="2.5" fill="#ffd23d"/>
+</svg>

@@ -53,7 +53,7 @@
         <div class="hc hc2"><b>💣</b><i>Bombe</i></div>
         <div class="hc hc3"><b>K</b><i>♥</i></div>
       </div>
-      <a href="#step-you" class="cta">Karte bauen &amp; losspielen ↓</a>
+      <a href="#step-you" class="cta">Direkt losspielen ↓</a>
     </header>
 
     <section class="step" id="step-you">
@@ -67,8 +67,8 @@
     </section>
 
     <section class="step" id="step-card">
-      <div class="step-head"><span class="num">2</span><h2>Deine eigene Bomben-Karte 💣</h2><span class="check">✓</span></div>
-      <p class="hint">Pflicht für alle: Zeichne deine Bombe, gib ihr einen Namen und bau ihre Fähigkeit aus bis zu 2 Effekten. Beim Spielstart kommt sie in den großen Los-Topf.</p>
+      <div class="step-head"><span class="num">2</span><h2>Deine eigene Bomben-Karte 💣 <small style="font-size: 0.85rem; opacity: 0.75; font-weight: 700;">(optional)</small></h2><span class="check">✓</span></div>
+      <p class="hint">Freiwillig: Wenn du möchtest, zeichne deine eigene Bombe und gib ihr bis zu 2 Fähigkeiten. Lässt du das Feld frei, spielst du einfach direkt mit den offiziellen Club- und Charakterkarten mit!</p>
       <div class="builder">
         <div class="draw-wrap">
           <div class="draw-box">
@@ -189,6 +189,7 @@ Bevor du fertig bist:
     <ol id="log"></ol>
     <div id="actions">
       <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
+      <div id="my-card-count" class="hand-count-pill" title="Deine Handkarten" hidden>🎴 <b>0</b></div>
       <button id="deck-btn" type="button" hidden>🎴 Karten</button>
       <button id="bot-add" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>🤖 Bot hinzufügen</button>
       <button id="bot-remove" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>Bot entfernen</button>
@@ -197,6 +198,7 @@ Bevor du fertig bist:
       <button id="play" class="primary">Legen ⬆️</button>
     </div>
     <div id="pov">
+      <div id="pov-card-counter" class="pov-card-counter" hidden><b>0</b> Karten</div>
       <!-- Elegante Spieler-Arme & Handschuhe (hinter den Karten) -->
       <svg class="arm left" viewBox="0 0 340 340" aria-hidden="true">
         <defs>
@@ -289,6 +291,16 @@ Bevor du fertig bist:
           <h2>📖 Club-Almanach & Kartengalerie</h2>
           <button id="almanach-close" type="button" class="close-btn" title="Schließen">✕</button>
         </div>
+        <div class="almanach-legend">
+          <span class="almanach-legend-title">🏷️ Ecken-Symbole:</span>
+          <span class="legend-item" title="Spezialkarte / Clubkarte: Einzigartige taktische & magische Effekte"><span class="legend-icon">✨</span> Spezialkarte</span>
+          <span class="legend-item" title="Aktionskarte (Grundspiel): Tischkontrolle (Reset, Feuer, Unter, Wende, Stopp, Joker)"><span class="legend-icon">⚡</span> Aktionskarte</span>
+          <span class="legend-item" title="Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus"><span class="legend-icon">🛡️</span> Passiver Schutz</span>
+          <span class="legend-item" title="Charakterkarte: Club-Mitglieder mit Signature-Moves"><span class="legend-icon">🎭</span> Charakter</span>
+          <span class="legend-item" title="Spieler-Karte: Selbst gezeichnete & gebaute Karte"><span class="legend-icon">🎨</span> Spieler-Karte</span>
+          <span class="legend-item" title="Geheime Rolle: Persönliche passive Fähigkeit & Handkarten-Bonus"><span class="legend-icon">👑</span> Geheime Rolle</span>
+          <span class="legend-item" title="Farben & Resonanz: Edelsteine & Elemente (Rubin, Saphir, Topas, Smaragd)"><span class="legend-icon">💎</span> Farben / Resonanz</span>
+        </div>
         <div class="almanach-tabs">
           <button class="tab-btn active" data-tab="active">🎴 In diesem Spiel</button>
           <button class="tab-btn" data-tab="club">🏛️ Club & Specials</button>
@@ -296,7 +308,7 @@ Bevor du fertig bist:
           <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
           <button class="tab-btn" data-tab="custom">🎨 Spieler-Karten</button>
           <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
-          <button class="tab-btn" data-tab="elements">⚡ Farb-Kräfte & Resonanz</button>
+          <button class="tab-btn" data-tab="elements">💎 Farbsynergien & Resonanz</button>
         </div>
         <div id="almanach-content" class="almanach-grid"></div>
       </div>
