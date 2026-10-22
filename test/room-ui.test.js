@@ -9,8 +9,10 @@ test('Der Spieltisch enthält die dekorative Club-Raumkulisse', async () => {
   ]);
 
   assert.match(html, /class="room-decor"/);
-  assert.match(html, /class="lamp lamp-left"/);
-  assert.match(html, /class="room-monogram"/);
+  assert.match(html, /class="neon"/);
+  assert.match(html, /class="waiter"/);
+  assert.match(html, /class="pendant p2 flicker"/);
   assert.match(css, /\.room-decor\s*\{/);
-  assert.match(css, /\.room-monogram\s*\{/);
+  assert.match(css, /@keyframes waiter-walk/);
+  assert.match(css, /@keyframes lamp-flicker/);
 });

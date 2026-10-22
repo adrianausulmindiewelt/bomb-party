@@ -15,6 +15,8 @@ class SoundEngine {
     // Einstellungen aus localStorage laden
     this.sfxEnabled = localStorage.getItem('topp-das-sfx') !== 'false';
     this.bgmEnabled = localStorage.getItem('topp-das-bgm') !== 'false'; // Musik läuft automatisch, bis man sie ausschaltet
+    const vol = Number(localStorage.getItem('topp-das-volume') ?? 0.7);
+    this.volume = Number.isFinite(vol) ? Math.max(0, Math.min(1, vol)) : 0.7;   // Gesamtlautstärke 0…1
 
     this.memes = new MemePlayer(() => this.sfxEnabled);
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.memes.stop(); });
@@ -33,7 +35,7 @@ class SoundEngine {
     this.ctx = new AudioCtx();
 
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+    this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
     this.sfxGain = this.ctx.createGain();
@@ -63,6 +65,14 @@ class SoundEngine {
     };
     if (this.ctx.state === 'suspended') this.ctx.resume().then(go).catch(() => {});
     else go();
+  }
+
+  // Gesamtlautstärke: wirkt auf Musik, Effekte und Memes (alle hängen am masterGain);
+  // die Sprachansagen liest karten.js über sound.volume.
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, Number(v) || 0));
+    localStorage.setItem('topp-das-volume', this.volume);
+    if (this.masterGain && this.ctx) this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.03);
   }
 
   toggleSFX() {

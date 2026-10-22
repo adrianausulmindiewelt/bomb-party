@@ -4,6 +4,7 @@
 // Jede*r bekommt eine eigene Sicht (view): die eigene Hand ganz, von den anderen nur die Anzahl.
 
 import { randomUUID } from 'node:crypto';
+import { STAKE_DEFAULTS, STAKE_KINDS, STAKE_LIMITS } from '../../shared/stakes.js';
 import { RULES, BASIC_SPECIALS, CHARACTERS, PLAYER_CARDS, JESTER_COMBO, ROLES, EFFECTS, VOICE_LINES, DEFAULT_DECK, cleanDeckChoice, cardText, describe, validateEffects, COLOR_ELEMENTS, COLOR_RESONANCE_TOLERANCE } from '../../shared/cards.js';
 
 let nextCardId = 1;
@@ -17,6 +18,12 @@ export class CardRoom {
     this.log = [];
     this.game = 0;            // zählt Spiele hoch – der Browser erkennt daran „neues Spiel → Intro zeigen“
     this.deckChoice = { voice: DEFAULT_DECK.voice, specials: [...DEFAULT_DECK.specials], roles: [...DEFAULT_DECK.roles] }; // wählt der Host
+    // Einsatz: Optionen + Stimmen für Gewinner-Belohnung und Verlierer-Strafe (bleiben über Runden bestehen)
+    this.stakeOptions = {};
+    for (const kind of STAKE_KINDS) this.stakeOptions[kind] = STAKE_DEFAULTS[kind].map((text, i) => ({ id: `${kind}-${i}`, text, by: null }));
+    this.stakeVotes = { reward: new Map(), punish: new Map() };   // pid → optionId
+    this.stakeSeq = 0;
+    this.stake = null;        // beim Start festgelegt: { reward: {text, by, votes}, punish: {…} }
     this.reset();
   }
 
@@ -222,6 +229,7 @@ export class CardRoom {
     if (this.players.filter((p) => p.connected).length < 2) return { error: 'Mindestens 2 Leute.' };
     this.players = this.players.filter((p) => p.connected);
     this.reset();
+    this.stake = this.lockStakes();
     this.state = 'playing';
     this.game++;
     this.log = [];
@@ -1029,6 +1037,11 @@ export class CardRoom {
         stats: { ...(p.stats || {}) },
       }));
     this.awards = this.calculateAwards();
+    if (this.stake && this.ranking.length > 1) {
+      const most = Math.max(...this.ranking.map((r) => r.count));
+      this.stake.winners = this.ranking.filter((r) => r.id === this.winner).map((r) => r.name);
+      this.stake.losers = this.ranking.filter((r) => r.count === most && r.id !== this.winner).map((r) => r.name);
+    }
     for (const p of [...this.players]) if (!p.connected) this.removePlayer(p.id);
   }
 
@@ -1243,6 +1256,65 @@ export class CardRoom {
   fx(text) { this.lastFx = { id: (this.lastFx?.id ?? 0) + 1, text }; this.say(text); }
 
   // ── Chat ──────────────────────────────────────────────────
+  // ── Einsatz der Runde ─────────────────────────────────────
+  stakeVote(pid, { kind, id } = {}) {
+    if (!STAKE_KINDS.includes(kind)) return { error: 'Unbekannte Kategorie.' };
+    if (this.state === 'playing') return { error: 'Abgestimmt wird vor der Runde.' };
+    const p = this.players.find((o) => o.id === pid && !o.bot);
+    if (!p) return { error: 'Nicht am Tisch.' };
+    const votes = this.stakeVotes[kind];
+    if (id == null || votes.get(pid) === id) votes.delete(pid);          // nochmal tippen = Stimme zurück
+    else if (this.stakeOptions[kind].some((o) => o.id === id)) votes.set(pid, id);
+    else return { error: 'Diese Option gibt es nicht mehr.' };
+    return { ok: true };
+  }
+
+  stakeSuggest(pid, { kind, text } = {}) {
+    if (!STAKE_KINDS.includes(kind)) return { error: 'Unbekannte Kategorie.' };
+    if (this.state === 'playing') return { error: 'Ideen bitte vor der Runde.' };
+    const p = this.players.find((o) => o.id === pid && !o.bot);
+    if (!p) return { error: 'Nicht am Tisch.' };
+    const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, STAKE_LIMITS.textMax);
+    if (clean.length < 3) return { error: 'Etwas länger bitte.' };
+    const opts = this.stakeOptions[kind];
+    if (opts.some((o) => o.text.toLowerCase() === clean.toLowerCase())) return { error: 'Gibt es schon.' };
+    const custom = opts.filter((o) => o.by);
+    if (custom.filter((o) => o.byId === pid).length >= STAKE_LIMITS.perPlayer) return { error: `Max. ${STAKE_LIMITS.perPlayer} eigene Ideen pro Kategorie.` };
+    if (custom.length >= STAKE_LIMITS.totalCustom) return { error: 'Der Tisch hat genug Ideen.' };
+    const id = `${kind}-c${++this.stakeSeq}`;
+    opts.push({ id, text: clean, by: p.name, byId: pid });
+    this.stakeVotes[kind].set(pid, id);                                  // eigene Idee = eigene Stimme
+    return { ok: true };
+  }
+
+  // Meiste Stimmen gewinnt, Gleichstand und „keiner hat abgestimmt“ entscheidet der Zufall
+  lockStakes() {
+    const out = {};
+    const present = new Set(this.players.filter((p) => p.connected && !p.bot).map((p) => p.id));
+    for (const kind of STAKE_KINDS) {
+      const count = new Map();
+      for (const [pid, id] of this.stakeVotes[kind]) if (present.has(pid)) count.set(id, (count.get(id) ?? 0) + 1);
+      const best = Math.max(0, ...count.values());
+      const pool = this.stakeOptions[kind].filter((o) => (count.get(o.id) ?? 0) === best);
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      out[kind] = { text: pick.text, by: pick.by, votes: best, random: best === 0 || pool.length > 1 };
+      this.stakeVotes[kind].clear();
+    }
+    return out;
+  }
+
+  stakeView(forId) {
+    const view = {};
+    for (const kind of STAKE_KINDS) {
+      const votes = this.stakeVotes[kind];
+      const count = new Map();
+      for (const id of votes.values()) count.set(id, (count.get(id) ?? 0) + 1);
+      view[kind] = this.stakeOptions[kind].map((o) => ({ id: o.id, text: o.text, by: o.by, votes: count.get(o.id) ?? 0 }));
+      view[kind + 'Mine'] = votes.get(forId) ?? null;
+    }
+    return view;
+  }
+
   chatSay(pid, text) {
     const p = this.players.find((o) => o.id === pid);
     const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -1267,6 +1339,8 @@ export class CardRoom {
       turn: this.state === 'playing' ? this.current()?.id : null,
       winner: this.winner,
       ranking: this.ranking,
+      stakes: this.stakeView(forId),
+      stake: this.stake,
       awards: this.awards ?? [],
       top: this.top, lower: this.lower, dir: this.dir,
       wild: this.wild?.colors ?? null,
