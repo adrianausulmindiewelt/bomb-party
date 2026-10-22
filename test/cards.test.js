@@ -1864,6 +1864,8 @@ test('🐉 Drache (Smaug): Schmilzt Tischstapel zu Gold ein (verbrennt auf 0) un
   const r = table(2);
   const p0 = r.current();
   const p1 = r.seatFrom(p0, 1);
+  p1.role = 'buerger';
+  p1.hand = [num(1), num(2), num(3)];
 
   r.pile = [num(2), num(8), num(11)];
   r.top = 11;
