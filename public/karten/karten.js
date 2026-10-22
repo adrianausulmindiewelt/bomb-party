@@ -1,6 +1,6 @@
 // „TOPP DAS!“ im Browser: Lobby, Bomben-Karten-Baukasten, Tisch.
 
-import { CARD_BRAND, EFFECTS, TARGETS, MAX_EFFECTS_PER_CARD, ROLES, CHARACTERS, BASIC_SPECIALS, PLAYER_CARDS, JESTER_COMBO, RULES, describe, cardText, validateEffects, COLOR_ELEMENTS, DEFAULT_DECK, SPECIAL_GROUPS, specialCatalog } from '/shared/cards.js';
+import { CARD_BRAND, EFFECTS, TARGETS, MAX_EFFECTS_PER_CARD, ROLES, CHARACTERS, BASIC_SPECIALS, PLAYER_CARDS, JESTER_COMBO, RULES, describe, cardText, validateEffects, COLOR_ELEMENTS, DEFAULT_DECK, DEFAULT_DECK_PLUS, SPECIAL_GROUPS, specialCatalog } from '/shared/cards.js';
 import { fileToAvatar } from '/js/avatar.js';
 import { cardEl } from './card-ui.js';
 import { connect, SERVER } from '/js/net.js';
@@ -148,6 +148,7 @@ updateFsUI();
 
 // ── Club-Almanach & Galerie ───────────────────────────────
 let activeTab = 'active';
+let currentAlmanachItems = [];
 function renderAlmanachTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.almanach-tabs .tab-btn').forEach((b) => {
@@ -164,13 +165,26 @@ function renderAlmanachTab(tab) {
       ...(view?.customCards ?? []).map((c) => ({
         emoji: '💣', art: c.art || arts[c.owner]?.art || null, name: c.name,
         title: 'Selbstgebaute Bombe', by: `von ${c.by}`, text: c.text || describe(c.effects ?? []),
+        categoryGlyph: '🎨', categoryTitle: 'Spieler-Karte',
+        card: { kind: 'special', key: 'custom', name: c.name, title: 'Selbstgebaute Bombe', emoji: c.emoji || '💣', art: c.art || arts[c.owner]?.art || null, fullArt: !!(c.art || arts[c.owner]?.art), effects: c.effects, owner: c.owner, by: c.by, text: c.text },
       })),
-      ...specialCatalog().filter((c) => choice.specials.includes(c.key)).map((c) => ({
-        emoji: c.emoji || '✨', name: c.name,
-        title: SPECIAL_GROUPS.find((g) => g.key === c.group)?.name ?? 'Spezialkarte', by: '', text: c.short,
-      })),
+      ...specialCatalog().filter((c) => choice.specials.includes(c.key)).map((c) => {
+        const isPassive = ['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability);
+        const isBasic = !!BASIC_SPECIALS?.[c.key];
+        const isChar = c.group === 'charaktere';
+        const glyph = isChar ? '🎭' : isPassive ? '🛡️' : isBasic ? '⚡' : '✨';
+        const catTitle = isChar ? 'Charakterkarte' : isPassive ? 'Passiver Schutz' : isBasic ? 'Aktionskarte' : 'Spezialkarte';
+        const fullCard = SPECIAL_GROUPS.find((g) => g.key === c.group)?.cards[c.key] || c;
+        return {
+          emoji: c.emoji || '✨', name: c.name,
+          title: SPECIAL_GROUPS.find((g) => g.key === c.group)?.name ?? 'Spezialkarte', by: '', text: c.short,
+          categoryGlyph: glyph, categoryTitle: catTitle,
+          card: { ...fullCard, key: c.key, kind: 'special' },
+        };
+      }),
       ...choice.roles.filter((k) => ROLES[k]).map((k) => ({
         emoji: ROLES[k].emoji, name: ROLES[k].name, title: 'Geheime Rolle', by: '', text: ROLES[k].short ?? ROLES[k].text,
+        categoryGlyph: '👑', categoryTitle: 'Geheime Rolle', isRole: true,
       })),
     ];
   } else if (tab === 'club') {
@@ -181,32 +195,47 @@ function renderAlmanachTab(tab) {
       title: 'Selbstgebaute Bombe (Live am Tisch)',
       by: `Erschaffen von: ${c.by}`,
       text: c.text || describe(c.effects ?? []),
+      categoryGlyph: '🎨', categoryTitle: 'Spieler-Karte',
+      card: { kind: 'special', key: 'custom', name: c.name, title: 'Selbstgebaute Bombe', emoji: c.emoji || '💣', art: c.art || arts[c.owner]?.art || null, fullArt: !!(c.art || arts[c.owner]?.art), effects: c.effects, owner: c.owner, by: c.by, text: c.text },
     }));
     items = [
       ...liveCustom,
-      ...Object.values(PLAYER_CARDS).map((c) => ({
-        emoji: c.emoji || '✨',
-        name: c.name,
-        title: c.title || 'Spezialkarte',
-        by: c.by ? `Urheber: ${c.by}` : '',
-        text: c.text,
-      })),
+      ...Object.entries(PLAYER_CARDS).map(([k, c]) => {
+        const isPassive = ['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability);
+        return {
+          emoji: c.emoji || '✨',
+          art: c.art || null,
+          name: c.name,
+          title: c.title || 'Spezialkarte',
+          by: c.by ? `Urheber: ${c.by}` : '',
+          text: c.text,
+          categoryGlyph: isPassive ? '🛡️' : '✨',
+          categoryTitle: isPassive ? 'Passiver Schutz' : 'Spezialkarte',
+          card: { ...c, key: k, kind: 'special' },
+        };
+      }),
     ];
   } else if (tab === 'characters') {
-    items = Object.values(CHARACTERS).map((ch) => ({
+    items = Object.entries(CHARACTERS).map(([k, ch]) => ({
       emoji: ch.emoji || '🎭',
-      name: ch.name,
-      title: ch.title || 'Charakter',
-      by: 'Club-Mitglied',
+      art: ch.art || null,
+      name: ch.character || ch.name,
+      title: ch.title || (ch.character ? ch.name : 'Charakter'),
+      by: ch.by ? `Club-Mitglied: ${ch.by}` : 'Club-Mitglied',
       text: describe(ch.effects ?? []),
+      categoryGlyph: '🎭', categoryTitle: 'Charakterkarte',
+      card: { ...ch, key: k, kind: 'special' },
     }));
   } else if (tab === 'specials') {
-    items = Object.values(BASIC_SPECIALS).map((s) => ({
+    items = Object.entries(BASIC_SPECIALS).map(([k, s]) => ({
       emoji: s.emoji || '💣',
+      art: s.art || null,
       name: s.name,
       title: 'Standard-Special',
       by: 'Grundspiel',
       text: describe(s.effects ?? []),
+      categoryGlyph: '⚡', categoryTitle: 'Aktionskarte',
+      card: { ...s, key: k, kind: 'special' },
     }));
   } else if (tab === 'custom') {
     const list = view?.customCards ?? [];
@@ -227,14 +256,20 @@ function renderAlmanachTab(tab) {
       title: 'Selbstgebaute Bombe',
       by: `Erschaffen von: ${c.by}`,
       text: c.text || describe(c.effects ?? []),
+      categoryGlyph: '🎨',
+      categoryTitle: 'Spieler-Karte',
+      card: { kind: 'special', key: 'custom', name: c.name, title: 'Selbstgebaute Bombe', emoji: c.emoji || '💣', art: c.art || arts[c.owner]?.art || null, fullArt: !!(c.art || arts[c.owner]?.art), effects: c.effects, owner: c.owner, by: c.by, text: c.text },
     }));
   } else if (tab === 'roles') {
-    items = Object.values(ROLES).map((r) => ({
+    items = Object.entries(ROLES).map(([k, r]) => ({
       emoji: r.emoji || '👑',
       name: r.name,
       title: r.cards === 0 ? 'Standard-Hand (10 Karten)' : `${r.cards > 0 ? '+' : ''}${r.cards} Handkarten zum Start (${10 + r.cards} Karten)`,
       by: 'Geheime Rolle',
       text: r.text,
+      categoryGlyph: '👑',
+      categoryTitle: 'Geheime Rolle',
+      isRole: true,
     }));
   } else if (tab === 'elements') {
     items = [
@@ -243,48 +278,80 @@ function renderAlmanachTab(tab) {
         name: 'Farb-Resonanz',
         title: 'Toleranz-Vorteil (Gleiche Farbe)',
         by: 'Passive Grundmechanik',
+        categoryGlyph: '💎',
+        categoryTitle: 'Farbsynergie',
         text: 'Legst du eine Zahlenkarte derselben Farbe auf die oberste Tischkarte, darfst du den geforderten Wert um bis zu 2 Punkte UNTERBIETEN (z. B. eine blaue 8 auf eine blaue 10)! Bei aktiver „Unter“-Karte darfst du um bis zu 2 Punkte überbieten. Karten mit aktivem Resonanz-Bonus leuchten in deiner Hand magisch auf.',
+        card: { kind: 'number', value: 8, color: '#3dc6ff' },
+      },
+      {
+        emoji: '👯',
+        name: 'Kombi-Ablage (Paare)',
+        title: 'Doppelschlag (Gleicher Zahlenwert)',
+        by: 'Reguläre Spielmechanik',
+        categoryGlyph: '💎',
+        categoryTitle: 'Kombi-Ablage',
+        text: 'Besitzt du zwei Karten mit demselben Zahlenwert (z. B. zwei 7er oder zwei 9er beliebiger Farbe), darfst du beide zusammen in einem einzigen Zug ablegen! Deine Hand verkleinert sich blitzschnell um 2 Karten auf einmal.',
+        card: { kind: 'number', value: 7, color: '#ffd23d' },
       },
       {
         emoji: '⛓️⚡',
         name: 'Farb-Überladung',
         title: 'Elementar-Kette (3× gleiche Farbe)',
         by: 'Kettenreaktion am Tisch',
+        categoryGlyph: '💎',
+        categoryTitle: 'Elementar-Kette',
         text: 'Werden 3× hintereinander Karten derselben Farbe gelegt (auch über mehrere Personen hinweg), entlädt sich das Spielfeld! Die nächste Person am Tisch muss sofort 1 Strafkarte vom Ziehstapel ziehen. Götter werfen diesen Blitz karmisch auf den Verursacher zurück.',
+        card: { kind: 'number', value: 9, color: '#ff3d7f' },
       },
       {
         emoji: '🔥',
         name: 'Rubin-Feuer',
-        title: 'Element des Feuers (#ff3d7f)',
+        title: 'Element des Feuers (Rubin)',
         by: 'Rubin-Edelstein',
+        categoryGlyph: '💎',
+        categoryTitle: 'Element',
         text: 'Feurige Spielfreude. Kann für Farb-Resonanzen und feurige Überladungsketten genutzt werden.',
+        card: { kind: 'number', value: 8, color: '#ff3d7f' },
       },
       {
         emoji: '❄️',
         name: 'Saphir-Eis',
-        title: 'Element des Eises (#3dc6ff)',
+        title: 'Element des Eises (Saphir)',
         by: 'Saphir-Edelstein',
+        categoryGlyph: '💎',
+        categoryTitle: 'Element',
         text: 'Eiskalte Berechnung. Resonanzfähig mit allen blauen Saphir-Karten.',
+        card: { kind: 'number', value: 10, color: '#3dc6ff' },
       },
       {
         emoji: '⚡',
         name: 'Topas-Blitz',
-        title: 'Element des Blitzes (#ffd23d)',
+        title: 'Element des Blitzes (Topas)',
         by: 'Topas-Edelstein',
+        categoryGlyph: '💎',
+        categoryTitle: 'Element',
         text: 'Geladene Dynamik. Resonanzfähig mit allen gelben Topas-Karten.',
+        card: { kind: 'number', value: 7, color: '#ffd23d' },
       },
       {
         emoji: '🌿',
         name: 'Smaragd-Natur',
-        title: 'Element der Natur (#5cff8a)',
+        title: 'Element der Natur (Smaragd)',
         by: 'Smaragd-Edelstein',
+        categoryGlyph: '💎',
+        categoryTitle: 'Element',
         text: 'Wachsende Stärke. Resonanzfähig mit allen grünen Smaragd-Karten.',
+        card: { kind: 'number', value: 12, color: '#5cff8a' },
       },
     ];
   }
 
-  almanachContent.innerHTML = items.map((it) => `
-    <div class="almanach-card" title="${it.name}${it.title ? ' · ' + it.title : ''}${it.by ? ' (' + it.by + ')' : ''}: ${it.text || ''}">
+  currentAlmanachItems = items;
+  almanachContent.innerHTML = items.map((it, idx) => {
+    const canExpand = !!it.card && !it.isRole;
+    return `
+    <div class="almanach-card ${canExpand ? 'can-expand' : 'no-expand'}" data-idx="${idx}" ${canExpand ? 'title="Klicken: Karte in voller Spielgröße ansehen"' : ''}>
+      ${it.categoryGlyph ? `<div class="almanach-corner-badge" title="${it.categoryTitle || ''}">${it.categoryGlyph}</div>` : ''}
       <div class="almanach-card-top">
         <div class="almanach-emoji" ${it.art ? `style="background-image: url('${it.art}'); background-size: cover; background-position: center; border-radius: 8px; width: 44px; height: 44px;"` : ''}>${it.art ? '' : it.emoji}</div>
         <div class="almanach-meta">
@@ -294,8 +361,47 @@ function renderAlmanachTab(tab) {
         </div>
       </div>
       <div class="almanach-text">${it.text || ''}</div>
+      ${canExpand ? `
+      <div class="almanach-expand-bar">
+        <span class="expand-label">🃏 Spielkarte in Originalgröße</span>
+        <span class="expand-chevron">▼</span>
+      </div>
+      <div class="almanach-foldout" hidden>
+        <div class="almanach-card-stage"></div>
+      </div>
+      ` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+if (almanachContent) {
+  almanachContent.addEventListener('click', (e) => {
+    // Wenn jemand direkt auf die bereits ausgeklappte Spielkarte klickt, nicht zuklappen
+    if (e.target.closest('.almanach-card-stage')) return;
+
+    const cardBox = e.target.closest('.almanach-card');
+    if (!cardBox) return;
+
+    const foldout = cardBox.querySelector('.almanach-foldout');
+    if (!foldout) return;
+
+    const idx = parseInt(cardBox.dataset.idx, 10);
+    const it = currentAlmanachItems?.[idx];
+    if (!it || !it.card) return;
+
+    const isOpening = foldout.hidden;
+    foldout.hidden = !isOpening;
+    cardBox.classList.toggle('is-expanded', isOpening);
+
+    if (isOpening) {
+      const stage = foldout.querySelector('.almanach-card-stage');
+      if (stage && !stage.children.length) {
+        const liveCard = cardEl(it.card, arts);
+        stage.append(liveCard);
+      }
+    }
+  });
 }
 
 if (btnAlmanach && modalAlmanach) {
@@ -720,7 +826,7 @@ function renderDeckModal(force = false) {
       </label>
     </div>
     ${canEdit
-      ? `<div class="deck-quick deck-presets"><button type="button" id="deck-default">↺ Grundspiel</button><button type="button" id="deck-everything">Alles rein</button></div>`
+      ? `<div class="deck-quick deck-presets"><button type="button" id="deck-default">↺ Grundspiel</button><button type="button" id="deck-plus">✨ Grundspiel Plus</button><button type="button" id="deck-everything">Alles rein</button></div>`
       : '<p class="deck-note">👑 Nur der Host kann die Auswahl ändern.</p>'}
     ${SPECIAL_GROUPS.map((g) => {
       const list = catalog.filter((c) => c.group === g.key);
@@ -757,6 +863,7 @@ function renderDeckModal(force = false) {
   });
   $('deck-voice').onchange = (e) => send({ ...choice, voice: e.target.checked });
   $('deck-default').onclick = () => send(DEFAULT_DECK);
+  $('deck-plus').onclick = () => send(DEFAULT_DECK_PLUS);
   $('deck-everything').onclick = () => send({ specials: catalog.map((c) => c.key), roles: Object.keys(ROLES) });
 }
 $('deck-btn').onclick = () => { $('deck-modal').hidden = false; renderDeckModal(true); };
@@ -1030,6 +1137,28 @@ function render() {
     }
   }
 
+  // Eigener Handkarten-Zähler (in der Aktionsleiste und schwebend über dem Fächer)
+  const myCardCountEl = $('my-card-count');
+  const povCardCounterEl = $('pov-card-counter');
+  const handCount = v.hand?.length ?? 0;
+  if (myCardCountEl) {
+    if (v.state === 'playing') {
+      myCardCountEl.hidden = false;
+      myCardCountEl.querySelector('b').textContent = handCount;
+      myCardCountEl.title = `Du hast aktuell ${handCount} Karte${handCount === 1 ? '' : 'n'} auf der Hand`;
+    } else {
+      myCardCountEl.hidden = true;
+    }
+  }
+  if (povCardCounterEl) {
+    if (v.state === 'playing') {
+      povCardCounterEl.hidden = false;
+      povCardCounterEl.innerHTML = `<b>${handCount}</b> Karte${handCount === 1 ? '' : 'n'}`;
+    } else {
+      povCardCounterEl.hidden = true;
+    }
+  }
+
   // Knöpfe
   const isHost = v.host === me;
   $('actions').classList.toggle('setup', v.state !== 'playing');
@@ -1090,6 +1219,13 @@ function playable(cards) {
   if (cards.some((c) => c.kind === 'special')) {
     return cards.length === 1 || isJesterCombo(cards);
   }
+  const counts = {};
+  for (const c of cards) {
+    if (c.kind === 'number') {
+      counts[c.value] = (counts[c.value] || 0) + 1;
+      if (counts[c.value] > 3) return false;
+    }
+  }
   if (cards.some((c) => c.value !== cards[0].value)) return false;
 
   const myRole = view.players?.find((p) => p.id === me)?.role;
@@ -1130,6 +1266,8 @@ function toggle(c) {
     const cur = selectedCards();
     const jesters = cur.length === 1 && isJesterCombo([cur[0], c]);
     if (cur[0] && !jesters && (c.kind === 'special' || cur[0].kind === 'special' || cur[0].value !== c.value)) selected.clear();
+    const curAfter = selectedCards();
+    if (c.kind === 'number' && curAfter.filter((x) => x.value === c.value).length >= 3) return; // Triple-Cap
     selected.add(c.id);
   }
   render();
@@ -1167,10 +1305,6 @@ async function playSelected() {
     choice = { target: t };
   } else if (cards[0].ability === 'chainCurse') {
     const t = await pick('⛓️ Wen soll der Kettenfluch treffen? (zieht 2)', others);
-    if (!t) return;
-    choice = { target: t };
-  } else if (cards[0].ability === 'zenBuff') {
-    const t = await pick('🧘‍♀️ Wer erhält Džanas Zen-Vibes? (wirft 2 ab, Tisch wird 15)', others);
     if (!t) return;
     choice = { target: t };
   } else if (cards[0].ability === 'fairyTrick') {

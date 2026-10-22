@@ -37,6 +37,15 @@ export class CardRoom {
     this.chainEvent = null;   // Aktiver Chain-Banner (Yu-Gi-Oh / Master Duel Effekt-Popup)
     this.chainEventId = 0;
     this.botPending = null;
+    for (const p of this.players || []) {
+      delete p.aegisEcho;
+      delete p.aegisEchoArmed;
+      delete p._lastAegisEcho;
+      delete p.trinkgeld;
+      delete p.mimicTarget;
+      delete p.mimicTargetName;
+      delete p.mimicRole;
+    }
   }
 
   triggerChainEvent(evt) {
@@ -45,10 +54,224 @@ export class CardRoom {
   }
 
   // 🗣️ KI-Ansage für alle: was die gerade gelegte Spezialkarte macht (abschaltbar in der Kartenauswahl)
-  voiceFor(p, key, fallback) {
+  voiceFor(p, key, fallback, secretVoice = null) {
     if (this.deckChoice.voice === false) return null;
+    if (secretVoice) {
+      return { key: null, line: secretVoice, by: p.id, skipped: false, secret: true };
+    }
     const line = VOICE_LINES[key] ?? fallback;
     return line ? { key: VOICE_LINES[key] ? key : null, line, by: p.id, skipped: false } : null;
+  }
+
+  // ✨ Geheime Lore-Interaktionen: besondere Sprüche bei bestimmten Karten-Kombos
+  checkSecretLoreVoice(cards, pile, p) {
+    if (!cards || !cards.length || !pile || !pile.length) return null;
+    const sp = cards[0];
+    const prev1 = pile[pile.length - 1];
+    const prev2 = pile.length >= 2 ? pile[pile.length - 2] : null;
+
+    const isKey = (c, ...keys) => {
+      if (!c) return false;
+      return keys.some((k) => c.key === k || c.ability === k);
+    };
+
+    // 💧 Schleim nach 🐉 Drache (Smaug)
+    if (isKey(sp, 'schleim', 'slimeGluttony') && isKey(prev1, 'drache', 'dragonHoard')) {
+      return 'Drachen-Verschlinger! Der Schleim schließt ein ewiges Bündnis mit dem Drachen!';
+    }
+
+    // 🏹 Meisterschütze auf 🐉 Drache (Smaug)
+    if (isKey(prev1, 'drache', 'dragonHoard') && p && (this.hasRole(p, 'meisterschuetze') || this.hasRole(p, 'marksman'))) {
+      return 'Der Schwarze Pfeil trifft die kahle Stelle an der linken Brust! Smaug stürzt herab!';
+    }
+
+    if (sp.kind !== 'special') return null;
+
+    const isColor = (c, col) => {
+      if (!c || !c.color) return false;
+      if (col === 'gelb') return c.color === 'gelb' || c.color === '#ffd23d';
+      if (col === 'rot') return c.color === 'rot' || c.color === '#ff3d7f';
+      if (col === 'blau') return c.color === 'blau' || c.color === '#3dc6ff';
+      if (col === 'gruen') return c.color === 'gruen' || c.color === '#5cff8a';
+      return c.color === col;
+    };
+
+    // ── 1. FARB-VORBEDINGUNGEN (je 2 pro Farbe) ──
+    // Gelb 1: 🚛 Optimus Prime nach 2 gelben Karten
+    if (isKey(sp, 'optimus') && isColor(prev1, 'gelb') && isColor(prev2, 'gelb')) {
+      return 'Bumblebee, sicher die Flanke! Autobots, Transformation und Abmarsch!';
+    }
+    // Gelb 2: ⚡ Göttlicher Blitz nach 2 gelben Karten
+    if (isKey(sp, 'himmelszorn', 'divineWrath') && isColor(prev1, 'gelb') && isColor(prev2, 'gelb')) {
+      return 'Doppelte Blitzladung im Gewitter! Zeus entfesselt den göttlichen Donnerkeil!';
+    }
+
+    // Rot 1: 🐦‍🔥 Phönix-Asche nach 2 roten Zahlenkarten
+    if (isKey(sp, 'phoenix') && isColor(prev1, 'rot') && prev1?.kind === 'number' && isColor(prev2, 'rot') && prev2?.kind === 'number') {
+      return 'Aus der doppelten roten Glut neu geboren! Die Asche erwacht zu ewigem Leben!';
+    }
+    // Rot 2: 🎆 Pyrotechnik-Knall nach 2 roten Karten
+    if (isKey(sp, 'ruben_firework', 'fireworkBlast') && isColor(prev1, 'rot') && isColor(prev2, 'rot')) {
+      return 'Doppelter roter Funkenflug! Ruben zündet das spektakulärste Club-Feuerwerk!';
+    }
+
+    // Blau 1: 🔱 Luis (Der Dreizack) nach 2 blauen Karten
+    if (isKey(sp, 'louis', 'luis') && isColor(prev1, 'blau') && isColor(prev2, 'blau')) {
+      return 'Doppelte Meeresflut! Poseidons Dreizack beherrscht den Ozean!';
+    }
+    // Blau 2: 🌀 Dimensionsportal nach 2 blauen Karten
+    if (isKey(sp, 'portal') && isColor(prev1, 'blau') && isColor(prev2, 'blau')) {
+      return 'Saphirblaue Resonanz! Das Portal reißt einen Riss direkt in eine andere Dimension!';
+    }
+
+    // Grün 1: 🦔 Igel der Blätter nach 2 grünen Karten
+    if (isKey(sp, 'igel', 'leaves') && isColor(prev1, 'gruen') && isColor(prev2, 'gruen')) {
+      return 'Mitten durch das dichte grüne Blätterdickicht! Raschelndes Laub kündigt den Igel an!';
+    }
+    // Grün 2: 🧘 Džanas Zen-Gong nach 2 grünen Karten
+    if (isKey(sp, 'dzana_zen', 'zenBuff', 'zenGong') && isColor(prev1, 'gruen') && isColor(prev2, 'gruen')) {
+      return 'Im grünen Bambushain der Ruhe – der Gong ertönt im perfekten Zen!';
+    }
+
+    // ── 2. SELTENE CHARAKTER- & KARTEN-INTERAKTIONEN ──
+    // 🍪 + 🍕 Club-Gelage: Pizza auf Cookie oder Cookie auf Pizza
+    if ((isKey(sp, 'pizza_hunger') && isKey(prev1, 'cookie_chaos')) || (isKey(sp, 'cookie_chaos') && isKey(prev1, 'pizza_hunger'))) {
+      return 'Pizza und Cookies auf einmal?! Wer räumt diese gigantische Club-Küche wieder auf?!';
+    }
+
+    // 🎨 Teyas Scribbl-Meisterwerk nach 1 Snack (Cookie-Crunch oder Pizza-Raid)
+    if (isKey(sp, 'teya_scribbl', 'teyaScribbl') && isKey(prev1, 'cookie_chaos', 'pizza_hunger')) {
+      return 'Erst ein Snack zur Stärkung – und jetzt entsteht das nächste Scribbl-Meisterwerk!';
+    }
+
+    // ♾️ Ouroboros nach ⏳ Chronos-Siegel (Zeitstopp)
+    if (isKey(sp, 'zeitschleife', 'timeloop') && isKey(prev1, 'zeitstopp', 'timestop')) {
+      return 'Raumzeit-Paradoxon! Die ewige Schlange beißt Chronos direkt in die Sanduhr!';
+    }
+
+    // 🌰 Floris (Kastanie) ↔ 🍄 Luis / Pilzi (Schelme): Waldläufer-Allianz!
+    if (isKey(sp, 'floris') && isKey(prev1, 'gluecklich', 'traurig', 'luckyJester', 'sadJester')) {
+      return 'Waldläufer-Allianz! Pilze und Kastanien halten im Unterholz zusammen!';
+    }
+    if (isKey(sp, 'gluecklich', 'traurig', 'luckyJester', 'sadJester') && isKey(prev1, 'floris')) {
+      return 'Waldläufer-Allianz! Pilz-Power trifft auf Kastanienstachel!';
+    }
+
+    // 🎒 Der Rucksack nach 🚚 Bernd (Lieferdienst)
+    if (isKey(sp, 'rucksack') && isKey(prev1, 'bernd')) {
+      return 'Lieferung im Rucksack verstaut: Bernd schnallt das schwere Gepäck auf den Rücken!';
+    }
+
+    // 📋 Adrian (Musterlösung) nach 🎮 Jonas (Spielleiter)
+    if (isKey(sp, 'adrian_muster', 'masterSolution') && isKey(prev1, 'jonas')) {
+      return 'Der Spielleiter übergibt an den Chef: Bitte alle mitschreiben, jetzt kommt die Musterlösung!';
+    }
+
+    // 🏛️ Sanctuary-Protokoll nach 🌋 Tektonischer Schock
+    if (isKey(sp, 'andre_mentor', 'sanctuary') && isKey(prev1, 'erdbeben', 'earthquake')) {
+      return 'Nach dem tektonischen Beben: Das Sanctuary-Protokoll baut die sichere Rettungszone auf!';
+    }
+
+    // 🎒 Heißer Rucksack: Rucksack auf Heiße Kartoffel
+    if (isKey(sp, 'rucksack') && isKey(prev1, 'kartoffel', 'potato')) {
+      return 'Vorsicht, Verbrennungsgefahr! Jemand hat die glühend heiße Kartoffel im Rucksack versteckt!';
+    }
+
+    // 🔥 Feuer nach 🥔 Heiße Kartoffel
+    if (isKey(sp, 'burn') && isKey(prev1, 'kartoffel', 'potato')) {
+      return 'Heiße Kartoffel ins offene Lagerfeuer geworfen! Kross gebacken und mundgerecht verbrannt!';
+    }
+
+    // 👀 Stille Beobachterin (Ayleen) nach 🥷 Meisterdieb
+    if (isKey(sp, 'ayleen_observer', 'ayleenObserver') && isKey(prev1, 'dieb', 'thief')) {
+      return 'Erwischt! Die stille Beobachterin hat den Meisterdieb auf frischer Tat ertappt!';
+    }
+
+    // 💱 Ayleen (Tauschbörse) nach 🥷 Meisterdieb
+    if (isKey(sp, 'ayleen') && isKey(prev1, 'dieb', 'thief')) {
+      return 'Erst im Schatten beklaut, dann getauscht: Willkommen auf dem Schwarzmarkt der Tauschbörse!';
+    }
+
+    // 🛑 Notbremse im Orient-Express: Stopp nach Maxime
+    if (isKey(sp, 'skip') && isKey(prev1, 'maxime')) {
+      return 'Notbremse gezogen! Der Orient-Express quietscht funkensprühend zum Stillstand!';
+    }
+
+    // 🚂 Maxime (Orient-Express) nach 🏎️ Niclas (Turbo / Turbo-Abreise)
+    if (isKey(sp, 'maxime') && isKey(prev1, 'niclas', 'niclas_turbo', 'turboDash')) {
+      return 'Wettrennen zwischen Gleis und Rollfeld: Der Orient-Express überholt den Niclas-Turbo!';
+    }
+
+    // 🏎️ Niclas (Turbo) nach 🌋 Tektonischer Schock
+    if (isKey(sp, 'niclas', 'niclas_turbo', 'turboDash') && isKey(prev1, 'erdbeben', 'earthquake')) {
+      return 'Der Boden bebt – nichts wie weg! Niclas startet die Turbinen im Katastrophengebiet!';
+    }
+
+    // 👑 Souveränin des Äthers nach 🕳️ Schwarzes Loch
+    if (isKey(sp, 'andre') && isKey(prev1, 'schwarzes_loch', 'blackHole')) {
+      return 'Das Schwarze Loch weicht: Die Souveränin des Äthers stellt die kosmische Ordnung wieder her!';
+    }
+
+    // 🥷 Meisterdieb nach 🧚‍♀️ Feen-Streich
+    if (isKey(sp, 'dieb', 'thief') && isKey(prev1, 'fee_trick', 'fairyTrick')) {
+      return 'Auf frischer Tat ertappt: Der Meisterdieb schleicht sich an die Feenkönigin heran!';
+    }
+
+    // 👑 Dämonenkönig nach 👑 Souveränin des Äthers (André)
+    if (isKey(sp, 'daemonenkoenig', 'anosLogic') && isKey(prev1, 'andre')) {
+      return 'Audienz der Tyrannen! Die Herrscher von Dämonen und Äther blicken auf den Tisch herab!';
+    }
+    if (isKey(sp, 'andre') && isKey(prev1, 'daemonenkoenig', 'anosLogic')) {
+      return 'Audienz der Tyrannen! Die Herrscher von Dämonen und Äther blicken auf den Tisch herab!';
+    }
+
+    // ── 3. SELTENE ZAHLEN-VORBEDINGUNGEN ──
+    // ⚡ Göttlicher Blitz auf gelbe Unglückszahl 13
+    if (isKey(sp, 'himmelszorn', 'divineWrath') && prev1?.value === 13 && isColor(prev1, 'gelb')) {
+      return 'Zorn des Pantheons! Dreizehnfach geladener Blitz zerschmettert das Unglück!';
+    }
+
+    // ⛓️ Kettenfluch auf Unglückszahl 13
+    if (isKey(sp, 'kettenfluch', 'chainCurse') && prev1?.value === 13) {
+      return 'Freitag der Dreizehnte! Bei Unglückszahl 13 schnappen die Äther-Ketten gnadenlos zu!';
+    }
+
+    // ⬇️ Unter auf Tischwert 15 (Boss-Höchstwert)
+    if (isKey(sp, 'lower') && prev1?.value === 15) {
+      return 'Hochmut kommt vor dem Fall! Vom Gipfel der 15 fährt der Fahrstuhl direkt nach unten!';
+    }
+
+    // 📋 Die Musterlösung auf Höchstwert 15 (oder Boss 16)
+    if (isKey(sp, 'adrian_muster', 'masterSolution') && (prev1?.value === 15 || prev1?.value === 16)) {
+      return 'Prüfung mit Auszeichnung bestanden! Adrian legt die Musterlösung auf den Maximalwert!';
+    }
+
+    // 🏛️ Sanctuary-Protokoll auf Tiefstwert 1
+    if (isKey(sp, 'andre_mentor', 'sanctuary') && prev1?.value === 1) {
+      return 'Vom tiefsten Punkt neu aufgebaut: Das Sanctuary-Protokoll bietet sicheren Schutz!';
+    }
+
+    // 👑 Floris (Boss 16) auf Zahl 1
+    if (isKey(sp, 'floris') && prev1?.value === 1) {
+      return 'Vom Tellerwäscher zum Millionär! Von der 1 katapultiert Floris direkt auf die Boss-Ebene!';
+    }
+
+    // 🪙 Glücksspiel nach zwei 7ern (7 + 7)
+    if (isKey(sp, 'gluecksspiel', 'gamble') && prev1?.value === 7 && prev2?.value === 7) {
+      return 'Doppel-Sieben am Spielautomaten! Jackpot-Alarm beim Münzwurf!';
+    }
+
+    // ♊ Zwillings-Parade nach einem Zahlen-Pasch (zwei gleiche Zahlen)
+    if (isKey(sp, 'zwillinge', 'twins') && prev1?.kind === 'number' && prev2?.kind === 'number' && prev1?.value === prev2?.value) {
+      return 'Zwillings-Resonanz! Ein echter Pasch ruft die Zwillings-Parade der zwei Welten herbei!';
+    }
+
+    // ♾️ Ouroboros nach einem Zahlen-Pasch
+    if (isKey(sp, 'zeitschleife', 'timeloop') && prev1?.kind === 'number' && prev2?.kind === 'number' && prev1?.value === prev2?.value) {
+      return 'Die Zwillings-Zeitschleife schließt sich! Ouroboros frisst die Endlosschleife auf!';
+    }
+
+    return null;
   }
 
   // Wer die Karte gelegt hat, darf die Ansage für alle überspringen
@@ -64,7 +287,13 @@ export class CardRoom {
   }
 
   hasRole(p, roleName) {
-    if (!p || !p.role) return false;
+    if (!p) return false;
+    if (p.mimicRole) {
+      if (p.mimicRole === roleName) return true;
+      const mr = ROLES[p.mimicRole];
+      if (mr?.ability === roleName) return true;
+    }
+    if (!p.role) return false;
     if (p.role === roleName) return true;
     const r = ROLES[p.role];
     return r?.ability === roleName;
@@ -102,8 +331,11 @@ export class CardRoom {
     if (this.host()?.id !== byId) return { error: 'Nur der Host kann Bots hinzufügen.' };
     if (this.state === 'playing') return { error: 'Bots nur zwischen den Spielen ändern.' };
     const id = `bot-${randomUUID()}`;
-    let n = 1;
-    while (this.players.some((p) => p.name === `Bot ${n}`)) n++;
+    const available = [];
+    for (let i = 1; i <= 8; i++) {
+      if (!this.players.some((p) => p.name === `Bot ${i}`)) available.push(i);
+    }
+    const n = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : this.players.filter((p) => p.bot).length + 1;
     const result = this.addPlayer(id, { name: `Bot ${n}`, avatar: null, special: null });
     if (result.ok) this.players.find((p) => p.id === id).bot = true;
     return result;
@@ -126,14 +358,28 @@ export class CardRoom {
       if (!groups.has(c.value)) groups.set(c.value, []);
       groups.get(c.value).push(c);
     }
-    // Erst möglichst viele Zahlen loswerden; hohe Werte als Reserve halten.
-    const numbers = [...groups.values(), ...p.hand.filter((c) => c.kind === 'number').map((c) => [c])]
+    const cappedGroups = new Map();
+    for (const [val, list] of groups.entries()) {
+      cappedGroups.set(val, list.slice(0, 3));
+    }
+    // Erst möglichst viele Zahlen loswerden (maximal 3 pro Zahl); hohe Werte als Reserve halten.
+    const numbers = [...cappedGroups.values(), ...p.hand.filter((c) => c.kind === 'number').map((c) => [c])]
       .sort((a, b) => b.length - a.length || (this.lower ? b[0].value - a[0].value : a[0].value - b[0].value));
+    const trinkgeldCombos = [];
+    if (p.trinkgeld && cappedGroups.size >= 2) {
+      const groupArr = [...cappedGroups.values()];
+      for (let i = 0; i < groupArr.length; i++) {
+        for (let j = i + 1; j < groupArr.length; j++) {
+          trinkgeldCombos.push([...groupArr[i], ...groupArr[j]]);
+        }
+      }
+      trinkgeldCombos.sort((a, b) => b.length - a.length);
+    }
     const specials = p.hand.filter((c) => c.kind === 'special').map((c) => [c]);
     const happy = p.hand.find((c) => c.ability === 'luckyJester');
     const sad = p.hand.find((c) => c.ability === 'sadJester');
     const combos = happy && sad && others.length >= 2 ? [[happy, sad]] : [];
-    for (const cards of [...combos, ...numbers, ...specials]) {
+    for (const cards of [...trinkgeldCombos, ...combos, ...numbers, ...specials]) {
       if (this.whyNot(cards)) continue;
       const c = cards[0];
       const targets = c.ability === 'potato' ? others.filter((o) => o.id !== c.cameFrom) : others;
@@ -271,6 +517,21 @@ export class CardRoom {
       while (p.hand.length < size && this.deck.length) p.hand.push(this.deck.pop());
       sortHand(p.hand);
     }
+
+    // 🦎 Mimik wählt verdeckt eine Zielperson und übernimmt deren Rolle
+    for (const p of this.players) {
+      if (this.hasRole(p, 'mimik') || this.hasRole(p, 'mimic')) {
+        const others = this.players.filter((o) => o !== p);
+        if (others.length > 0) {
+          const nonMimics = others.filter((o) => o.role !== 'mimik' && ROLES[o.role]?.ability !== 'mimic');
+          const pool = nonMimics.length > 0 ? nonMimics : others;
+          const target = pool[Math.floor(Math.random() * pool.length)];
+          p.mimicTarget = target.id;
+          p.mimicTargetName = target.name;
+          p.mimicRole = target.role;
+        }
+      }
+    }
     // Alle verbleibenden Spezialkarten aus dem Los-Topf wandern direkt in das Deck!
     // Dadurch können während des Spiels jederzeit neue Spezialkarten nachgezogen werden.
     this.deck.push(...pot);
@@ -306,7 +567,6 @@ export class CardRoom {
     if (!combo && cards[0].ability === 'thief' && !opp(choice.target)) return { error: 'Wähle, wen du beklauen möchtest.' };
     if (!combo && cards[0].ability === 'divineWrath' && !opp(choice.target)) return { error: 'Wähle, wen der Göttliche Blitz treffen soll.' };
     if (!combo && cards[0].ability === 'chainCurse' && !opp(choice.target)) return { error: 'Wähle, wen der Kettenfluch treffen soll.' };
-    if (!combo && cards[0].ability === 'zenBuff' && !opp(choice.target)) return { error: 'Wähle, wer Džanas Zen-Vibes erhalten soll.' };
     if (!combo && cards[0].ability === 'fairyTrick' && !opp(choice.target)) return { error: 'Wähle, wer vom Feen-Streich verzaubert wird.' };
     if (cards[0].ability === 'twins') {
       const cs = choice.colors;
@@ -323,6 +583,9 @@ export class CardRoom {
       (prevLower && cards[0].value > prevTop)
     );
 
+    const prevCardsOnPile = this.pile.slice();
+    const secretVoice = this.checkSecretLoreVoice(cards, prevCardsOnPile, p);
+
     p.hand = p.hand.filter((c) => !cardIds.includes(c.id));
     this.pile.push(...cards);
 
@@ -334,12 +597,66 @@ export class CardRoom {
       this.lower = false;
       const elem = COLOR_ELEMENTS[cards[0].color];
       const elemIcon = elem?.icon || '';
-      if (resonanceBonusTriggered) {
+      const isHeldenmut = (this.hasRole(p, 'held') || this.hasRole(p, 'hero')) && (p.hand.length <= 2) && prevTop > 0 && (
+        (!prevLower && cards[0].value < prevTop) ||
+        (prevLower && cards[0].value > prevTop)
+      ) && !resonanceBonusTriggered;
+
+      const isMeisterschuetzeHit = (this.hasRole(p, 'meisterschuetze') || this.hasRole(p, 'marksman')) && (prevTop >= 12 || prevTopCard?.value === 16 || prevTopCard?.key === 'floris') && (
+        (!prevLower && cards[0].value < prevTop) ||
+        (prevLower && cards[0].value > prevTop)
+      ) && !resonanceBonusTriggered;
+
+      const isGezinkteWuerfel = (this.hasRole(p, 'gluecksspieler') || this.hasRole(p, 'gambler')) && prevTop > 0 && (
+        (!prevLower && cards[0].value < prevTop) ||
+        (prevLower && cards[0].value > prevTop)
+      ) && !resonanceBonusTriggered && ((cards[0].value % 2) !== (prevTop % 2));
+
+      if (secretVoice) {
+        this.say(`✨ Geheime Interaktion: ${secretVoice}`);
+        this.triggerChainEvent({
+          title: 'Geheime Interaktion!',
+          desc: secretVoice,
+          emoji: '🏹',
+          actor: p.name,
+          voice: this.voiceFor(p, null, secretVoice, secretVoice),
+        });
+      } else if (isHeldenmut) {
+        this.say(`🦸 ${p.name} (Held*in) beweist Heldenmut: Ignoriert die Tisch-Zahl!`);
+        this.setLastAction(`${p.name}: Heldenmut ${cards[0].value}`, '🦸');
+        this.triggerChainEvent({
+          title: 'Heldenmut!',
+          desc: `${p.name} ignoriert den Tischwert (${cards[0].value} auf ${prevTop})!`,
+          emoji: '🦸',
+          actor: p.name,
+          voice: this.voiceFor(p, null, 'Heldenmut! Ein wahrer Held gibt niemals auf!'),
+        });
+      } else if (isMeisterschuetzeHit) {
+        this.say(`🏹 ${p.name} (Meisterschütze) trifft die Schwachstelle: Ignoriert Tischwert ${prevTop}!`);
+        this.setLastAction(`${p.name}: Präzisions-Schuss ${cards[0].value}`, '🏹');
+        this.triggerChainEvent({
+          title: 'Präzisions-Schuss!',
+          desc: `${p.name} zielt auf Schwachstelle (${cards[0].value} auf ${prevTop})!`,
+          emoji: '🏹',
+          actor: p.name,
+          voice: this.voiceFor(p, null, 'Schuss ins Schwarze! Die Schwachstelle ist getroffen!'),
+        });
+      } else if (isGezinkteWuerfel) {
+        this.say(`🎲 ${p.name} (Glücksspieler) hebelt mit gezinkten Würfeln die Regeln aus!`);
+        this.setLastAction(`${p.name}: Gezinkte Würfel`, '🎲');
+        this.triggerChainEvent({
+          title: 'Gezinkte Würfel!',
+          desc: `${p.name} hebelt mit gezinkten Würfeln die Regeln aus!`,
+          emoji: '🎲',
+          actor: p.name,
+          voice: this.voiceFor(p, null, 'Gezinkte Würfel! Das Haus gewinnt immer!'),
+        });
+      } else if (resonanceBonusTriggered) {
         this.say(`🎵 Farb-Resonanz! ${p.name} legt ${cards.length > 1 ? cards.length + '× ' : ''}${cards[0].value} ${elemIcon} auf ${prevTop}.`);
         this.setLastAction(`${p.name}: Resonanz ${cards[0].value} ${elemIcon}`, '🎵');
         this.triggerChainEvent({
           title: 'Farb-Resonanz!',
-          desc: `${p.name} unterbietet mit ${cards[0].value} ${elemIcon} (${elem?.label || cards[0].color}) auf ${prevTop}`,
+          desc: `${p.name} unterbietet mit ${cards[0].value} ${elemIcon} (${elem?.label || 'Resonanz'}) auf ${prevTop}`,
           emoji: '🎵',
           actor: p.name,
         });
@@ -348,10 +665,27 @@ export class CardRoom {
         this.setLastAction(`${p.name} legt ${cards.length > 1 ? cards.length + '× ' : ''}${cards[0].value} ${elemIcon}`, elemIcon || '🃏');
       }
 
+      // 🧨 Anarchist: Unglückszahl 7 oder 13 kehrt sofort die Spielrichtung um
+      if (cards[0].value === 7 || cards[0].value === 13) {
+        const anarchist = this.active().find((o) => this.hasRole(o, 'anarchist'));
+        if (anarchist) {
+          this.dir *= -1;
+          this.say(`🧨 ${anarchist.name} (Anarchist) reagiert auf die Unglückszahl ${cards[0].value}: Entropie dreht die Spielrichtung um!`);
+          this.triggerChainEvent({
+            title: 'Entropie-Spiegel!',
+            desc: `${anarchist.name} kehrt bei ${cards[0].value} die Richtung um!`,
+            emoji: '🧨',
+            actor: anarchist.name,
+            voice: this.voiceFor(anarchist, null, 'Totales Chaos! Vorwärts ist das neue Rückwärts!'),
+          });
+        }
+      }
+
       // ⚡ Elementar-Kette: 3x dieselbe Farbe in Folge zwingt den/die Nächste*n zum Ziehen
       const cardColor = cards[0].color;
-      if (this.colorStreak.color === cardColor) {
+      if (this.colorStreak.color === cardColor || this.colorStreak.color === 'wild') {
         this.colorStreak.count += cards.length;
+        if (this.colorStreak.color === 'wild') this.colorStreak.color = cardColor;
       } else {
         this.colorStreak = { color: cardColor, count: cards.length };
       }
@@ -382,6 +716,7 @@ export class CardRoom {
             desc: `${p.name} wirft ${lowest.value} kostenlos ab`,
             emoji: '🧪',
             actor: p.name,
+            voice: this.voiceFor(p, null, 'Transmutation! Die niedere Materie zerfällt zu Gold!'),
           });
         }
       }
@@ -415,15 +750,18 @@ export class CardRoom {
     }
 
     const sp = cards[0];
+    if (secretVoice) {
+      this.say(`✨ Geheime Interaktion: ${secretVoice}`);
+    }
     // Spielerkarten haben lange Texte → im Protokoll nur der Name (Details per Antippen)
     this.say(`${p.name} spielt ${sp.emoji} ${sp.name}${sp.text ? '!' : ': ' + cardText(sp)}`);
     this.setLastAction(`${p.name}: ${sp.name}`, sp.emoji || '✨');
     this.triggerChainEvent({
       title: sp.name,
-      desc: cardText(sp) || `${p.name} aktiviert Fähigkeit`,
+      desc: secretVoice || cardText(sp) || `${p.name} aktiviert Fähigkeit`,
       emoji: sp.emoji || '✨',
       actor: p.name,
-      voice: this.voiceFor(p, sp.key === 'custom' ? null : sp.key, `${sp.name}! ${cardText(sp)}.`),
+      voice: this.voiceFor(p, sp.key === 'custom' ? null : sp.key, `${sp.name}! ${cardText(sp)}.`, secretVoice),
     });
     if (sp.ability === 'twins') {
       this.wild = { colors: choice.colors, owner: p.id };
@@ -445,7 +783,9 @@ export class CardRoom {
     } else if (sp.ability === 'aegis') {
       this.top = 0;
       this.lower = false;
-      this.say(`   → 🛡️ Die Null-Zone reinigt den Tisch: Stapel zählt wieder ab 0.`);
+      p.aegisEcho = true;
+      p.aegisEchoArmed = true;
+      this.say(`   → 🛡️ Die Null-Zone reinigt den Tisch: Stapel zählt wieder ab 0 und erzeugt einen goldenen Nachhall!`);
     } else if (sp.ability === 'blackHole') {
       this.say(`   → 🕳️ Die Singularität verschlingt alles! Stapel wird verbrannt.`);
       this.pile = [];
@@ -454,9 +794,16 @@ export class CardRoom {
       this.triggerNecromancer();
       for (const o of this.active()) {
         if (o !== p && o.hand.length > 0) {
-          const idx = Math.floor(Math.random() * o.hand.length);
-          const victimCard = o.hand.splice(idx, 1)[0];
-          this.say(`   → 🕳️ ${o.name} verliert 1 Karte an das Schwarze Loch!`);
+          const specialIdx = o.hand.findIndex((c) => c.kind === 'special');
+          let victimCard;
+          if (specialIdx >= 0) {
+            victimCard = o.hand.splice(specialIdx, 1)[0];
+            this.say(`   → 🕳️ ${o.name} verliert Spezialkarte ${victimCard.emoji || ''} ${victimCard.name} an das Schwarze Loch!`);
+          } else {
+            const idx = Math.floor(Math.random() * o.hand.length);
+            victimCard = o.hand.splice(idx, 1)[0];
+            this.say(`   → 🕳️ ${o.name} verliert 1 Karte an das Schwarze Loch!`);
+          }
           sortHand(o.hand);
         }
       }
@@ -470,10 +817,9 @@ export class CardRoom {
       if (victim && victim.hand.length > 0) {
         const idx = Math.floor(Math.random() * victim.hand.length);
         const stolen = victim.hand.splice(idx, 1)[0];
-        p.hand.push(stolen);
-        sortHand(p.hand);
+        this.pile.push(stolen);
         sortHand(victim.hand);
-        this.say(`   → 🥷 ${p.name} stiehlt verdeckt 1 Karte von ${victim.name}!`);
+        this.say(`   → 🥷 ${p.name} stiehlt 1 Karte von ${victim.name} und lässt sie spurlos im Schatten verschwinden!`);
       }
     } else if (sp.ability === 'phoenix') {
       const count = this.pile.length;
@@ -501,7 +847,11 @@ export class CardRoom {
           this.say(`☀️ ${victim.name} (Gott) ist immun gegen göttlichen Zorn – der Blitz wirft ${p.name} um (zieht 2)!`);
           this.draw(p, 2, { global: true, penalty: true });
         } else if (this.blocksWithAegis(victim, p)) {
-          this.say(`🛡️ ${victim.name} wehrt den Göttlichen Blitz mit der Aegis ab!`);
+          if (victim._lastAegisEcho) {
+            this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${victim.name} vor dem Göttlichen Blitz!`);
+          } else {
+            this.say(`🛡️ ${victim.name} wehrt den Göttlichen Blitz mit der Aegis ab!`);
+          }
         } else {
           const sIdx = victim.hand.findIndex((c) => c.kind === 'special');
           if (sIdx >= 0) {
@@ -525,6 +875,32 @@ export class CardRoom {
       } else {
         this.say(`   → ♾️ Keine Spezialkarte im Ablagestapel – ${p.name} zieht stattdessen 1 Karte vom Deck.`);
         this.draw(p, 1, { global: true });
+      }
+      // Ouroboros-Erweiterung: Letzte 2 gespielte Zahlen an 2 zufällige Mitspieler
+      const numbersInPile = [...this.pile].filter((c) => c.kind === 'number');
+      const numbersToReturn = numbersInPile.slice(-2);
+      const others = this.active().filter((o) => o !== p);
+
+      if (numbersToReturn.length > 0 && others.length > 0) {
+        if (others.length >= 2 && numbersToReturn.length >= 2) {
+          const shuffled = [...others].sort(() => Math.random() - 0.5);
+          const [v1, v2] = shuffled;
+          const [n1, n2] = numbersToReturn;
+          this.pile = this.pile.filter((c) => c !== n1 && c !== n2);
+          v1.hand.push(n1);
+          v2.hand.push(n2);
+          sortHand(v1.hand);
+          sortHand(v2.hand);
+          this.say(`   → ♾️ Ouroboros dreht die Zeit zurück: ${v1.name} (Zahl ${n1.value}) und ${v2.name} (Zahl ${n2.value}) bekommen alte Zahlen ins Blatt gedrückt!`);
+        } else {
+          for (const n of numbersToReturn) {
+            const target = others[Math.floor(Math.random() * others.length)];
+            this.pile = this.pile.filter((c) => c !== n);
+            target.hand.push(n);
+            sortHand(target.hand);
+            this.say(`   → ♾️ Ouroboros dreht die Zeit zurück: ${target.name} bekommt Zahl ${n.value} ins Blatt gedrückt!`);
+          }
+        }
       }
     } else if (sp.ability === 'earthquake') {
       this.say(`   → 🌋 Tektonischer Schock! Tisch wird gereinigt. Alle mit > 5 Handkarten verlieren 1 Karte.`);
@@ -559,20 +935,32 @@ export class CardRoom {
         }
       }
     } else if (sp.ability === 'zenBuff') {
-      const victim = opp(choice.target);
-      if (victim) {
-        let discarded = 0;
-        for (let i = 0; i < 2 && victim.hand.length > 0; i++) {
-          const idx = Math.floor(Math.random() * victim.hand.length);
-          const c = victim.hand.splice(idx, 1)[0];
-          this.pile.push(c);
-          discarded++;
-        }
-        sortHand(victim.hand);
-        this.top = 15;
-        this.lower = false;
-        this.say(`   → 🧘‍♀️ Džanas Zen-Gong ertönt! ${victim.name} atmet durch und wirft ${discarded} Karten ab. Der Tisch steht auf Boss (15)!`);
+      const numbers = p.hand.filter((c) => c.kind === 'number').sort((a, b) => a.value - b.value);
+      const toDiscard = [];
+      if (numbers.length >= 2) {
+        // Zwingend die beiden niedrigsten Zahlen abwerfen
+        toDiscard.push(numbers[0], numbers[1]);
+      } else if (numbers.length === 1) {
+        // Die 1 Zahl zwingend + 1 beliebige andere Karte (falls vorhanden)
+        toDiscard.push(numbers[0]);
+        const otherCards = p.hand.filter((c) => c.id !== numbers[0].id);
+        if (otherCards.length > 0) toDiscard.push(otherCards[0]);
+      } else {
+        // Keine Zahlen vorhanden -> bis zu 2 beliebige Karten
+        toDiscard.push(...p.hand.slice(0, 2));
       }
+
+      for (const c of toDiscard) {
+        const idx = p.hand.findIndex((x) => x.id === c.id);
+        if (idx >= 0) {
+          p.hand.splice(idx, 1);
+          this.pile.push(c);
+        }
+      }
+      sortHand(p.hand);
+      this.top = 15;
+      this.lower = false;
+      this.say(`   → 🧘‍♀️ Džanas Zen-Gong ertönt! ${p.name} atmet durch und wirft ${toDiscard.length} Karte(n) ab (niedrigste Zahlen). Der Tisch steht auf Boss (15)!`);
     } else if (sp.ability === 'fairyTrick') {
       const victim = opp(choice.target);
       if (victim) {
@@ -647,10 +1035,11 @@ export class CardRoom {
       this.lower = Math.random() < 0.5;
       this.say(`   → 🍪 Neuer Tischwert: ${this.top} (${this.lower ? '⬇️ Unter' : '⬆️ Über'})!`);
     } else if (sp.ability === 'teyaScribbl') {
-      this.say(`   → 🎨 Teyas Scribbl-Meisterwerk! Bunte Farbenpracht: Tisch gereinigt, alle Farbregeln aufgehoben!`);
+      this.say(`   → 🎨 Teyas Scribbl-Meisterwerk! Bunte Farbenpracht: Tisch auf 0 gereinigt und Farb-Resonanz direkt auf Stufe 3 vorgeladen!`);
       this.top = 0;
       this.lower = false;
       this.wild = { colors: [...RULES.colors], owner: p.id };
+      this.colorStreak = { color: 'wild', count: 2 };
     } else if (sp.ability === 'ayleenObserver') {
       this.top = Math.max(1, (this.top || 10) - 5);
       this.lower = false;
@@ -683,15 +1072,54 @@ export class CardRoom {
         if (numCards.length > 0) {
           const highest = numCards.reduce((max, cur) => (cur.value > max.value ? cur : max), numCards[0]);
           o.hand = o.hand.filter((c) => c !== highest);
-          sortHand(o.hand);
-          this.say(`   → 🎆 ${o.name} verbrennt ${highest.color} ${highest.value} im Funkenregen!`);
+          const elem = highest.color ? COLOR_ELEMENTS[highest.color] : null;
+          const cardLabel = elem ? `${elem.icon} ${elem.label} (${highest.value})` : `Zahl ${highest.value}`;
+          this.say(`   → 🎆 ${o.name} verbrennt ${cardLabel} im Funkenregen!`);
         }
+      }
+    } else if (sp.ability === 'slimeGluttony') {
+      ctx.again = true;
+      if (prevCardsOnPile.length > 0) {
+        const swallowed = prevCardsOnPile[prevCardsOnPile.length - 1];
+        this.pile = this.pile.filter((c) => c !== swallowed);
+        const prevPrev = prevCardsOnPile.length >= 2 ? prevCardsOnPile[prevCardsOnPile.length - 2] : null;
+        this.top = prevPrev?.value || 0;
+        this.lower = false;
+        const swallowedName = swallowed.name || `Zahl ${swallowed.value}`;
+        this.say(`   → 💧 Gluttony! Der Schleim verschlingt ${swallowedName} in seinen Magenraum! Tisch fällt auf ${this.top} zurück und ${p.name} ist sofort noch einmal dran!`);
+      } else {
+        this.top = 0;
+        this.lower = false;
+        this.say(`   → 💧 Gluttony! Der Tisch ist leer – Schleim reinigt den Tisch auf 0 und ${p.name} ist sofort noch einmal dran!`);
+      }
+    } else if (sp.ability === 'anosLogic') {
+      this.top = 0;
+      this.lower = false;
+      this.say(`   → 👑 Venuzdonoa! Zerstört alle Spielregeln: Dämonenkönig bricht die Kette – nächste Person MUSS eine reguläre Zahlenkarte legen oder den Stapel fressen!`);
+    } else if (sp.ability === 'dragonHoard') {
+      const count = this.pile.length;
+      this.pile = [];
+      this.top = 0;
+      this.lower = false;
+      this.say(`   → 🐉 Drachenhort! Smaug schmilzt den gesamten Tischstapel (${count} Karten) zu Gold ein (verbrennt auf 0)!`);
+      this.triggerNecromancer();
+      const nextTarget = this.seatFrom(p, 1);
+      if (nextTarget) {
+        this.say(`   → 🐉 Smaugs Zorn trifft ${nextTarget.name}: Zieht 3 Strafkarten!`);
+        this.draw(nextTarget, 3, { from: p, penalty: true });
       }
     }
     for (const e of sp.effects ?? []) this.runEffect(p, e, ctx);
     if ((this.hasRole(p, 'junggott') || this.hasRole(p, 'demigod')) && !ctx.again) {
       ctx.again = true;
       this.say(`⚡ ${p.name} (Junger Gott) entfesselt Himmelsblitz: Ist sofort noch einmal dran!`);
+      this.triggerChainEvent({
+        title: 'Himmelsblitz!',
+        desc: `${p.name} ist sofort noch einmal dran`,
+        emoji: '⚡',
+        actor: p.name,
+        voice: this.voiceFor(p, null, 'Himmelsblitz! Die Götter dulden keine Pause!'),
+      });
     }
     return this.endTurn(p, ctx);
   }
@@ -720,7 +1148,11 @@ export class CardRoom {
       return this.endTurn(p, { skip: 0, again: false });
     }
     if (this.blocksWithAegis(t, p)) {
-      this.say(`🛡️ ${t.name} wehrt die Heiße Kartoffel mit der Aegis der Nullifizierung ab – sie fällt in den Ziehstapel!`);
+      if (t._lastAegisEcho) {
+        this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${t.name} vor der Heißen Kartoffel – sie fällt in den Ziehstapel!`);
+      } else {
+        this.say(`🛡️ ${t.name} wehrt die Heiße Kartoffel mit der Aegis der Nullifizierung ab – sie fällt in den Ziehstapel!`);
+      }
       p.hand = p.hand.filter((c) => c !== potato);
       delete potato.cameFrom;
       this.deck.unshift(potato);
@@ -752,6 +1184,7 @@ export class CardRoom {
           desc: `${from.name} zieht stattdessen ${n} Strafkarten!`,
           emoji: '☀️',
           actor: t.name,
+          voice: this.voiceFor(t, null, 'Göttliche Majestät! Niedere Flüche prallen an mir ab!'),
         });
         return this.draw(from, n, { global: true, noReflect: true, penalty: true });
       }
@@ -762,13 +1195,18 @@ export class CardRoom {
           desc: `${t.name} (Pazifist) wehrt Zieh-Angriff ab!`,
           emoji: '🕊️',
           actor: t.name,
+          voice: this.voiceFor(t, null, 'Diplomatische Immunität! Gewalt ist keine Lösung!'),
         });
         return;
       }
       if (this.blocksWithAegis(t, from)) {
-        this.say(`🛡️ ${t.name} wirft die Aegis der Nullifizierung ab – Zieh-Effekt vollständig geblockt!`);
+        if (t._lastAegisEcho) {
+          this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${t.name} weiterhin – Zieh-Effekt vollständig geblockt!`);
+        } else {
+          this.say(`🛡️ ${t.name} wirft die Aegis der Nullifizierung ab – Zieh-Effekt vollständig geblockt!`);
+        }
         this.triggerChainEvent({
-          title: 'Aegis der Nullifizierung',
+          title: t._lastAegisEcho ? 'Aegis-Nachhall' : 'Aegis der Nullifizierung',
           desc: `${t.name} blockt den Angriff vollständig!`,
           emoji: '🛡️',
           actor: t.name,
@@ -776,24 +1214,6 @@ export class CardRoom {
         return;
       }
       if (!global) {
-        const teyaCard = t.hand.find((c) => c.ability === 'teyaScribbl');
-        if (teyaCard && !noReflect) {
-          const others = this.active().filter((o) => o !== t);
-          if (others.length) {
-            const protector = others.reduce((max, cur) => cur.hand.length > max.hand.length ? cur : max, others[0]);
-            if (protector && protector !== t) {
-              this.say(`🎨 Gankoomon-Schutz: ${protector.name} fängt ${n} Strafkarten schützend für ${t.name} ab!`);
-              this.triggerChainEvent({
-                title: 'Gankoomon-Schutz!',
-                desc: `${protector.name} fängt ${n} Strafkarten für ${t.name} ab!`,
-                emoji: '🎨',
-                actor: protector.name,
-              });
-              this.draw(protector, n, { global: true, penalty: true, noReflect: true });
-              return;
-            }
-          }
-        }
         if (!noReflect && this.reflects(t, from)) {
           this.say(`😆 ${t.name} lacht zuletzt – ${from.name} zieht ${n} statt ${t.name}!`);
           this.triggerChainEvent({
@@ -808,14 +1228,16 @@ export class CardRoom {
         if (mirror && !noReflect) {
           t.hand = t.hand.filter((c) => c !== mirror);
           this.pile.push(mirror);
-          this.say(`🪞 ${t.name} spiegelt den Angriff mit dem Prismatischen Spiegel – ${from.name} zieht ebenfalls ${n}!`);
+          const defenderPenalty = Math.max(1, Math.ceil((n * 2) / 3));
+          this.say(`🪞 ${t.name} spiegelt den Angriff mit dem Prismatischen Spiegel – ${from.name} zieht die vollen ${n}, ${t.name} dämpft auf zwei Drittel (${defenderPenalty})!`);
           this.triggerChainEvent({
             title: 'Prismatischer Spiegel!',
-            desc: `${t.name} spiegelt Angriff – ${from.name} zieht ${n}!`,
+            desc: `${t.name} spiegelt Angriff – ${from.name} zieht ${n}, ${t.name} dämpft auf ${defenderPenalty}!`,
             emoji: '🪞',
             actor: t.name,
           });
           this.draw(from, n, { global: true, noReflect: true, penalty: true });
+          n = defenderPenalty;
         }
         const twins = t.hand.find((c) => c.ability === 'twins');
         if (twins) {
@@ -839,11 +1261,37 @@ export class CardRoom {
       this.say(`🥔 ${t.name} hält die Kartoffel → zieht ${n * 3} statt ${n}!`);
       n *= 3;
     }
+    if (this.hasRole(t, 'anarchist') && isPenalty) {
+      if (Math.random() < 0.5) {
+        n = n * 2;
+        this.say(`🧨 ${t.name} (Anarchist) wirft die Münze der Entropie: KOPF! Strafe verdoppelt auf ${n}!`);
+        this.triggerChainEvent({
+          title: 'Anarchie-Münzwurf: Kopf!',
+          desc: `Strafe für ${t.name} verdoppelt auf ${n}!`,
+          emoji: '🧨',
+          actor: t.name,
+          voice: this.voiceFor(t, null, 'Doppeltes Chaos! Kopf verdoppelt den Schmerz!'),
+        });
+      } else {
+        n = Math.max(1, Math.floor(n / 2));
+        this.say(`🧨 ${t.name} (Anarchist) wirft die Münze der Entropie: ZAHL! Strafe halbiert auf ${n}!`);
+        this.triggerChainEvent({
+          title: 'Anarchie-Münzwurf: Zahl!',
+          desc: `Strafe für ${t.name} halbiert auf ${n}!`,
+          emoji: '🧨',
+          actor: t.name,
+          voice: this.voiceFor(t, null, 'Reines Glück im Chaos! Zahl halbiert den Schaden!'),
+        });
+      }
+    }
     let got = 0;
     for (; got < n && this.deck.length; got++) t.hand.push(this.deck.pop());
     sortHand(t.hand);
     if (got && isPenalty) {
       t.stats.drawnCards = (t.stats.drawnCards || 0) + got;
+      if (got >= 3) {
+        this.triggerMedic(t);
+      }
     }
     if (got) this.say(`   → ${t.name} zieht ${got}${got < n ? ' (Stapel leer)' : ''}`);
     if ((this.hasRole(t, 'pechvogel') || this.hasRole(t, 'unlucky')) && from && from !== t && !global && got > 0) {
@@ -853,6 +1301,7 @@ export class CardRoom {
         desc: `${from.name} muss wegen ${t.name} 1 Karte mitziehen!`,
         emoji: '🐦‍⬛',
         actor: t.name,
+        voice: this.voiceFor(t, null, 'Geteiltes Leid ist doppeltes Pech! Du ziehst mit mir in den Abgrund!'),
       });
       this.draw(from, 1, { global: true, noReflect: true, penalty: true });
     }
@@ -860,12 +1309,20 @@ export class CardRoom {
 
   // 🛡️ Aegis der Nullifizierung: blockt negative Effekte aus der Hand ab
   blocksWithAegis(t, from) {
-    if (!t || !Array.isArray(t.hand) || !from || t === from) return false;
+    if (!t || !from || t === from) return false;
+    if (t.aegisEcho) {
+      t._lastAegisEcho = true;
+      return true;
+    }
+    if (!Array.isArray(t.hand)) return false;
     const aegis = t.hand.find((c) => c?.ability === 'aegis');
     if (!aegis) return false;
     t.hand = t.hand.filter((c) => c !== aegis);
     if (!Array.isArray(this.pile)) this.pile = [];
     this.pile.push(aegis);
+    t.aegisEcho = true;
+    t.aegisEchoArmed = false;
+    t._lastAegisEcho = false;
     return true;
   }
 
@@ -912,19 +1369,37 @@ export class CardRoom {
       sortHand(p.hand);
       return this.endTurn(p, { skip: 0, again: false });
     }
-    if ((this.hasRole(p, 'dorfdepp') || this.hasRole(p, 'fool')) && this.pile.length > 3) {
-      const takeCount = 3;
+    const isBoss = this.top === 16 || this.pile[this.pile.length - 1]?.value === 16 || this.pile[this.pile.length - 1]?.key === 'floris';
+    if ((this.hasRole(p, 'meisterschuetze') || this.hasRole(p, 'marksman')) && isBoss) {
+      this.say(`🏹 ${p.name} (Meisterschütze) weicht dem Boss-Schlag aus: Der Stapel prallt ab und verbrennt auf 0!`);
+      this.setLastAction(`${p.name} weicht Boss aus (Meisterschütze)`, '🏹');
+      this.triggerChainEvent({
+        title: 'Präzisions-Ausweichmanöver',
+        desc: `${p.name} weicht dem Boss-Stapel aus – Stapel verbrennt auf 0!`,
+        emoji: '🏹',
+        actor: p.name,
+        voice: this.voiceFor(p, null, 'Schuss ins Schwarze! Ein Meisterschütze beugt sich keinem Boss!'),
+      });
+      this.pile = [];
+      this.top = 0;
+      this.lower = false;
+      this.colorStreak = { color: null, count: 0 };
+      return this.endTurn(p, { skip: 0, again: false });
+    }
+    if ((this.hasRole(p, 'dorfdepp') || this.hasRole(p, 'fool')) && this.pile.length > 2) {
+      const takeCount = 2;
       const burned = this.pile.length - takeCount;
       const taken = this.pile.slice(-takeCount);
       p.stats.pileCards = (p.stats.pileCards || 0) + takeCount;
       p.hand.push(...taken);
-      this.say(`🤪 ${p.name} nutzt Bauernschläue: Nimmt nur 3 Karten – ${burned} Karten verbrennen! 🔥`);
+      this.say(`🤪 ${p.name} nutzt Bauernschläue: Nimmt nur 2 Karten – ${burned} Karten verbrennen! 🔥`);
       this.setLastAction(`${p.name} nimmt 3 Karten (Bauernschläue)`, '🤪');
       this.triggerChainEvent({
         title: 'Bauernschläue',
         desc: `${p.name} nimmt nur 3 Karten (${burned} verbrannt)!`,
         emoji: '🤪',
         actor: p.name,
+        voice: this.voiceFor(p, null, 'Bauernschläue! Der Depp lässt den Stapel brennen!'),
       });
     } else if ((this.hasRole(p, 'berserker') || this.hasRole(p, 'berserk')) && this.pile.length > 2) {
       const takeCount = Math.ceil(this.pile.length / 2);
@@ -939,19 +1414,45 @@ export class CardRoom {
         desc: `${p.name} nimmt ${takeCount} Karten (${burned} verbrannt)!`,
         emoji: '🪓',
         actor: p.name,
+        voice: this.voiceFor(p, null, 'Blutrausch! Der Stapel wird in Stücke gehackt!'),
       });
     } else {
       p.stats.pileCards = (p.stats.pileCards || 0) + this.pile.length;
       this.say(`${p.name} nimmt den Stapel (${this.pile.length} Karten). 😬`);
       this.setLastAction(`${p.name} nimmt Stapel (${this.pile.length} Karten)`, '😬');
       p.hand.push(...this.pile);
+      if (this.hasRole(p, 'buerger') || this.hasRole(p, 'citizen')) {
+        this.grantCitizenBonus(p);
+      }
     }
     sortHand(p.hand);
+    this.triggerMedic(p);
     this.pile = [];
     this.top = 0;
     this.lower = false;
     this.colorStreak = { color: null, count: 0 };
     return this.endTurn(p, { skip: 0, again: false });
+  }
+
+  grantCitizenBonus(p) {
+    if (!p) return;
+    const idx = this.deck.findIndex((c) => c.kind === 'special');
+    if (idx >= 0) {
+      const found = this.deck.splice(idx, 1)[0];
+      p.hand.push(found);
+      sortHand(p.hand);
+      this.say(`🧑 ${p.name} (Bürger*in) erhält Bürgergeld als Solidaritäts-Ausgleich: Zieht ${found.emoji || '✨'} ${found.name}!`);
+      this.triggerChainEvent({
+        title: 'Bürgergeld!',
+        desc: `${p.name} erhält ${found.emoji || '✨'} ${found.name} als Ausgleich!`,
+        emoji: '🧑',
+        actor: p.name,
+        voice: this.voiceFor(p, null, 'Solidaritäts-Ausgleich! Das Bürgergeld regelt den Schaden!'),
+      });
+    } else if (this.deck.length > 0) {
+      this.say(`🧑 ${p.name} (Bürger*in) erhält Bürgergeld: Zieht 1 Karte vom Deck!`);
+      this.draw(p, 1, { global: true });
+    }
   }
 
   isResonant(cards) {
@@ -963,37 +1464,69 @@ export class CardRoom {
 
   whyNot(cards) {
     const p = this.current();
+    const topCard = this.pile[this.pile.length - 1];
+    const isAnosOnTop = topCard?.ability === 'anosLogic' || topCard?.key === 'daemonenkoenig';
+
+    if (cards[0].kind === 'special' || cards.some((c) => c.kind === 'special')) {
+      if (isAnosOnTop) {
+        return 'Venuzdonoa herrscht: Auf den Dämonenkönig dürfen keine Spezialkarten gelegt werden!';
+      }
+      if (cards.length === 1) return null;
+      const ab = cards.map((c) => c.ability).sort().join('+');
+      return ab === 'luckyJester+sadJester' ? null : 'Specials nur einzeln (Ausnahme: beide Schelme).';
+    }
+    const uniqueValues = [...new Set(cards.map((c) => c.value))];
+    if (p && p.trinkgeld) {
+      if (uniqueValues.length > 2) return 'Mit Trinkgeld maximal 2 verschiedene Zahlen zusammen.';
+    } else {
+      if (uniqueValues.length > 1) return 'Nur gleiche Zahlen zusammen.';
+    }
+    const valCounts = {};
+    for (const c of cards) {
+      if (c.kind === 'number') {
+        valCounts[c.value] = (valCounts[c.value] || 0) + 1;
+        if (valCounts[c.value] > 3) {
+          return 'Maximal 3 Karten derselben Zahl zusammen ablegen.';
+        }
+      }
+    }
+    if (isAnosOnTop) {
+      return null; // Zahlenkarten dürfen immer auf den Dämonenkönig gelegt werden
+    }
     if (p && (this.hasRole(p, 'held') || this.hasRole(p, 'hero')) && p.hand.length <= 2 && cards.every((c) => c.kind === 'number')) {
       return null; // 🦸 Heldenmut: Darf jede Zahl auf jede Zahl legen
+    }
+    if (p && (this.hasRole(p, 'meisterschuetze') || this.hasRole(p, 'marksman')) && cards.every((c) => c.kind === 'number')) {
+      if (this.top >= 12 || topCard?.value === 16 || topCard?.key === 'floris') {
+        return null; // 🏹 Präzisions-Schuss: Zielt auf Schwachstellen bei Tisch ≥ 12 oder Boss (16)
+      }
     }
     if (p && (this.hasRole(p, 'gluecksspieler') || this.hasRole(p, 'gambler')) && cards.every((c) => c.kind === 'number') && this.top > 0) {
       const v = cards[0].value;
       if ((v % 2) !== (this.top % 2)) return null; // 🎲 Gezinkte Würfel: Ungerade auf gerade (oder umgekehrt) klappt immer
     }
-    if (cards[0].kind === 'special' || cards.some((c) => c.kind === 'special')) {
-      if (cards.length === 1) return null;
-      const ab = cards.map((c) => c.ability).sort().join('+');
-      return ab === 'luckyJester+sadJester' ? null : 'Specials nur einzeln (Ausnahme: beide Schelme).';
-    }
-    if (cards.some((c) => c.value !== cards[0].value)) return 'Nur gleiche Zahlen zusammen.';
-    const v = cards[0].value;
     if (this.top === 0) return null;
     // ♊ freie Farben: passen auf alles
     if (this.wild && cards.every((c) => this.wild.colors.includes(c.color))) return null;
     // ♊ Sphäre: liegt die Zwillings-Parade oben, geht auch genau 1 drunter
-    if (this.pile[this.pile.length - 1]?.ability === 'twins' && v === this.top - 1) return null;
+    if (this.pile[this.pile.length - 1]?.ability === 'twins' && uniqueValues.some(val => val === this.top - 1)) return null;
 
     const resonant = this.isResonant(cards);
     const tol = resonant ? (RULES.resonanceTolerance ?? COLOR_RESONANCE_TOLERANCE) : 0;
 
-    if (this.lower) {
-      const maxAllowed = this.top + tol;
-      const ok = RULES.equalAllowed ? v <= maxAllowed : (v < this.top || (resonant && v <= maxAllowed));
-      return ok ? null : `Muss ${RULES.equalAllowed ? '≤' : '<'} ${this.top} sein${resonant ? ` (Resonanz-Limit: ${maxAllowed})` : ''}.`;
-    }
-    const minAllowed = Math.max(1, this.top - tol);
-    const ok = RULES.equalAllowed ? v >= minAllowed : (v > this.top || (resonant && v >= minAllowed));
-    return ok ? null : `Muss ${RULES.equalAllowed ? '≥' : '>'} ${this.top} sein${resonant ? ` (Resonanz-Limit: ${minAllowed})` : ''}.`;
+    const isValid = (val) => {
+      if (this.lower) {
+        const maxAllowed = this.top + tol;
+        return RULES.equalAllowed ? val <= maxAllowed : (val < this.top || (resonant && val <= maxAllowed));
+      }
+      const minAllowed = Math.max(1, this.top - tol);
+      return RULES.equalAllowed ? val >= minAllowed : (val > this.top || (resonant && val >= minAllowed));
+    };
+
+    if (uniqueValues.some(isValid)) return null;
+    return this.lower
+      ? `Muss ${RULES.equalAllowed ? '≤' : '<'} ${this.top} sein${resonant ? ` (Resonanz-Limit: ${this.top + tol})` : ''}.`
+      : `Muss ${RULES.equalAllowed ? '≥' : '>'} ${this.top} sein${resonant ? ` (Resonanz-Limit: ${Math.max(1, this.top - tol)})` : ''}.`;
   }
 
   endTurn(p, { skip, again }) {
@@ -1011,6 +1544,7 @@ export class CardRoom {
       this.finish(potatoWin);
       return { ok: true };
     }
+    delete p.trinkgeld;
     if (!again) this.advance(1 + skip, p);
     return { ok: true };
   }
@@ -1029,6 +1563,15 @@ export class CardRoom {
           this.wild = null;
           this.say('♊ Die zwei Welten schließen sich wieder.');
         }
+        if (bPlayer?.aegisEcho) {
+          if (bPlayer.aegisEchoArmed) {
+            delete bPlayer.aegisEcho;
+            delete bPlayer.aegisEchoArmed;
+            this.say(`🛡️ Der goldene Nachhall der Aegis von ${bPlayer.name} verblasst mit Beginn des Zuges.`);
+          } else {
+            bPlayer.aegisEchoArmed = true;
+          }
+        }
         return;
       }
     }
@@ -1037,9 +1580,23 @@ export class CardRoom {
       const curr = this.players[this.turn];
       if (s < steps - 1 && fromPlayer && curr !== fromPlayer) {
         if (this.blocksWithAegis(curr, fromPlayer)) {
-          this.say(`🛡️ ${curr.name} annulliert das Aussetzen mit der Aegis der Nullifizierung und ist am Zug!`);
+          if (curr._lastAegisEcho) {
+            this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${curr.name} vor dem Aussetzen und ist am Zug!`);
+          } else {
+            this.say(`🛡️ ${curr.name} annulliert das Aussetzen mit der Aegis der Nullifizierung und ist am Zug!`);
+          }
           break;
         }
+      }
+    }
+    const curr = this.current();
+    if (curr?.aegisEcho) {
+      if (curr.aegisEchoArmed) {
+        delete curr.aegisEcho;
+        delete curr.aegisEchoArmed;
+        this.say(`🛡️ Der goldene Nachhall der Aegis von ${curr.name} verblasst mit Beginn des Zuges.`);
+      } else {
+        curr.aegisEchoArmed = true;
       }
     }
     if (this.wild && this.current()?.id === this.wild.owner) {
@@ -1159,8 +1716,13 @@ export class CardRoom {
         for (const t of targets) {
           if ((this.hasRole(t, 'gott') || this.hasRole(t, 'god')) && p !== t) { this.say(`☀️ ${t.name} (Gott) weist unerwünschte Gaben zurück!`); continue; }
           if (!global && this.reflects(t, p)) { this.say(`😆 ${t.name} lacht zuletzt – ${p.name} behält die Karten.`); continue; }
+          let giveCount = e.n;
+          // Luis Dreizack: Bei 5 oder weniger Handkarten nur maximal 2 Karten abgeben
+          if (p.hand.length <= 5 && giveCount > 2) {
+            giveCount = 2;
+          }
           let given = 0;
-          for (let i = 0; i < e.n; i++) {
+          for (let i = 0; i < giveCount; i++) {
             const pool = tradable(p.hand);
             if (!pool.length) break;
             const c = pool[randIdx(pool)];
@@ -1177,12 +1739,12 @@ export class CardRoom {
       case 'takePile':
         for (const t of targets) {
           if (!t || !t.inGame) continue;
-          if (this.hasRole(t, 'gott') || this.hasRole(t, 'god')) {
-            this.say(`☀️ ${t.name} (Gott) gebietet über die Ordnung – Stapel-Kassieren prallt ab!`);
-            continue;
-          }
           if (this.blocksWithAegis(t, p)) {
-            this.say(`🛡️ ${t.name} blockt den Stapel mit der Aegis der Nullifizierung ab!`);
+            if (t._lastAegisEcho) {
+              this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${t.name} vor dem Stapel!`);
+            } else {
+              this.say(`🛡️ ${t.name} blockt den Stapel mit der Aegis der Nullifizierung ab!`);
+            }
             continue;
           }
           const who = !global && this.reflects(t, p) ? p : t;
@@ -1191,6 +1753,12 @@ export class CardRoom {
           if (!who.stats) who.stats = {};
           if (who === p) this.say(`😆 ${t.name} lacht zuletzt – ${p.name} nimmt den Stapel selbst!`);
 
+          const isBoss = this.top === 16 || this.pile[this.pile.length - 1]?.value === 16 || this.pile[this.pile.length - 1]?.key === 'floris';
+          if ((this.hasRole(who, 'meisterschuetze') || this.hasRole(who, 'marksman')) && isBoss) {
+            this.say(`🏹 ${who.name} (Meisterschütze) weicht dem Boss-Schlag aus: Der Stapel prallt ab und verbrennt auf 0!`);
+            this.triggerNecromancer();
+            continue;
+          }
           const phoenix = who.hand.find((c) => c?.ability === 'phoenix');
           if (phoenix) {
             who.hand = who.hand.filter((c) => c !== phoenix);
@@ -1202,14 +1770,14 @@ export class CardRoom {
             continue;
           }
           const pileCount = this.pile?.length || 0;
-          if ((this.hasRole(who, 'dorfdepp') || this.hasRole(who, 'fool')) && pileCount > 3) {
-            const takeCount = 3;
+          if ((this.hasRole(who, 'dorfdepp') || this.hasRole(who, 'fool')) && pileCount > 2) {
+            const takeCount = 2;
             const burned = pileCount - takeCount;
             const taken = (this.pile || []).slice(-takeCount);
             who.stats.pileCards = (who.stats.pileCards || 0) + takeCount;
             who.hand.push(...taken);
             sortHand(who.hand);
-            this.say(`🤪 ${who.name} nutzt Bauernschläue: Nimmt nur 3 Karten – ${burned} Karten verbrennen! 🔥`);
+            this.say(`🤪 ${who.name} nutzt Bauernschläue: Nimmt nur 2 Karten – ${burned} Karten verbrennen! 🔥`);
             this.triggerNecromancer();
           } else if ((this.hasRole(who, 'berserker') || this.hasRole(who, 'berserk')) && pileCount > 2) {
             const takeCount = Math.ceil(pileCount / 2);
@@ -1224,6 +1792,18 @@ export class CardRoom {
             who.stats.pileCards = (who.stats.pileCards || 0) + pileCount;
             if (Array.isArray(this.pile)) who.hand.push(...this.pile);
             sortHand(who.hand);
+            if ((this.hasRole(who, 'buerger') || this.hasRole(who, 'citizen')) && pileCount > 0) {
+              this.grantCitizenBonus(who);
+            }
+          }
+          if (pileCount > 0) {
+            this.triggerMedic(who);
+          }
+
+          // LIEFERDIENST-TRINKGELD: Nächste Person darf 2 verschiedene Zahlen ablegen
+          if (e.target === 'next' && who !== p) {
+            who.trinkgeld = true;
+            this.say(`   → 💵 Trinkgeld für ${who.name}: Darf im nächsten Zug zwei verschiedene Zahlen ablegen!`);
           }
         }
         this.pile = []; this.top = 0; this.lower = false;
@@ -1232,6 +1812,13 @@ export class CardRoom {
         for (const t of targets) {
           if (this.hasRole(t, 'gott') || this.hasRole(t, 'god')) {
             this.say(`☀️ ${t.name} (Gott) steht über irdischem Besitz – Hand-Tausch prallt ab!`);
+            this.triggerChainEvent({
+              title: 'Göttliche Erhabenheit',
+              desc: `${t.name} wehrt Hand-Tausch ab!`,
+              emoji: '☀️',
+              actor: t.name,
+              voice: this.voiceFor(t, null, 'Göttliche Erhabenheit! Meine Hand gehört den Göttern!'),
+            });
             continue;
           }
           if ((this.hasRole(t, 'pazifist') || this.hasRole(t, 'pacifist')) && !global && t.hand.length > 3) {
@@ -1241,12 +1828,17 @@ export class CardRoom {
               desc: `${t.name} (Pazifist) wehrt Hand-Tausch ab!`,
               emoji: '🕊️',
               actor: t.name,
+              voice: this.voiceFor(t, null, 'Diplomatische Immunität! Gewalt ist keine Lösung!'),
             });
             continue;
           }
           if (t.hand.some(isPotato)) { this.say(`🥔 ${t.name} hält die Kartoffel – immun gegen Tausch!`); continue; }
           if (this.blocksWithAegis(t, p)) {
-            this.say(`🛡️ ${t.name} blockt den Hand-Tausch mit der Aegis der Nullifizierung ab!`);
+            if (t._lastAegisEcho) {
+              this.say(`🛡️ Der goldene Nachhall der Aegis schützt ${t.name} vor dem Hand-Tausch!`);
+            } else {
+              this.say(`🛡️ ${t.name} blockt den Hand-Tausch mit der Aegis der Nullifizierung ab!`);
+            }
             continue;
           }
           if (!global && this.reflects(t, p)) { this.say(`😆 ${t.name} lacht zuletzt – kein Tausch.`); continue; }
@@ -1285,13 +1877,40 @@ export class CardRoom {
           : n.hand[0];
         n.hand = n.hand.filter((c) => c !== sacrificed);
         sortHand(n.hand);
-        const cardName = sacrificed.name || `${sacrificed.color} ${sacrificed.value}`;
+        const elem = sacrificed.color ? COLOR_ELEMENTS[sacrificed.color] : null;
+        const cardName = sacrificed.name || (elem ? `${elem.icon} ${elem.label} (${sacrificed.value})` : `Zahl ${sacrificed.value}`);
         this.say(`💀 ${n.name} (Nekromant) erntet die verbrannte Seelen-Asche und opfert kostenlos ${cardName}!`);
         this.triggerChainEvent({
           title: 'Seelen-Opfer!',
           desc: `${n.name} (Nekromant) verbrennt ${cardName} kostenlos!`,
           emoji: '💀',
           actor: n.name,
+          voice: this.voiceFor(n, null, 'Seelen-Opfer! Aus Asche und Rauch entsteht neue Macht!'),
+        });
+      }
+    }
+  }
+
+  triggerMedic(victim) {
+    if (!victim) return;
+    for (const m of this.active().filter((o) => this.hasRole(o, 'feldsanitaeter') || this.hasRole(o, 'medic'))) {
+      if (m.hand.length > 0) {
+        // Opfert/wirft bevorzugt eine niedrige Zahlenkarte als Hilfsgüter ab, sonst beliebige Karte
+        const numCards = m.hand.filter((c) => c.kind === 'number');
+        const discarded = numCards.length > 0
+          ? numCards.reduce((min, cur) => (cur.value < min.value ? cur : min), numCards[0])
+          : m.hand[0];
+        m.hand = m.hand.filter((c) => c !== discarded);
+        sortHand(m.hand);
+        const elem = discarded.color ? COLOR_ELEMENTS[discarded.color] : null;
+        const cardName = discarded.name || (elem ? `${elem.icon} ${elem.label} (${discarded.value})` : `Zahl ${discarded.value}`);
+        this.say(`🩹 ${m.name} (Feldsanitäter) leistet Erste Hilfe für ${victim.name}: Wirft kostenlos ${cardName} als Hilfsgüter ab!`);
+        this.triggerChainEvent({
+          title: 'Erste Hilfe!',
+          desc: `${m.name} (Feldsanitäter) wirft ${cardName} als Hilfsgüter ab!`,
+          emoji: '🩹',
+          actor: m.name,
+          voice: this.voiceFor(m, null, 'Erste Hilfe ist unterwegs! Sanitäter am Einsatzort!'),
         });
       }
     }
@@ -1366,7 +1985,11 @@ export class CardRoom {
       players: this.players.map((p) => ({
         id: p.id, name: p.name, bot: !!p.bot, count: p.hand.length, inGame: p.inGame, connected: p.connected,
         // Rollen sind geheim – man sieht nur die eigene, der Spion sieht alle, und alle am Spielende
-        role: p.role && (p.id === forId || reveal || this.hasRole(me, 'spion') || this.hasRole(me, 'spy')) ? { key: p.role, ...ROLES[p.role] } : null,
+        role: p.role && (p.id === forId || reveal || this.hasRole(me, 'spion') || this.hasRole(me, 'spy')) ? {
+          key: p.role,
+          ...ROLES[p.role],
+          ...(p.id === forId && p.mimicRole ? { mimicTarget: p.mimicTargetName, mimicRole: ROLES[p.mimicRole]?.name || p.mimicRole } : {}),
+        } : null,
         secret: !!p.role && !(p.id === forId || reveal || this.hasRole(me, 'spion') || this.hasRole(me, 'spy')),
       })),
       hand: me?.hand ?? [],

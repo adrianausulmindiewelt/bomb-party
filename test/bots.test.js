@@ -57,7 +57,7 @@ test('Bots: passende Zahlen zusammen legen und unspielbaren Stapel nehmen', () =
   r.top = 6; r.pile = [num(4, 6, RULES.colors[1])];
   assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 1);
   r.turn = 1; bot.hand = [num(5, 1)]; r.top = 15; r.pile = [num(6, 15, RULES.colors[1])];
-  assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 2);
+  assert.equal(r.playBot(), true); assert.equal(bot.hand.length, 3); // 1 Hand + 1 Stapel + 1 Bürgergeld-Bonuskarte
 });
 
 test('Bots: alle Spielerkarten inklusive Ziel- und Farbauswahl spielbar', () => {

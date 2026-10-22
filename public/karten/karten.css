@@ -988,6 +988,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: rgba(20, 18, 36, 0.95);
   backdrop-filter: blur(20px);
   border: 2px solid rgba(255, 61, 127, 0.4);
@@ -1000,9 +1001,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 10px;
+  flex-shrink: 0;
 }
 .almanach-header h2 {
   margin: 0;
@@ -1014,34 +1016,86 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 }
 .close-btn {
   background: rgba(255, 255, 255, 0.1);
+  border: none;
   border-radius: 50%;
   width: 34px;
   height: 34px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   font-size: 1.1rem;
-  transition: all 0.2s;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.2s ease, color 0.2s ease;
   color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  user-select: none;
 }
 .close-btn:hover {
-  background: var(--accent);
-  transform: rotate(90deg);
+  background: #ff4757;
+  color: #fff;
+}
+.almanach-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.76rem;
+  color: #cfd8dc;
+  flex-shrink: 0;
+}
+.almanach-legend-title {
+  font-weight: 800;
+  color: #ffd23d;
+  letter-spacing: 0.5px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  white-space: nowrap;
+}
+.legend-item .legend-icon {
+  font-size: 0.88rem;
+}
+.almanach-corner-badge {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  font-size: 0.84rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(14, 12, 26, 0.85);
+  border: 1px solid rgba(255, 210, 61, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+  pointer-events: auto;
+  line-height: 1.2;
 }
 .almanach-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 14px;
-  scrollbar-width: none;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .tab-btn {
   background: #2b2a45;
   color: #fff;
   border-radius: 99px;
-  padding: 8px 16px;
-  font-size: 0.88rem;
+  padding: 6px 14px;
+  font-size: 0.85rem;
   font-weight: 700;
   white-space: nowrap;
   border: 1px solid transparent;
@@ -1061,12 +1115,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
   overflow-y: auto;
-  max-height: calc(88vh - 140px);
+  flex: 1 1 auto;
+  min-height: 0;
   padding-right: 6px;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) #141226;
 }
 .almanach-card {
+  position: relative;
   background: #1b1930;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
@@ -1074,11 +1130,27 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: transform 0.2s, border-color 0.2s;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .almanach-card:hover {
   transform: translateY(-2px);
   border-color: #ffd23d;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.almanach-card.no-expand {
+  cursor: default;
+}
+.almanach-card.no-expand:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+}
+.almanach-card.is-expanded {
+  border-color: #ffd23d;
+  background: linear-gradient(170deg, #23203f 0%, #161429 100%);
+  box-shadow: 0 8px 24px rgba(255, 210, 61, 0.16);
 }
 .almanach-card-top {
   display: flex;
@@ -1093,6 +1165,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .almanach-meta {
   flex: 1;
   min-width: 0;
+  padding-right: 34px;
 }
 .almanach-name {
   font-size: 1rem;
@@ -1118,6 +1191,65 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   background: rgba(0, 0, 0, 0.25);
   border-radius: 10px;
   padding: 8px 10px;
+}
+.almanach-expand-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #ffd23d;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.almanach-card:hover .almanach-expand-bar {
+  background: rgba(255, 210, 61, 0.12);
+  border-color: rgba(255, 210, 61, 0.35);
+}
+.almanach-expand-bar .expand-chevron {
+  transition: transform 0.25s ease;
+  font-size: 0.7rem;
+}
+.almanach-card.is-expanded .almanach-expand-bar .expand-chevron {
+  transform: rotate(180deg);
+}
+.almanach-card.is-expanded .almanach-expand-bar {
+  background: rgba(255, 210, 61, 0.18);
+  border-color: rgba(255, 210, 61, 0.45);
+}
+.almanach-foldout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  animation: foldout-open 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes foldout-open {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.almanach-card-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 0 10px;
+  --card-w: 135px;
+}
+.almanach-card-stage .card {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7), 0 0 12px rgba(255, 210, 61, 0.25);
+  pointer-events: auto;
+  cursor: default;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.almanach-card-stage .card:hover {
+  transform: scale(1.05) rotate(-0.5deg);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 210, 61, 0.45);
 }
 .almanach-empty {
   grid-column: 1 / -1;
@@ -1149,6 +1281,47 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   transform: translateY(-2px) scale(1.03) !important;
   background: rgba(45, 38, 75, 1) !important;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 210, 61, 0.4) !important;
+}
+
+.hand-count-pill {
+  background: rgba(20, 18, 36, 0.95) !important;
+  border: 1.5px solid var(--accent, #ff3d7f) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: 0.88rem !important;
+  padding: 8px 14px !important;
+  border-radius: 99px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 61, 127, 0.3) !important;
+  white-space: nowrap !important;
+}
+.hand-count-pill b {
+  color: #ffd23d;
+  font-size: 1.05rem;
+}
+
+.pov-card-counter {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ch, 146px) + 16px);
+  transform: translateX(-50%);
+  background: rgba(14, 12, 26, 0.88);
+  border: 1.5px solid rgba(255, 210, 61, 0.8);
+  padding: 3px 12px;
+  border-radius: 99px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #dfdcf5;
+  z-index: 25;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 210, 61, 0.25);
+  white-space: nowrap;
+}
+.pov-card-counter b {
+  color: #ffd23d;
+  font-size: 0.95rem;
 }
 
 @media (max-width: 600px) {
@@ -1359,17 +1532,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 }
 .card-shield-badge {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  font-size: 0.68rem;
+  top: 6px;
+  left: 6px;
+  font-size: min(11px, calc(var(--card-w) * 0.09));
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 6px;
-  background: rgba(18, 48, 80, 0.9);
+  background: rgba(18, 48, 80, 0.92);
   color: #70e1ff;
   border: 1px solid rgba(112, 225, 255, 0.6);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   z-index: 10;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 /* 🏷️ Corner Glyphs für Special-Karten im Fächer (oben rechts, dezent & kompakt) */
@@ -1410,9 +1585,17 @@ body:has(#lobby:not([hidden])) .hero { padding-top: 56px; }
 .deck-note { margin: 0 0 12px; color: #ffd23d; font-size: .9rem; }
 .deck-quick { display: flex; gap: 6px; flex-wrap: wrap; }
 .deck-quick button { background: #2b2a45; border-radius: 99px; padding: 6px 12px; font-size: .82rem; font-weight: 700; }
-.deck-quick button:hover { background: #3a3760; }
 .deck-presets { margin-bottom: 14px; }
 .deck-presets button:first-child { background: var(--accent); }
+#deck-plus {
+  background: linear-gradient(135deg, #262142, #392b57);
+  border: 1px solid rgba(255, 210, 61, 0.45);
+  color: #ffd23d;
+}
+#deck-plus:hover {
+  background: linear-gradient(135deg, #392b57, #533980);
+  box-shadow: 0 0 10px rgba(255, 210, 61, 0.35);
+}
 .deck-group { margin-bottom: 18px; }
 .deck-group header { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap;
   border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 6px; margin-bottom: 8px; }
