@@ -950,19 +950,21 @@ export class CardRoom {
         }
       }
     } else if (sp.ability === 'zenBuff') {
+      // Džanas Zen-Gong: Wirft bis zu 2 niedrigste Zahlen ab.
+      // Balancing: Der Gong-Abwurf kann niemals den Sieg schenken (mindestens 1 Karte muss auf der Hand bleiben!).
+      const maxDiscard = Math.max(0, p.hand.length - 1);
+      const targetCount = Math.min(2, maxDiscard);
       const numbers = p.hand.filter((c) => c.kind === 'number').sort((a, b) => a.value - b.value);
       const toDiscard = [];
-      if (numbers.length >= 2) {
-        // Zwingend die beiden niedrigsten Zahlen abwerfen
-        toDiscard.push(numbers[0], numbers[1]);
-      } else if (numbers.length === 1) {
-        // Die 1 Zahl zwingend + 1 beliebige andere Karte (falls vorhanden)
-        toDiscard.push(numbers[0]);
-        const otherCards = p.hand.filter((c) => c.id !== numbers[0].id);
-        if (otherCards.length > 0) toDiscard.push(otherCards[0]);
-      } else {
-        // Keine Zahlen vorhanden -> bis zu 2 beliebige Karten
-        toDiscard.push(...p.hand.slice(0, 2));
+
+      for (let i = 0; i < numbers.length && toDiscard.length < targetCount; i++) {
+        toDiscard.push(numbers[i]);
+      }
+      if (toDiscard.length < targetCount) {
+        const otherCards = p.hand.filter((c) => !toDiscard.some((x) => x.id === c.id));
+        for (let i = 0; i < otherCards.length && toDiscard.length < targetCount; i++) {
+          toDiscard.push(otherCards[i]);
+        }
       }
 
       for (const c of toDiscard) {
@@ -975,7 +977,10 @@ export class CardRoom {
       sortHand(p.hand);
       this.top = 15;
       this.lower = false;
-      this.say(`   → 🧘‍♀️ Džanas Zen-Gong ertönt! ${p.name} atmet durch und wirft ${toDiscard.length} Karte(n) ab (niedrigste Zahlen). Der Tisch steht auf Boss (15)!`);
+      const note = toDiscard.length > 0
+        ? `wirft ${toDiscard.length} Karte(n) ab (mind. 1 Karte bleibt)`
+        : 'kann keine weiteren Karten abwerfen (mind. 1 Karte bleibt)';
+      this.say(`   → 🧘‍♀️ Džanas Zen-Gong ertönt! ${p.name} atmet durch und ${note}. Der Tisch steht auf Boss (15)!`);
     } else if (sp.ability === 'fairyTrick') {
       const victim = opp(choice.target);
       if (victim) {

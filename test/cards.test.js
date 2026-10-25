@@ -920,6 +920,28 @@ test('🧘‍♀️ Džanas Zen-Gong (Club-Karte): Wirft zwingend die 2 niedrigs
   assert.ok(r.log.some((msg) => msg.includes('Zen-Gong')));
 });
 
+test('🧘‍♀️ Džanas Zen-Gong: Kann durch Abwurf nicht auf 0 Karten reduzieren (Sieg-Sperre: mind. 1 Karte bleibt)', () => {
+  const r = table(2);
+  const p0 = r.current();
+  const zen = sp('dzana_zen');
+
+  // Fall A: Spieler hat 3 Karten (Zen + 2 Zahlen). Er wirft Zen, darf aber nur 1 Zahl abwerfen, damit 1 bleibt!
+  p0.hand = [zen, num(3), num(7)];
+  assert.equal(r.play(p0.id, [zen.id]).ok, true);
+  assert.equal(p0.hand.length, 1);
+  assert.equal(p0.hand[0].value, 7); // Die niedrigste (3) wurde abgeworfen, 7 bleibt
+  assert.equal(r.state, 'playing');  // Kein Instant-Sieg!
+
+  // Fall B: Spieler hat nur 2 Karten (Zen + 1 Zahl). Er wirft Zen, darf 0 abwerfen, 1 Zahl bleibt!
+  const zen2 = sp('dzana_zen');
+  p0.hand = [zen2, num(5)];
+  r.turn = 0;
+  assert.equal(r.play(p0.id, [zen2.id]).ok, true);
+  assert.equal(p0.hand.length, 1);
+  assert.equal(p0.hand[0].value, 5);
+  assert.equal(r.state, 'playing');  // Spiel geht weiter!
+});
+
 test('🧚‍♀️ Feen-Streich (Club-Karte): Stiehlt Spezialkarte aus Hand des Ziels', () => {
   const r = table(2);
   const p0 = r.current();
