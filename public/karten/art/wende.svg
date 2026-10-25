@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#141124"/>
+      <stop offset="50%" stop-color="#0a0814"/>
+      <stop offset="100%" stop-color="#040308"/>
+    </radialGradient>
+    <filter id="arcGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="15" result="blur2"/>
+      <feGaussianBlur stdDeviation="4" result="blur1"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="cyanArc" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f7ff" stop-opacity="0.2"/>
+      <stop offset="60%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="amberArc" x1="100%" y1="100%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b00" stop-opacity="0.2"/>
+      <stop offset="60%" stop-color="#ffaa00"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1120" fill="url(#bg)"/>
+
+  <!-- Background guides (bottom layer) -->
+  <circle cx="400" cy="560" r="140" fill="#7c3aed" opacity="0.10" filter="url(#arcGlow)"/>
+  <circle cx="400" cy="560" r="235" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="6,6" opacity="0.18"/>
+
+  <!-- 1. Arc lines & glowing trails (UNDER the arrowheads) -->
+  <g filter="url(#arcGlow)">
+    <path d="M 208.0 593.9 A 195 195 0 0 1 568.9 462.5" fill="none" stroke="url(#cyanArc)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M 592.0 526.1 A 195 195 0 0 1 231.1 657.5" fill="none" stroke="url(#amberArc)" stroke-width="24" stroke-linecap="round"/>
+  </g>
+  <path d="M 208.0 593.9 A 195 195 0 0 1 568.9 462.5" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 592.0 526.1 A 195 195 0 0 1 231.1 657.5" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Center energy spark -->
+  <circle cx="400" cy="560" r="8" fill="#ffffff" filter="url(#arcGlow)"/>
+
+  <!-- 2. ARROWHEADS (Strictly on TOP layer - zero lines or colors crossing over) -->
+  <g filter="url(#arcGlow)">
+    <!-- Cyan Arrowhead (Right side, pointing DOWN) -->
+    <polygon points="594.4,506.7 585.6,417.5 563.8,453.7 521.5,454.5" fill="#00d4ff"/>
+    <polygon points="594.4,506.7 585.6,417.5 563.8,453.7 521.5,454.5" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Amber Arrowhead (Left side, pointing UP) -->
+    <polygon points="205.6,613.3 214.4,702.5 236.2,666.3 278.5,665.5" fill="#ffaa00"/>
+    <polygon points="205.6,613.3 214.4,702.5 236.2,666.3 278.5,665.5" fill="#ffffff" opacity="0.9"/>
+  </g>
+</svg>

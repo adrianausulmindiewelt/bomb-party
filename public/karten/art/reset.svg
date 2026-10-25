@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="75%">
+      <stop offset="0%" stop-color="#14172b"/>
+      <stop offset="60%" stop-color="#0a0a14"/>
+      <stop offset="100%" stop-color="#040408"/>
+    </radialGradient>
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14" result="blur1"/>
+      <feGaussianBlur stdDeviation="30" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="ringGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00f7ff"/>
+      <stop offset="40%" stop-color="#ffffff"/>
+      <stop offset="80%" stop-color="#00b4d8"/>
+      <stop offset="100%" stop-color="#ffd23d"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1120" fill="url(#bg)"/>
+
+  <!-- Subtle ambient background guides -->
+  <circle cx="400" cy="560" r="250" fill="none" stroke="#00f7ff" stroke-width="2" opacity="0.12"/>
+  <circle cx="400" cy="560" r="160" fill="none" stroke="#00f7ff" stroke-width="1.5" stroke-dasharray="8,8" opacity="0.2"/>
+
+  <!-- 1. Glowing Trail Layer (Below) -->
+  <g filter="url(#neonGlow)">
+    <path d="M 328.2 362.7 A 210 210 0 1 0 471.8 362.7" fill="none" stroke="url(#ringGrad)" stroke-width="26" stroke-linecap="round"/>
+  </g>
+  <path d="M 328.2 362.7 A 210 210 0 1 0 471.8 362.7" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- 2. Central pulse -->
+  <circle cx="400" cy="560" r="14" fill="#00f7ff" filter="url(#neonGlow)"/>
+  <circle cx="400" cy="560" r="5" fill="#ffffff"/>
+
+  <!-- 3. Arrowhead (Rendered strictly on TOP layer with zero overlapping lines) -->
+  <g filter="url(#neonGlow)">
+    <polygon points="419.0,343.4 517.2,336.6 482.4,366.5 489.9,411.8" fill="#00f7ff"/>
+    <polygon points="419.0,343.4 517.2,336.6 482.4,366.5 489.9,411.8" fill="#ffffff" opacity="0.9"/>
+  </g>
+</svg>

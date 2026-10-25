@@ -66,11 +66,11 @@ export const MAX_EFFECTS_PER_CARD = 2;
 
 // Standard-Specials – liegen zusammen mit allen anderen Specials im Los-Topf (1 pro Person)
 export const BASIC_SPECIALS = {
-  reset:   { name: 'Reset',  emoji: '🔄', effects: [{ type: 'reset' }] },
-  burn:    { name: 'Feuer',  emoji: '🔥', effects: [{ type: 'burn' }, { type: 'again' }] },
-  lower:   { name: 'Unter',  emoji: '⬇️', effects: [{ type: 'lower' }] },
-  reverse: { name: 'Wende',  emoji: '🔁', effects: [{ type: 'reverse' }] },
-  skip:    { name: 'Stopp',  emoji: '🛑', effects: [{ type: 'skip', n: 1 }] },
+  reset:   { name: 'Reset',  emoji: '🔄', effects: [{ type: 'reset' }], art: '/karten/art/reset.svg', fullArt: true },
+  burn:    { name: 'Feuer',  emoji: '🔥', effects: [{ type: 'burn' }, { type: 'again' }], art: '/karten/art/feuer.svg', fullArt: true },
+  lower:   { name: 'Unter',  emoji: '⬇️', effects: [{ type: 'lower' }], art: '/karten/art/unter.svg', fullArt: true },
+  reverse: { name: 'Wende',  emoji: '🔁', effects: [{ type: 'reverse' }], art: '/karten/art/wende.svg', fullArt: true },
+  skip:    { name: 'Stopp',  emoji: '🛑', effects: [{ type: 'skip', n: 1 }], art: '/karten/art/stopp.jpg', fullArt: true },
   // Von Spieler*innen gestaltet (Bild in public/karten/art/) – fullArt = Bild füllt die ganze Karte
   joker:   { name: 'Joker',  emoji: '🃏', effects: [{ type: 'again' }], art: '/karten/art/joker.jpg', fullArt: true },
 };
@@ -82,25 +82,31 @@ export const BASIC_SPECIALS = {
 // oder schnell im Browser unter /karten/editor.html hochladen.
 // ─────────────────────────────────────────────────────────────
 export const CHARACTERS = {
-  ayleen: { name: 'Ayleen', title: 'Die Tauschbörse', by: 'Ayleen', emoji: '💱',
+  ayleen: {art: '/karten/art/ayleen_tauschboerse_clean.jpg', fullArt: true,
+    name: 'Ayleen', title: 'Die Tauschbörse', by: 'Ayleen', emoji: '💱',
             effects: [{ type: 'swap', target: 'fewest' }] },
   louis:  { name: 'Luis',   title: 'Der Dreizack', by: 'Luis', emoji: '🔱', art: '/karten/art/louis.jpg', fullArt: true,
             effects: [{ type: 'give', n: 3, target: 'next' }],
             short: 'Gib 3 Karten an den Nächsten (bei ≤5 Handkarten nur 2).',
             text: 'Der Dreizack: Gib 3 Karten an die nächste Person am Tisch ab. Hast du jedoch 5 oder weniger Handkarten, darfst du nur 2 Karten abgeben!' },
-  bernd: { name: 'Bernd', title: 'Der Lieferdienst', by: 'Bernd', emoji: '🚚',
+  bernd: {art: '/karten/art/bernd_delivery_concept_1792311089773.jpg', fullArt: true,
+    name: 'Bernd', title: 'Der Lieferdienst', by: 'Bernd', emoji: '🚚',
             effects: [{ type: 'takePile', target: 'next' }],
             short: 'Nächste Person bekommt den Stapel, darf aber 2 verschiedene Zahlen ablegen.',
             text: 'Lieferdienst: Die nächste Person am Tisch bekommt den kompletten Stapel geliefert, erhält aber fettes Trinkgeld: Sie darf in ihrem nächsten Zug zwei verschiedene Zahlen auf einmal ablegen!' },
-  niclas: { name: 'Niclas', title: 'Der Turbo', by: 'Niclas', emoji: '🏎️',
+  niclas: {art: '/karten/art/turbo_abreise.jpg', fullArt: true,
+    name: 'Niclas', title: 'Der Turbo', by: 'Niclas', emoji: '🏎️',
             effects: [{ type: 'skip', n: 2 }] },
   andre:  { name: 'Souveränin des Äthers', title: 'Herrin des Äthers', by: 'NoRevanell Morningstar', emoji: '👑', art: '/karten/art/andre.jpg', fullArt: true,
             effects: [{ type: 'reset' }, { type: 'draw', n: 1, target: 'all' }] },
   floris: { name: 'Flo', title: 'Kernelflow-Fabrik', by: 'Floris', emoji: '🌰',
-            effects: [{ type: 'boss' }, { type: 'skip', n: 1 }] },
-  jonas:  { name: 'Jonas', title: 'Der Spielleiter', by: 'Jonas', emoji: '🎮',
+            effects: [{ type: 'boss' }, { type: 'skip', n: 1 }],
+            art: '/karten/art/kernelflow_factory_concept_1792311087512.jpg', fullArt: true },
+  jonas:  {art: '/karten/art/jonas_spielleiter_concept_1792311387993.jpg', fullArt: true,
+    name: 'Jonas', title: 'Der Spielleiter', by: 'Jonas', emoji: '🎮',
             effects: [{ type: 'rotate' }] },
-  maxime: { name: 'Maxime', title: 'Der Orient-Express', by: 'Maxime', emoji: '🚂',
+  maxime: {art: '/karten/art/maxime_zug.jpg', fullArt: true,
+    name: 'Maxime', title: 'Der Orient-Express', by: 'Maxime', emoji: '🚂',
             effects: [{ type: 'draw', n: 2, target: 'prev' }] },
 };
 
@@ -134,149 +140,147 @@ export const ROLES = {
 // needs: welche Auswahl man beim Ausspielen trifft – 'target' (eine Person), 'colors2' (zwei Farben)
 // ─────────────────────────────────────────────────────────────
 export const PLAYER_CARDS = {
-  kartoffel: {
+  kartoffel: {art: '/karten/art/kartoffel.jpg', fullArt: true,
     name: 'Heiße Kartoffel', title: 'Glühend frische Glut', emoji: '🥔', ability: 'potato', needs: 'target',
     text: 'Kann nicht abgelegt, nur weitergereicht werden (nie zurück an die Person, von der du sie hast). '
       + 'Wer sie bekommt, zieht 3. Wer sie hält, ist immun gegen Tausch, zieht aber bei Zieh-Effekten das Dreifache. '
       + 'Ist sie deine letzte Karte: Du gewinnst, alle anderen ziehen 3.',
   },
-  zwillinge: {
+  zwillinge: {art: '/karten/art/zwillinge.jpg', fullArt: true,
     name: 'Zwillings-Parade', title: 'Blick der zwei Welten', emoji: '♊', by: 'NoRevanell Morningstar', ability: 'twins', needs: 'colors2',
     text: 'Aktiv: Wähle 2 Farben – bis du wieder dran bist, passen sie auf jede Karte. '
       + 'Sphäre: Solange sie oben liegt, darf man auch 1 drunter legen. '
       + 'Passiv: Sollst du ziehen, wird sie automatisch abgeworfen – je die Hälfte ziehen deine beiden Sitznachbar*innen.',
   },
-  aegis: {
+  aegis: {art: '/karten/art/aegis_karte.jpg', fullArt: true,
     name: 'Aegis der Nullifizierung', title: 'Goldener Schutzschild', emoji: '🛡️', by: 'NoRevanell Morningstar', ability: 'aegis',
     text: 'Passiv (aus der Hand) & Aktiv: Blockt Angriffe (oder reinigt den Tisch auf 0) und hüllt dich in einen goldenen Nachhall, der dich bis zu deinem nächsten Zug vor allen weiteren Angriffen schützt!',
   },
-  spiegel: {
+  spiegel: {art: '/karten/art/spiegel_concept_art_1792311111830.jpg', fullArt: true,
     name: 'Prismatischer Spiegel', title: 'Echo der Realität', emoji: '🪞', by: 'NoRevanell Morningstar', ability: 'mirror',
     text: 'Passiv (aus der Hand): Zwingt dich jemand zum Ziehen, wirfst du den Spiegel ab: Der Angreifer zieht den vollen Strafwert, du selbst dämpfst die Strafe auf zwei Drittel (aufgerundet)!',
   },
-  schwarzes_loch: {
+  schwarzes_loch: {art: '/karten/art/schwarzes_loch_art_fullbleed_1792268415209.jpg', fullArt: true,
     name: 'Schwarzes Loch', title: 'Singularität', emoji: '🕳️', by: 'NoRevanell Morningstar', ability: 'blackHole',
     text: 'Aktiv: Verschlingt und verbrennt den gesamten Ablagestapel (Tisch wird auf 0 gereinigt). Alle anderen Spieler*innen müssen sofort 1 Handkarte opfern – bevorzugt eine Spezialkarte, sofern vorhanden!',
   },
-  zeitstopp: {
+  zeitstopp: {art: '/karten/art/zeitstopp_concept_art_1792268419416.jpg', fullArt: true,
     name: 'Chronos-Siegel', title: 'Herr der Zeit', emoji: '⏳', by: 'NoRevanell Morningstar', ability: 'timestop',
     text: 'Aktiv: Friere die Zeit ein! Du bist sofort noch einmal dran und darfst eine beliebige Karte legen (Tisch-Zahl wird ignoriert).',
   },
-  dieb: {
+  dieb: {art: '/karten/art/dieb.jpg', fullArt: true,
     name: 'Meisterdieb', title: 'Schatten-Griff', emoji: '🥷', by: 'NoRevanell Morningstar', ability: 'thief', needs: 'target',
     text: 'Aktiv: Wähle eine Person. Stiehl verdeckt 1 zufällige Karte aus ihrer Hand und vernichte sie im Schatten (ohne deine Hand zu belasten)!',
   },
-  gluecklich: {
+  gluecklich: {art: '/karten/art/schelm_glueck.jpg', fullArt: true,
     name: 'Glücklicher Schelm', title: 'Wer zuletzt lacht', emoji: '😆', by: 'Luis/Pilzi', ability: 'luckyJester',
     text: 'Passiv: Spielt jemand gezielt eine Karte gegen dich, fliegt der ganze Effekt automatisch zurück (nicht bei Effekten gegen alle). '
       + 'Zusammen mit dem Traurigen Schelm legbar: „Lachen und Weinen“.',
   },
-  traurig: {
+  traurig: {art: '/karten/art/schelm_trauer.jpg', fullArt: true,
     name: 'Trauriger Schelm', title: 'Geteiltes Leid', emoji: '😢', by: 'Luis/Pilzi', ability: 'sadJester', needs: 'target',
     text: 'Wähle jemanden: zieht so viele Karten, wie du danach noch auf der Hand hast. '
       + 'Zusammen mit dem Glücklichen Schelm legbar: „Lachen und Weinen“.',
   },
-  gluecksspiel: {
+  gluecksspiel: {art: '/karten/art/gluecksspiel_concept_1792268416618.jpg', fullArt: true,
     name: 'Kriege 4 oder verliere 4', emoji: '🪙', ability: 'gamble',
     text: 'Münzwurf: Entweder du ziehst 4 Karten – oder du wirst 4 Karten los. 50 : 50.',
   },
-  portal: {
+  portal: {art: '/karten/art/portal_arch_concept_art_1792311107815.jpg', fullArt: true,
     name: 'Dimensionsportal', title: 'Riss im Raumzeitgefüge', emoji: '🌀', by: 'NoRevanell Morningstar', ability: 'portal',
     text: 'Aktiv: Öffnet ein Portal in die Tiefen des Decks: Ziehe sofort die nächste Spezialkarte direkt auf die Hand (oder 2 normale Karten, falls keine mehr da ist).',
   },
   phoenix: {
     name: 'Phönix-Asche', title: 'Wiedergeburt aus Flammen', emoji: '🐦‍🔥', by: 'NoRevanell Morningstar', ability: 'phoenix',
+    art: '/karten/art/feuer_concept_1792268060503.jpg', fullArt: true,
     text: 'Passiv (aus der Hand): Musst du den Stapel kassieren, verbrennt der gesamte Stapel stattdessen zu Asche! Du wirfst den Phönix ab und ziehst 1 frische Karte vom Deck.',
   },
-  himmelszorn: {
+  himmelszorn: {art: '/karten/art/blitz.jpg', fullArt: true,
     name: 'Göttlicher Blitz', title: 'Zorn des Pantheons', emoji: '⚡', by: 'NoRevanell Morningstar', ability: 'divineWrath', needs: 'target',
     text: 'Aktiv: Wähle eine Person. Sie wird vom Blitz getroffen: Besitzt sie Spezialkarten, verbrennt eine davon im Stapel – andernfalls muss sie 2 Karten ziehen!',
   },
-  zeitschleife: {
+  zeitschleife: {art: '/karten/art/ouroboros.jpg', fullArt: true,
     name: 'Ouroboros', title: 'Ewige Zeitschleife', emoji: '♾️', by: 'NoRevanell Morningstar', ability: 'timeloop',
     short: 'Letzte Spezialkarte zurück; letzte 2 Zahlen an 2 Mitspieler.',
     text: 'Aktiv: Die Schlange beißt sich in den Schwanz! Du nimmst die letzte Spezialkarte aus dem Ablagestapel zurück auf deine Hand – und die letzten zwei gespielten Zahlen wandern an zwei zufällige Mitspieler!',
   },
-  erdbeben: {
+  erdbeben: {art: '/karten/art/erdbeben.jpg', fullArt: true,
     name: 'Tektonischer Schock', title: 'Erdebrecher', emoji: '🌋', by: 'NoRevanell Morningstar', ability: 'earthquake',
     text: 'Aktiv: Erschüttert das Spielbrett! Der Tisch wird auf 0 bereinigt und alle Spieler*innen mit mehr als 5 Karten müssen 1 Handkarte abwerfen.',
   },
-  kettenfluch: {
+  kettenfluch: {art: '/karten/art/kettenfluch.jpg', fullArt: true,
     name: 'Kettenfluch', title: 'Fesseln des Äthers', emoji: '⛓️', by: 'NoRevanell Morningstar', ability: 'chainCurse', needs: 'target',
     text: 'Aktiv: Wähle eine Person. Magische Ketten umschlingen sie: Sie muss sofort 2 Strafkarten vom Ziehstapel ziehen!',
   },
-  pizza_hunger: {
+  pizza_hunger: {art: '/karten/art/pizza.jpg', fullArt: true,
     name: 'Pizza-Raid', title: 'Jung & Hungrig', emoji: '🍕', by: 'Jung & Hungrig Club', ability: 'pizzaRaid',
     text: 'Aktiv: Jemand hat Pizza bestellt! Der Tisch wird auf 0 bereinigt. Alle Spieler*innen mit mehr als 3 Karten werfen sofort 1 Handkarte als Bezahlung auf den Stapel ab.',
   },
-  dzana_zen: {
+  dzana_zen: {art: '/karten/art/zen_gong.jpg', fullArt: true,
     name: 'Džanas Zen-Gong', title: 'Chaotic Good Vibes', emoji: '🔔', by: 'Džana vWbB', ability: 'zenBuff',
     short: 'Wirf 2 niedrigste Zahlen ab; Tisch steht auf 15.',
     text: 'Aktiv: Tief durchatmen: Du wirfst deine 2 niedrigsten Zahlenkarten kostenlos ab (hast du keine Zahlen, beliebige Karten) – dafür wird der Stapel auf den Boss-Wert 15 gesetzt!',
   },
-  fee_trick: {
+  fee_trick: {art: '/karten/art/fee_trick.jpg', fullArt: true,
     name: 'Feen-Streich', title: 'Queen of Fairies', emoji: '🧚‍♀️', by: 'Fay (Queen of Fairies)', ability: 'fairyTrick', needs: 'target',
     text: 'Aktiv: Wähle ein Ziel. Die Feen vertauschen die Vorzeichen: Stiehl 1 Spezialkarte aus ihrer Hand – hat sie keine, muss sie 2 Strafkarten ziehen!',
   },
-  andre_mentor: {
+  andre_mentor: {art: '/karten/art/sanctuary.jpg', fullArt: true,
     name: 'Sanctuary-Protokoll', title: 'Der Gruppenleiter', emoji: '🏛️', by: 'André', ability: 'sanctuary',
     text: 'Aktiv: Baut einen Safe Space auf! Der Tisch wird auf 0 gereinigt. Die Person am Tisch mit den MEISTEN Handkarten darf sofort 2 Karten kostenlos abwerfen (Aufbau-Hilfe).',
   },
-  adrian_muster: {
+  adrian_muster: {art: '/karten/art/adrian_concept_focused_1792311343359.jpg', fullArt: true,
     name: 'Die Musterlösung', title: 'Chef-Dekret', emoji: '📋', by: 'Adrian', ability: 'masterSolution',
     text: 'Aktiv: „Herr Adrian hat gesprochen!“ Der Tisch wird auf 0 gereinigt und du bist sofort noch einmal dran. Alle anderen mit mehr als 3 Handkarten ziehen 1 Karte (Musterlösung nicht vorbereitet!).',
   },
-  cookie_chaos: {
+  cookie_chaos: {art: '/karten/art/cookie.jpg', fullArt: true,
     name: 'Der Cookie-Crunch', title: 'Musterbrecherin', emoji: '🍪', by: 'Amelie', ability: 'cookieCrunch',
     text: 'Aktiv: Cookie stiftet herrliches Chaos! Die Spielrichtung wird sofort invertiert, alle reichen 1 Handkarte nach links weiter und der Tischwert wird unberechenbar neu ausgewürfelt (1–15).',
   },
-  teya_scribbl: {
+  teya_scribbl: {art: '/karten/art/scribbl.jpg', fullArt: true,
     name: 'Scribbl-Meisterwerk', title: 'Nachwuchs-Talent', emoji: '🎨', by: 'Teya', ability: 'teyaScribbl',
     text: 'Aktiv: Bunte Farbenpracht! Der Tisch wird auf 0 bereinigt und lädt die Farb-Resonanz sofort auf Stufe 3 auf (die nächste Farbkarte zündet direkt die Elementar-Überladung!). Alle Farbregeln bleiben für diese Runde als Joker aufgehoben.',
   },
-  ayleen_observer: {
+  ayleen_observer: {art: '/karten/art/beobachterin_final2.jpg', fullArt: true,
     name: 'Stille Beobachterin', title: 'Workshop-Fokus', emoji: '👀', by: 'Ayleen', ability: 'ayleenObserver',
     text: 'Aktiv: Ayleen nutzt die Verwirrung der Älteren! Der Tischstapel wird um 5 Punkte gesenkt (mind. 1) und sie darf sofort 1 Handkarte unbemerkt mit ablegen.',
   },
-  niclas_turbo: {
+  niclas_turbo: {art: '/karten/art/niclas_turbo_concept_1792311378048.jpg', fullArt: true,
     name: 'Turbo-Abreise', title: 'Der Turbo', emoji: '🏎️', by: 'Niclas', ability: 'turboDash',
     text: 'Aktiv: Niclas ist schon im Flugzeug! Überspringt sofort die nächsten 2 Personen am Tisch. Wer überholt wird, muss 1 Strafkarte ziehen (zu langsam!).',
   },
-  ruben_firework: {
+  ruben_firework: {art: '/karten/art/ruben_feuerwerk_clean.jpg', fullArt: true,
     name: 'Pyrotechnik-Knall', title: 'Das Feuerwerk', emoji: '🎆', by: 'Ruben', ability: 'fireworkBlast',
     text: 'Aktiv: Zündet das große Club-Feuerwerk! Der Tischstapel detoniert vollständig (verbrennt auf 0). Alle Spieler*innen am Tisch müssen gleichzeitig ihre höchste Zahlenkarte verbrennen!',
   },
-  igel: {
+  igel: {art: '/karten/art/shaymin_card.jpg', fullArt: true,
     name: 'Igel der Blätter', title: 'Raschelndes Laub', emoji: '🦔', by: 'NoRevanell Morningstar',
     effects: [{ type: 'again' }, { type: 'draw', n: 2, target: 'next' }],
     art: '/karten/art/shaymin_card.jpg', fullArt: true,
     text: 'Aktiv: Raschelndes Laub! Du bist sofort noch einmal dran und legst noch ein Blatt ab. Die nächste Person am Tisch muss 2 Strafkarten ziehen.',
   },
-  optimus: {
+  optimus: {art: '/karten/art/optimus.jpg', fullArt: true,
     name: 'Optimus Prime', title: 'Autobots, Roll Out!', emoji: '🚛', by: 'NoRevanell Morningstar',
     effects: [{ type: 'reverse' }, { type: 'draw', n: 2, target: 'next' }],
     art: '/karten/art/optimus.jpg', fullArt: true,
     text: 'Aktiv: Autobots, Roll Out! Die Spielrichtung kehrt sich sofort um. Wer in der neuen Richtung im Weg steht, wird überrollt und muss 2 Karten ziehen!',
   },
-  rucksack: {
+  rucksack: {art: '/karten/art/rucksack.svg', fullArt: true,
     name: 'Der Rucksack', title: 'Schweres Gepäck', emoji: '🎒', by: 'Bernd',
     effects: [{ type: 'takePile', target: 'random' }],
     art: '/karten/art/rucksack.svg', fullArt: true,
     text: 'Aktiv: Schweres Gepäck! Eine zufällige Person am Tisch bekommt den gesamten Ablagestapel aufgebürdet!',
   },
-  schleim: {
+  schleim: {art: '/karten/art/schleim.svg', fullArt: true,
     name: 'Schleim', title: 'Rimuru Tempest', emoji: '💧', by: 'Rimuru Tempest', ability: 'slimeGluttony',
-    art: '/karten/art/schleim.jpg', fullArt: true,
     text: 'Aktiv: Gluttony! Der Schleim verschlingt die oberste Karte des Tischstapels in seinen Magenraum! Der Tischwert wird auf den vorherigen Wert zurückgesetzt (oder 0 gereinigt) und du bist sofort noch einmal dran.',
   },
-  daemonenkoenig: {
+  daemonenkoenig: {art: '/karten/art/daemonenkoenig.svg', fullArt: true,
     name: 'Dämonenkönig', title: 'Anos Voldigoad', emoji: '👑', by: 'Anos Voldigoad', ability: 'anosLogic',
-    art: '/karten/art/daemonenkoenig.jpg', fullArt: true,
     text: 'Aktiv: Venuzdonoa! Zerstört alle Spielregeln: Der Dämonenkönig passt auf jede beliebige Karte. Solange er oben liegt, verpuffen alle Spezial-Effekte – die nächste Person MUSS eine reguläre Zahlenkarte legen oder den Stapel fressen!',
   },
-  drache: {
+  drache: {art: '/karten/art/drache.svg', fullArt: true,
     name: 'Drache', title: 'Smaug der Goldene', emoji: '🐉', by: 'Smaug', ability: 'dragonHoard',
-    art: '/karten/art/drache.jpg', fullArt: true,
     text: 'Aktiv: Drachenhort! Smaug schmilzt den gesamten aktuellen Tischstapel zu Gold ein (Stapel verbrennt auf 0). Wer den Drachen geweckt hat (die nächste Person), muss 3 Strafkarten ziehen!',
   },
 };

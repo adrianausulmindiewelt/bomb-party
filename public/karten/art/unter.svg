@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="65%" r="65%">
+      <stop offset="0%" stop-color="#162620"/>
+      <stop offset="50%" stop-color="#0c1410"/>
+      <stop offset="100%" stop-color="#050806"/>
+    </radialGradient>
+    <linearGradient id="panelSteel" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1f2329"/>
+      <stop offset="25%" stop-color="#343a45"/>
+      <stop offset="50%" stop-color="#282d36"/>
+      <stop offset="75%" stop-color="#3b424e"/>
+      <stop offset="100%" stop-color="#1b1e24"/>
+    </linearGradient>
+    <linearGradient id="bezelOff" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#555c68"/>
+      <stop offset="100%" stop-color="#252a32"/>
+    </linearGradient>
+    <linearGradient id="bezelGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a7f3d0"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <filter id="greenGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20" result="blur2"/>
+      <feGaussianBlur stdDeviation="6" result="blur1"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="800" height="1120" fill="url(#bg)"/>
+
+  <!-- Metallic elevator panel plate -->
+  <rect x="220" y="160" width="360" height="800" rx="30" fill="url(#panelSteel)" stroke="#4b5563" stroke-width="4"/>
+  <!-- Screws / rivets -->
+  <circle cx="260" cy="200" r="8" fill="#1b1e24" stroke="#4b5563" stroke-width="2"/>
+  <circle cx="540" cy="200" r="8" fill="#1b1e24" stroke="#4b5563" stroke-width="2"/>
+  <circle cx="260" cy="920" r="8" fill="#1b1e24" stroke="#4b5563" stroke-width="2"/>
+  <circle cx="540" cy="920" r="8" fill="#1b1e24" stroke="#4b5563" stroke-width="2"/>
+
+  <!-- ==================== UP BUTTON (INACTIVE / DARK) ==================== -->
+  <circle cx="400" cy="400" r="105" fill="none" stroke="url(#bezelOff)" stroke-width="8"/>
+  <circle cx="400" cy="400" r="95" fill="#1e2229" stroke="#111317" stroke-width="4"/>
+  <!-- UP Arrow (Unlit) -->
+  <polygon points="400,340 340,430 380,430 380,460 420,460 420,430 460,430" fill="#4b5563"/>
+
+  <!-- ==================== DOWN BUTTON (ACTIVATED & GLOWING GREEN) ==================== -->
+  <!-- Ambient green backlight halo -->
+  <circle cx="400" cy="690" r="180" fill="#10b981" opacity="0.28" filter="url(#greenGlow)"/>
+
+  <!-- Outer glowing bezel -->
+  <circle cx="400" cy="690" r="110" fill="none" stroke="url(#bezelGreen)" stroke-width="12" filter="url(#greenGlow)"/>
+  <circle cx="400" cy="690" r="95" fill="#064e3b" stroke="#34d399" stroke-width="4"/>
+
+  <!-- Inner illuminated emerald lens -->
+  <circle cx="400" cy="690" r="85" fill="#10b981" filter="url(#greenGlow)"/>
+
+  <!-- DOWN Arrow (Intense White & Emerald Core) -->
+  <polygon points="400,750 340,660 380,660 380,630 420,630 420,660 460,660" fill="#ffffff" filter="url(#greenGlow)"/>
+  <polygon points="400,740 350,665 385,665 385,635 415,635 415,665 450,665" fill="#ecfdf5"/>
+</svg>
