@@ -9,6 +9,7 @@ import { MEME_SOUNDS, MemeEvents } from './meme-sounds.js';
 const memeEvents = new MemeEvents();
 import { loadDeckPreset, saveDeckPreset } from './deck-preset.js';
 import { getBotAvatar } from './bot-avatar.js';
+import { STICKERS, stickerUrl, randomSticker, stickerMsg, parseSticker } from './stickers.js';
 
 const $ = (id) => document.getElementById(id);
 let saved = {};
@@ -37,6 +38,21 @@ function updateAudioUI() {
 if (btnBgm) btnBgm.onclick = () => { sound.toggleBGM(); updateAudioUI(); };
 if (btnSfx) btnSfx.onclick = () => { sound.toggleSFX(); if (!sound.sfxEnabled) stopVoice(); updateAudioUI(); updateMemeUI(); };
 updateAudioUI();
+
+// Gesamtlautstärke (Regler unter 🎚️)
+const volPop = $('volume-pop');
+function updateVolumeUI() {
+  $('volume').value = Math.round(sound.volume * 100);
+  $('volume-value').textContent = `${Math.round(sound.volume * 100)} %`;
+}
+$('toggle-volume').onclick = (e) => { e.stopPropagation(); volPop.hidden = !volPop.hidden; updateVolumeUI(); };
+$('volume').oninput = (e) => {
+  sound.setVolume(Number(e.target.value) / 100);
+  if (voiceAudio) voiceAudio.volume = sound.volume;
+  updateVolumeUI();
+};
+addEventListener('pointerdown', (e) => { if (!volPop.hidden && !e.target.closest('#volume-pop, #toggle-volume')) volPop.hidden = true; });
+updateVolumeUI();
 
 
 // ── Meme-Soundboard: Vorschau und Download direkt im Spiel ──
@@ -439,6 +455,33 @@ function showAvatar() {
 showAvatar();
 $('avatar-input').onchange = async (e) => { if (e.target.files[0]) { avatar = await fileToAvatar(e.target.files[0]); showAvatar(); } };
 
+// Profilbild aus einem Club-Sticker (Kopf der Figur am Tisch)
+function stickerToAvatar(id) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = c.height = 160;
+      const x = c.getContext('2d');
+      x.fillStyle = '#f3efe4'; x.fillRect(0, 0, 160, 160);
+      const k = Math.max(160 / img.width, 160 / img.height);
+      x.drawImage(img, (160 - img.width * k) / 2, (160 - img.height * k) / 2, img.width * k, img.height * k);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+    img.src = stickerUrl(id);
+  });
+}
+{
+  const grid = $('avatar-stickers');
+  for (const st of STICKERS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = st.name;
+    b.style.backgroundImage = `url("${stickerUrl(st.id)}")`;
+    b.onclick = async () => { avatar = await stickerToAvatar(st.id); showAvatar(); grid.querySelectorAll('.on').forEach((o) => o.classList.remove('on')); b.classList.add('on'); };
+    grid.append(b);
+  }
+}
+
 // ── 2 · Zeichenfläche ────────────────────────────────────
 const draw = $('draw');
 const dctx = draw.getContext('2d');
@@ -635,12 +678,13 @@ function speak(voice, done) {
   const browserVoice = () => {
     if (!('speechSynthesis' in window)) return done(4000);
     const u = new SpeechSynthesisUtterance(voice.line);
-    u.lang = 'de-DE'; u.rate = 1.1; u.pitch = 1.1;
+    u.lang = 'de-DE'; u.rate = 1.1; u.pitch = 1.1; u.volume = sound.volume;
     u.onend = finish; u.onerror = finish;
     speechSynthesis.speak(u);
   };
   if (!voice.key) return browserVoice();
   const a = new Audio(`/karten/voice/${voice.key}.mp3`);
+  a.volume = sound.volume;
   voiceAudio = a;
   a.onended = finish;
   a.onerror = () => { if (voiceAudio === a) browserVoice(); };
@@ -688,7 +732,89 @@ function showChainBanner(evt) {
   } else close(3000);
 }
 
+// Sticker-Reaktionen: wer viele Karten aufnehmen muss, regt sich auf; der Sieger feiert
+const reactions = {};
+let prevCounts = null, prevState = null;
+function stickerReactions(v) {
+  const counts = Object.fromEntries(v.players.map((p) => [p.id, p.count]));
+  if (prevCounts && v.state === 'playing' && prevState === 'playing') {
+    for (const p of v.players) {
+      const gained = p.count - (prevCounts[p.id] ?? p.count);
+      if (gained >= 2) {
+        const st = randomSticker(gained >= 6 ? 'sad' : 'rage', 'rage');
+        reactions[p.id] = { id: st.id, until: Date.now() + 3200 };
+        if (p.id === me) {
+          const img = document.createElement('img'); img.className = 'my-react'; img.src = stickerUrl(st.id); img.alt = '';
+          document.body.append(img); setTimeout(() => img.remove(), 3300);
+        }
+        // die anderen lachen manchmal mit
+        const others = v.players.filter((o) => o.id !== p.id && o.id !== me);
+        if (others.length && Math.random() < 0.35) {
+          const o = others[Math.floor(Math.random() * others.length)];
+          reactions[o.id] = { id: randomSticker('laugh').id, until: Date.now() + 2800 };
+        }
+      }
+    }
+  }
+  if (prevState === 'playing' && v.state === 'over' && v.winner) reactions[v.winner] = { id: randomSticker('win').id, until: Date.now() + 5000 };
+  prevCounts = counts; prevState = v.state;
+  if (Object.values(reactions).some((r) => r.until > Date.now())) setTimeout(() => view && render(), 3300);
+}
+
+// ── Quiz ──
+let quizShown = null, quizResultShown = null, quizTimer = null, quizSeen = new Set();
+function renderQuiz(v) {
+  const q = v.state === 'playing' ? v.quiz : null;
+  const box = $('quiz');
+  if (!q) { box.hidden = true; clearInterval(quizTimer); quizShown = null; }
+  else {
+    if (quizShown !== q.id) {
+      quizShown = q.id;
+      quizSeen.add(q.id);
+      void sound.memes.play('vine-boom', { priority: true });
+      vibrate([40, 40, 40]);
+      const end = Date.now() + q.left;
+      clearInterval(quizTimer);
+      quizTimer = setInterval(() => {
+        const left = Math.max(0, end - Date.now());
+        $('quiz-left').textContent = `${Math.ceil(left / 1000)} s`;
+        $('quiz-bar').style.width = `${left / 200}%`;
+        if (!left) clearInterval(quizTimer);
+      }, 200);
+    }
+    box.hidden = false;
+    $('quiz-q').textContent = q.question;
+    const opts = $('quiz-options');
+    opts.innerHTML = '';
+    q.options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'quiz-opt' + (q.mine === i ? ' mine' : '');
+      b.textContent = `${'ABCDE'[i]} · ${o}`;
+      b.disabled = q.mine !== null;
+      b.onclick = () => act('quiz-answer', { id: q.id, idx: i });
+      opts.append(b);
+    });
+    $('quiz-note').textContent = q.mine !== null ? '✅ Abgegeben – warte auf die anderen …' : 'Richtig = Zufallsbonus: Karten abwerfen, Spezialkarte oder jemanden strafziehen lassen.';
+  }
+  const r = v.quizResult;
+  if (r && r.id !== quizResultShown) {
+    quizResultShown = r.id;
+    if (!quizSeen.has(r.id)) return;   // beim Beitreten keine alte Auflösung zeigen
+    const el = $('quiz-result');
+    const iWon = r.results.some((x) => x.id === me);
+    el.innerHTML = '<b></b><span></span>';
+    el.querySelector('b').textContent = `🧠 Richtig war: ${r.answer}`;
+    el.querySelector('span').textContent = r.nobody ? 'Niemand wusste es 💀' : r.results.map((x) => `${x.name} ${x.text}`).join(' · ');
+    el.hidden = false;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    void sound.memes.play(iWon ? 'yippee' : 'bruh', { priority: true });
+    setTimeout(() => { el.hidden = true; }, 5200);
+  }
+}
+
 socket.on('view', (v) => {
+  stickerReactions(v);
+  renderQuiz(v);
   const meme = memeEvents.observe(v, me);
   if (meme) void sound.memes.play(meme, { priority: v.state === 'over' });
   const myTurnBefore = view?.turn === me;
@@ -867,6 +993,57 @@ function renderDeckModal(force = false) {
   $('deck-everything').onclick = () => send({ specials: catalog.map((c) => c.key), roles: Object.keys(ROLES) });
 }
 $('deck-btn').onclick = () => { $('deck-modal').hidden = false; renderDeckModal(true); };
+
+// ── Einsatz der Runde: Belohnung & Strafe abstimmen ──
+const STAKE_KIND_INFO = {
+  reward: { title: '🏆 Gewinner bekommt …', ph: 'Eigene Belohnung …' },
+  punish: { title: '💀 Verlierer muss …', ph: 'Eigene Strafe …' },
+};
+function renderStakeModal() {
+  const st = view?.stakes;
+  if (!st) return;
+  const box = $('stake-content');
+  const drafts = {};
+  box.querySelectorAll('input[data-kind]').forEach((i) => { drafts[i.dataset.kind] = i.value; });
+  const focused = document.activeElement?.dataset?.kind;
+  box.innerHTML = '';
+  for (const kind of ['reward', 'punish']) {
+    const col = document.createElement('section');
+    col.className = 'stake-col stake-' + kind;
+    const total = st[kind].reduce((n, o) => n + o.votes, 0);
+    col.innerHTML = `<h3>${STAKE_KIND_INFO[kind].title}</h3><ul></ul>
+      <form class="stake-add"><input data-kind="${kind}" maxlength="80" placeholder="${STAKE_KIND_INFO[kind].ph}" autocomplete="off" /><button class="funke-btn funke-btn--sm" type="submit">+ Vorschlagen</button></form>`;
+    const ul = col.querySelector('ul');
+    const sorted = [...st[kind]].sort((a, b) => b.votes - a.votes);
+    for (const o of sorted) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stake-opt' + (st[kind + 'Mine'] === o.id ? ' mine' : '');
+      btn.style.setProperty('--share', total ? `${Math.round(o.votes / total * 100)}%` : '0%');
+      btn.innerHTML = `<span class="t"></span><b>${o.votes || ''}</b>`;
+      btn.querySelector('.t').textContent = o.text + (o.by ? ` · von ${o.by}` : '');
+      btn.onclick = () => act('stake-vote', { kind, id: o.id });
+      li.append(btn);
+      ul.append(li);
+    }
+    const input = col.querySelector('input');
+    input.value = drafts[kind] ?? '';
+    col.querySelector('form').onsubmit = (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      act('stake-suggest', { kind, text }, (err) => toast(err));
+      input.value = '';
+    };
+    box.append(col);
+    if (focused === kind) input.focus();
+  }
+}
+$('stake-btn').onclick = () => { $('stake-modal').hidden = false; renderStakeModal(); };
+$('stake-close').onclick = () => { $('stake-modal').hidden = true; };
+$('stake-modal').onclick = (e) => { if (e.target === $('stake-modal')) $('stake-modal').hidden = true; };
+
 $('deck-close').onclick = () => { $('deck-modal').hidden = true; };
 $('deck-modal').onclick = (e) => { if (e.target === $('deck-modal')) $('deck-modal').hidden = true; };
 
@@ -885,6 +1062,43 @@ function act(event, data, onError = toast) {
 }
 
 // ── Tisch zeichnen ───────────────────────────────────────
+const SUITS = ['#24324f', '#3b1f2e', '#1f3b30', '#2d2d33', '#4a2a17', '#2a2350', '#123a4a', '#40202a'];
+const TIES = ['#9e1b3a', '#c9a24e', '#1b6e9e', '#2f8a4e', '#7a2a9e', '#d9d2c0'];
+const SKINS = ['#f1c9a5', '#d8a888', '#b98563', '#8d5a3b', '#e6b89c', '#a8704c'];
+const EMOTE_ICON = { wave: '👋', clap: '👏', cheer: '🙌', facepalm: '🤦' };
+const emotes = {};
+socket.on('emote', ({ id, e }) => {
+  emotes[id] = { e, until: Date.now() + 2600 };
+  if (id === me) {
+    const el = document.createElement('div'); el.className = 'my-emote'; el.textContent = EMOTE_ICON[e];
+    document.body.append(el); setTimeout(() => el.remove(), 1500);
+  }
+  if (view) render();
+  setTimeout(() => view && render(), 2700);
+});
+document.querySelectorAll('#emotes button').forEach((b) => { b.onclick = () => { socket.emit('emote', b.dataset.emote); vibrate(20); }; });
+
+// Leichte 3D-Perspektive: Maus (oder Ziehen auf dem Tisch) kippt die Szene ein paar Grad
+// – man kann sich umschauen, aber nicht vom Tisch weg.
+{
+  const tbl = $('table');
+  let drag = null;
+  const set = (x, y) => {
+    tbl.style.setProperty('--px', Math.max(-1, Math.min(1, x)).toFixed(3));
+    tbl.style.setProperty('--py', Math.max(-1, Math.min(1, y)).toFixed(3));
+  };
+  addEventListener('pointermove', (e) => {
+    if (tbl.hidden) return;
+    if (e.pointerType === 'mouse') set((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
+    else if (drag) set(drag.x + (e.clientX - drag.cx) / 200, drag.y + (e.clientY - drag.cy) / 300);
+  }, { passive: true });
+  tbl.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || e.target.closest('button, .card, input, #chat, #hand')) return;
+    drag = { cx: e.clientX, cy: e.clientY, x: Number(tbl.style.getPropertyValue('--px')) || 0, y: Number(tbl.style.getPropertyValue('--py')) || 0 };
+  });
+  addEventListener('pointerup', () => { drag = null; });
+}
+
 function render() {
   const v = view;
   // Gegenüber am Tisch: alle anderen im Halbkreis, in Spielreihenfolge ab dir
@@ -899,7 +1113,19 @@ function render() {
     seat.style.left = `${12 + t * 76}%`;
     seat.style.top = `${10 + Math.sin(Math.PI * t) * -6 + 6}%`;
     const face = arts[p.id]?.avatar || (p.bot ? getBotAvatar(p.name || p.id) : null);
-    seat.innerHTML = '<div class="face"></div><div class="nm"></div><div class="role"></div><div class="backs"></div>';
+    seat.innerHTML = '<div class="figure"><div class="face"></div><div class="torso"><i class="hand l"></i><i class="hand r"></i></div></div><div class="nm"></div><div class="role"></div><div class="backs"></div>';
+    // Figur: Anzug-/Krawattenfarbe fest pro Person, damit jede*r wiedererkennbar bleibt
+    const h = [...p.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    seat.style.setProperty('--suit', SUITS[h % SUITS.length]);
+    seat.style.setProperty('--tie', TIES[(h >> 3) % TIES.length]);
+    seat.style.setProperty('--skin', SKINS[(h >> 6) % SKINS.length]);
+    seat.style.setProperty('--d', `${-(h % 40) / 10}s`);
+    const em = emotes[p.id];
+    if (em && em.until > Date.now()) {
+      seat.classList.add('emote-' + em.e);
+      const i = document.createElement('span'); i.className = 'emote'; i.textContent = EMOTE_ICON[em.e];
+      seat.querySelector('.figure').append(i);
+    }
     if (face) seat.querySelector('.face').style.backgroundImage = `url("${face}")`;
     else seat.querySelector('.face').textContent = p.name.slice(0, 2).toUpperCase();
     seat.querySelector('.nm').textContent = p.name + (p.id === v.host ? ' 👑' : '');
@@ -920,9 +1146,16 @@ function render() {
     const bb = bubbles[p.id];
     if (bb && bb.until > Date.now()) {
       const b = document.createElement('div');
-      b.className = 'bubble';
-      b.textContent = bb.text;
+      b.className = 'bubble' + (bb.sticker ? ' sticker' : '');
+      if (bb.sticker) { const img = document.createElement('img'); img.src = stickerUrl(bb.sticker); img.alt = ''; b.append(img); }
+      else b.textContent = bb.text;
       seat.append(b);
+    }
+    const rx = reactions[p.id];
+    if (rx && rx.until > Date.now()) {
+      const img = document.createElement('img');
+      img.className = 'react-sticker'; img.src = stickerUrl(rx.id); img.alt = '';
+      seat.append(img);
     }
     $('players').append(seat);
   });
@@ -1007,6 +1240,9 @@ function render() {
   const stepX = n > 1 ? Math.min(cw * 0.85, (avail - cw) / (n - 1)) : 0;
   const half = ((n - 1) * stepX + cw) / 2;
   $('pov').style.setProperty('--fan-half', `${Math.max(half, cw)}px`);
+  handLayout = { n, stepX, cw };
+  if (hoverId != null && !v.hand.some((c) => c.id === hoverId)) hoverId = null;
+  $('pov').classList.toggle('my-turn', myTurn);
   // Gleiche Zahlen zählen für Kombi- / Zwillings-Ablage
   const numberCounts = {};
   for (const c of v.hand) {
@@ -1016,7 +1252,6 @@ function render() {
   }
   const currentSel = selectedCards();
   const selectedNumValue = (currentSel.length > 0 && currentSel[0]?.kind === 'number') ? currentSel[0].value : null;
-
   v.hand.forEach((c, i) => {
     const el = cardEl(c, arts);
     const t = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;   // -1 (links) … 1 (rechts)
@@ -1070,37 +1305,19 @@ function render() {
       }
     }
 
-    // 🎴 Atmender Fächer: Nachbarkarten weichen sanft zur Seite aus
-    el.addEventListener('mouseenter', () => {
-      updateExplain(c);
-      const nudge = Math.max(16, Math.min(30, 220 / (n || 1)));
-      const siblings = $('hand')?.children;
-      if (siblings) {
-        for (let j = 0; j < siblings.length; j++) {
-          if (j < i) siblings[j].style.setProperty('--nudge', `-${nudge}px`);
-          else if (j > i) siblings[j].style.setProperty('--nudge', `${nudge}px`);
-          else siblings[j].style.setProperty('--nudge', '0px');
-        }
-      }
-    });
-    el.addEventListener('mouseleave', () => {
-      updateExplain(null);
-      const siblings = $('hand')?.children;
-      if (siblings) {
-        for (let j = 0; j < siblings.length; j++) {
-          siblings[j].style.setProperty('--nudge', '0px');
-        }
-      }
-    });
-
-    el.onclick = () => { focus = i; toggle(c); };
+    if (c.id === hoverId) el.classList.add('hover');
+    if (!canHover) {
+      el.onmouseenter = () => updateExplain(c);
+      el.onmouseleave = () => updateExplain(null);
+    }
+    el.onclick = (e) => { e.stopPropagation(); focus = i; toggle(c); };
     $('hand').append(el);
   });
   $('turn-banner').classList.toggle('show', myTurn);
   $('table').classList.toggle('my-turn', myTurn);
 
   // Erklärfeld: angetippte oder gehoverte Special-Karte
-  updateExplain(null);
+  updateExplain(v.hand.find((c) => c.id === hoverId) ?? null);
 
   const sel = selectedCards();
   const isLastCard = v.hand.length === 1;
@@ -1166,6 +1383,19 @@ function render() {
   $('play').hidden = v.state !== 'playing';
   const nChosen = (v.deckChoice?.specials.length ?? 0) + (v.customCards?.length ?? 0);
   $('deck-btn').hidden = v.state === 'playing';
+  $('stake-btn').hidden = v.state === 'playing';
+  if (v.stakes) {
+    const myVotes = ['reward', 'punish'].filter((k) => v.stakes[k + 'Mine']).length;
+    $('stake-btn').textContent = `🎯 Einsatz${myVotes < 2 ? ' · abstimmen!' : ' ✓'}`;
+  }
+  if (!$('stake-modal').hidden) { if (v.state === 'playing') $('stake-modal').hidden = true; else renderStakeModal(); }
+  const sb = $('stake-banner');
+  sb.hidden = !(v.stake && v.state === 'playing');
+  if (!sb.hidden) {
+    sb.innerHTML = '<span class="r"></span><span class="p"></span>';
+    sb.querySelector('.r').textContent = `🏆 ${v.stake.reward.text}`;
+    sb.querySelector('.p').textContent = `💀 ${v.stake.punish.text}`;
+  }
   $('deck-btn').textContent = `🎴 Karten (${nChosen})`;
   if (!$('deck-modal').hidden) renderDeckModal();
   $('bot-add').hidden = !(isHost && v.state !== 'playing');
@@ -1371,6 +1601,45 @@ function toast(text) {
   $('toast').classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1600);
+}
+
+// ── Hand-Hover über feste Plätze ──────────
+// Die Trefferzone jeder Karte ist ihr Ruheplatz im Fächer (plus die Fläche, in die sie
+// beim Anheben hochfährt). So bleibt die Karte stabil oben, auch wenn die Maus am unteren
+// Rand steht, und springt nicht zwischen Nachbarn hin und her.
+const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
+let hoverId = null, handLayout = null;
+function handHit(x, y) {
+  const L = handLayout;
+  if (!view || !L?.n) return null;
+  const r = $('hand').getBoundingClientRect();
+  const ch = L.cw * 1.4;
+  const top = r.bottom - ch - (hoverId != null ? 74 + ch * 0.45 : 10);
+  if (y < top || y > r.bottom + 34) return null;
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < L.n; i++) {
+    const d = Math.abs(x - (r.left + (i - (L.n - 1) / 2) * L.stepX));
+    const bias = view.hand[i]?.id === hoverId ? 8 : 0;   // kleine Hysterese gegen Hin-und-her
+    if (d - bias < bd) { bd = d - bias; best = i; }
+  }
+  return bd <= L.cw / 2 + 8 ? view.hand[best] : null;
+}
+function setHover(card) {
+  const id = card?.id ?? null;
+  if (id === hoverId) return;
+  hoverId = id;
+  $('hand').querySelectorAll('.card').forEach((el) => el.classList.toggle('hover', Number(el.dataset.id) === id));
+  updateExplain(card);
+}
+if (canHover) {
+  addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') setHover(handHit(e.clientX, e.clientY)); });
+  document.addEventListener('pointerleave', () => setHover(null));
+  // Klick in die Lücke unter einer angehobenen Karte zählt als Klick auf die Karte
+  addEventListener('click', (e) => {
+    if (hoverId == null || e.target.closest('button, input, .card, [role=dialog], .modal')) return;
+    const c = handHit(e.clientX, e.clientY);
+    if (c) { focus = view.hand.indexOf(c); toggle(c); }
+  });
 }
 
 // ── Steuerung: Maus/Touch, Tastatur, Controller ──────────
@@ -1605,6 +1874,13 @@ function showRanking(v) {
         </div>
       ` : ''}
 
+      ${v.stake ? `
+        <div class="stake-result">
+          <div class="sr-row reward"><span class="sr-who">🏆 ${escHtml((v.stake.winners ?? []).join(', ') || 'Gewinner')}</span><span class="sr-what">${escHtml(v.stake.reward.text)}</span></div>
+          <div class="sr-row punish"><span class="sr-who">💀 ${escHtml((v.stake.losers ?? []).join(', ') || 'Verlierer')}</span><span class="sr-what">${escHtml(v.stake.punish.text)}</span></div>
+        </div>
+      ` : ''}
+
       ${awardsHtml}
 
       ${rolesHtml}
@@ -1653,6 +1929,17 @@ for (const q of QUICK) {
   b.onclick = () => socket.emit('chat', q);
   document.querySelector('.chat-quick').append(b);
 }
+{
+  const tray = $('sticker-tray');
+  for (const st of STICKERS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = st.name;
+    b.style.backgroundImage = `url("${stickerUrl(st.id)}")`;
+    b.onclick = () => { socket.emit('chat', stickerMsg(st.id)); tray.hidden = true; };
+    tray.append(b);
+  }
+  $('sticker-toggle').onclick = () => { tray.hidden = !tray.hidden; };
+}
 $('chat-btn').onclick = () => { $('chat').hidden = !$('chat').hidden; if (!$('chat').hidden) { unread = 0; showUnread(); $('chat-input').focus(); scrollChat(); } };
 $('chat-close').onclick = () => { $('chat').hidden = true; };
 $('chat-form').onsubmit = (e) => {
@@ -1669,7 +1956,9 @@ function addChat(m, live) {
   if (m.id === me) li.className = 'mine';
   li.innerHTML = '<b></b><span></span>';
   li.querySelector('b').textContent = m.name;
-  li.querySelector('span').textContent = m.text;
+  const st = parseSticker(m.text);
+  if (st) { const img = document.createElement('img'); img.className = 'chat-sticker'; img.src = stickerUrl(st); img.alt = 'Sticker'; li.querySelector('span').append(img); }
+  else li.querySelector('span').textContent = m.text;
   $('chat-list').append(li);
   while ($('chat-list').children.length > 60) $('chat-list').firstChild.remove();
   scrollChat();
@@ -1681,7 +1970,8 @@ const scrollChat = () => { $('chat-list').scrollTop = $('chat-list').scrollHeigh
 function showUnread() { $('chat-unread').hidden = !unread; $('chat-unread').textContent = unread > 9 ? '9+' : unread; }
 // Sprechblase über dem Kopf der Person am Tisch (überlebt das Neuzeichnen bei jedem Zug)
 function bubble(m) {
-  bubbles[m.id] = { text: m.text.length > 60 ? m.text.slice(0, 57) + '…' : m.text, until: Date.now() + 4500 };
+  const st = parseSticker(m.text);
+  bubbles[m.id] = { text: st ? '' : m.text.length > 60 ? m.text.slice(0, 57) + '…' : m.text, sticker: st, until: Date.now() + 4500 };
   if (view) render();
   setTimeout(() => view && render(), 4600);
 }

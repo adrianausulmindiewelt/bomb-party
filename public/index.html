@@ -32,6 +32,11 @@
   <div id="audio-controls">
     <button id="toggle-bgm" title="Hintergrundmusik an/aus" type="button">🎵</button>
     <button id="toggle-sfx" title="Soundeffekte an/aus" type="button">🔊</button>
+    <button id="toggle-volume" title="Lautstärke einstellen" aria-label="Lautstärke einstellen" type="button">🎚️</button>
+    <div id="volume-pop" hidden>
+      <label for="volume">Lautstärke <output id="volume-value" for="volume"></output></label>
+      <input id="volume" type="range" min="0" max="100" step="5" aria-label="Gesamtlautstärke" />
+    </div>
     <button id="open-memes" title="Meme-Sounds: anhören, einstellen und herunterladen" aria-label="Meme-Sounds öffnen" type="button">😂</button>
     <button id="toggle-vib" title="Haptisches Vibrations-Feedback an/aus" type="button">📳</button>
     <button id="toggle-fullscreen" title="Vollbildmodus umschalten" type="button">⛶</button>
@@ -63,6 +68,10 @@
         <span>📸 Foto von dir</span>
         <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
       </label>
+      <details class="avatar-sticker-pick">
+        <summary>…oder einen Club-Sticker als Kopf nehmen 😜</summary>
+        <div id="avatar-stickers" class="sticker-grid"></div>
+      </details>
       <input id="name" maxlength="16" placeholder="Dein Name" autocomplete="nickname" />
     </section>
 
@@ -147,22 +156,50 @@ Bevor du fertig bist:
 
   <!-- ── Der Tisch (Ego-Perspektive) ── -->
   <section id="table" hidden>
+    <!-- Casino-Bar: Rückwand, Bar mit Flaschen, Neon, Kellner, Hängelampen, Dunst -->
     <div class="room-decor" aria-hidden="true">
-      <div class="ceiling-glow"></div>
-      <div class="wall-panel panel-left"></div>
-      <div class="wall-panel panel-right"></div>
-      <div class="lamp lamp-left"><i></i></div>
-      <div class="lamp lamp-right"><i></i></div>
-      <div class="room-monogram">CB</div>
+      <div class="wall"></div>
+      <div class="bar-back">
+        <div class="shelf s1"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="shelf s2"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="neon">Club&nbsp;Bombe<small>Von Wien bis Berlin</small></div>
+      </div>
+      <div class="waiter-lane">
+        <svg class="waiter" viewBox="0 0 80 180">
+          <ellipse cx="40" cy="176" rx="22" ry="4" fill="#0006"/>
+          <path d="M28 120 L24 172 L34 172 L40 132 L46 172 L56 172 L52 120 Z" fill="#0b0a12"/>
+          <path d="M20 62 Q40 52 60 62 L58 124 L22 124 Z" fill="#141220"/>
+          <path d="M34 60 L40 92 L46 60 Z" fill="#f2efe6"/>
+          <path d="M36 64 L40 68 L44 64 L44 70 L40 67 L36 70 Z" fill="#9e1b3a"/>
+          <path class="arm-tray" d="M58 66 Q72 72 70 52" stroke="#141220" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <ellipse cx="70" cy="46" rx="16" ry="3" fill="#c9a24e"/>
+          <path d="M63 44 L64 30 L68 30 L69 44 Z M73 44 L74 34 L77 34 L78 44 Z" fill="#ffe7a8aa"/>
+          <path d="M22 66 Q14 90 22 112" stroke="#141220" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <circle cx="40" cy="38" r="14" fill="#c99a7a"/>
+          <path d="M26 36 Q28 20 40 22 Q53 21 54 36 Q50 28 40 29 Q30 28 26 36 Z" fill="#1d150f"/>
+        </svg>
+      </div>
+      <div class="bar-counter"></div>
+      <div class="pendant p1"><i></i></div>
+      <div class="pendant p2 flicker"><i></i></div>
+      <div class="pendant p3"><i></i></div>
+      <div class="haze"></div>
     </div>
     <div id="felt-wrap"><div id="felt"></div></div>
     <div id="club-badge"><img src="/brand/wappen.svg" alt="" /><img src="/brand/vwbb-logo.png" alt="" class="wm-logo" /></div>
+    <div id="emotes" aria-label="Gesten">
+      <button type="button" data-emote="wave" title="Winken">👋</button>
+      <button type="button" data-emote="clap" title="Klatschen">👏</button>
+      <button type="button" data-emote="cheer" title="Jubeln">🙌</button>
+      <button type="button" data-emote="facepalm" title="Facepalm">🤦</button>
+    </div>
     <button id="chat-btn" aria-label="Chat">💬<span id="chat-unread" hidden></span></button>
     <aside id="chat" hidden>
       <header><b>💬 Tisch-Chat</b><button id="chat-close" aria-label="Schließen">✕</button></header>
       <ol id="chat-list"></ol>
       <div class="chat-quick"></div>
-      <form id="chat-form"><input id="chat-input" maxlength="200" placeholder="Nachricht …" autocomplete="off" /><button>➤</button></form>
+      <div id="sticker-tray" class="sticker-grid" hidden></div>
+      <form id="chat-form"><button id="sticker-toggle" type="button" title="Sticker schicken" class="sticker-toggle">🖼️</button><input id="chat-input" maxlength="200" placeholder="Nachricht …" autocomplete="off" /><button>➤</button></form>
     </aside>
     <div id="fx-banner"></div>
     <div id="players"></div>
@@ -183,6 +220,7 @@ Bevor du fertig bist:
           <span class="stack-label">Ablage</span>
         </div>
       </div>
+      <div id="stake-banner" hidden></div>
       <div id="pile-info"></div>
       <div id="ticker"></div>
     </div>
@@ -191,6 +229,7 @@ Bevor du fertig bist:
       <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
       <div id="my-card-count" class="hand-count-pill" title="Deine Handkarten" hidden>🎴 <b>0</b></div>
       <button id="deck-btn" type="button" hidden>🎴 Karten</button>
+      <button id="stake-btn" type="button" hidden>🎯 Einsatz</button>
       <button id="bot-add" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>🤖 Bot hinzufügen</button>
       <button id="bot-remove" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>Bot entfernen</button>
       <button id="start" class="primary" hidden>▶️ Spiel starten</button>
@@ -311,6 +350,26 @@ Bevor du fertig bist:
           <button class="tab-btn" data-tab="elements">💎 Farbsynergien & Resonanz</button>
         </div>
         <div id="almanach-content" class="almanach-grid"></div>
+      </div>
+    </div>
+    <div id="quiz" hidden>
+      <div class="quiz-card" role="dialog" aria-labelledby="quiz-q">
+        <div class="quiz-head">🧠 Quizfrage <span id="quiz-left"></span></div>
+        <div class="quiz-bar"><i id="quiz-bar"></i></div>
+        <h3 id="quiz-q"></h3>
+        <div id="quiz-options"></div>
+        <p id="quiz-note">Richtig = Zufallsbonus: Karten abwerfen, Spezialkarte oder jemanden strafziehen lassen.</p>
+      </div>
+    </div>
+    <div id="quiz-result" hidden></div>
+    <div id="stake-modal" class="overlay" hidden>
+      <div class="almanach-window stake-window" role="dialog" aria-labelledby="stake-title">
+        <div class="almanach-header">
+          <h2 id="stake-title">🎯 Einsatz der Runde</h2>
+          <button id="stake-close" type="button" class="close-btn" title="Schließen">✕</button>
+        </div>
+        <p class="deck-note">Alle stimmen ab: Was bekommt der Gewinner, was muss der Verlierer machen? Beim Start zählt die Mehrheit, bei Gleichstand entscheidet der Zufall. Nochmal tippen nimmt die Stimme zurück.</p>
+        <div id="stake-content"></div>
       </div>
     </div>
     <div id="deck-modal" class="overlay" hidden>

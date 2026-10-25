@@ -131,11 +131,24 @@ cards.on('connection', (socket) => {
   on('bot-remove', act((id) => room.removeBot(pid, id)));
   on('configure', act((choice) => room.configure(pid, choice)));
   on('voice-skip', act(() => room.skipVoice(pid)));
+  on('quiz-answer', act((d) => room.quizAnswer(pid, d)));
+  on('stake-vote', act((d) => room.stakeVote(pid, d)));
+  on('stake-suggest', act((d) => room.stakeSuggest(pid, d)));
   on('play', act((ids) => room.play(pid, ids)));
   on('take', act(() => room.take(pid)));
   on('chat', (text) => {
     const msg = room?.chatSay(pid, text);
     if (msg) cards.to(room.id).emit('chat', msg);
+  });
+
+  // Gesten am Tisch (winken, klatschen …): nur weiterreichen, nichts speichern
+  let lastEmote = 0;
+  on('emote', (e) => {
+    if (!room || !['wave', 'clap', 'cheer', 'facepalm'].includes(e)) return;
+    const now = Date.now();
+    if (now - lastEmote < 1200) return;
+    lastEmote = now;
+    cards.to(room.id).emit('emote', { id: pid, e });
   });
 
   on('disconnect', () => {
