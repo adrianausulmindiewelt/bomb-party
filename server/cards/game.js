@@ -2134,6 +2134,7 @@ export class CardRoom {
       ranking: this.ranking,
       stakes: this.stakeView(forId),
       quiz: this.quiz ? { id: this.quiz.id, question: this.quiz.question, options: this.quiz.options, left: Math.max(0, this.quiz.until - Date.now()), mine: this.quiz.answers.get(forId) ?? null, answered: this.quiz.answers.size } : null,
+      quizNextIn: this.state === 'playing' && this.nextQuizAt ? Math.max(0, this.nextQuizAt - Date.now()) : null,
       quizResult: this.quizResult,
       stake: this.stake,
       awards: this.awards ?? [],

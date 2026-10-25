@@ -763,8 +763,39 @@ function stickerReactions(v) {
 
 // ── Quiz ──
 let quizShown = null, quizResultShown = null, quizTimer = null, quizSeen = new Set();
+
+let quizNextEnd = 0, quizNextTimer = null;
+function updateQuizCountdown(v) {
+  const pill = $('quiz-timer-pill');
+  if (!pill) return;
+  if (!v || v.state !== 'playing' || v.quiz || !v.quizNextIn) {
+    pill.hidden = true;
+    if (quizNextTimer) { clearInterval(quizNextTimer); quizNextTimer = null; }
+    return;
+  }
+  pill.hidden = false;
+  quizNextEnd = Date.now() + v.quizNextIn;
+  const updateText = () => {
+    const leftMs = Math.max(0, quizNextEnd - Date.now());
+    const totalSec = Math.ceil(leftMs / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    const textEl = $('quiz-timer-text');
+    if (textEl) textEl.textContent = `Quiz in ${min}:${sec.toString().padStart(2, '0')}`;
+    if (leftMs <= 0 && quizNextTimer) {
+      clearInterval(quizNextTimer);
+      quizNextTimer = null;
+    }
+  };
+  updateText();
+  if (!quizNextTimer) {
+    quizNextTimer = setInterval(updateText, 500);
+  }
+}
+
 function renderQuiz(v) {
   const q = v.state === 'playing' ? v.quiz : null;
+  updateQuizCountdown(v);
   const box = $('quiz');
   if (!q) { box.hidden = true; clearInterval(quizTimer); quizShown = null; }
   else {

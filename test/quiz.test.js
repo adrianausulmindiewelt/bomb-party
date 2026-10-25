@@ -46,3 +46,10 @@ test('Quiz: Abwerfen kann nie den Sieg schenken', () => {
   p.hand = [p.hand[0]];
   for (let i = 0; i < 30; i++) { r.quizBonus(p); assert.ok(p.hand.length >= 1); }
 });
+
+test('Quiz: view liefert quizNextIn Countdown während des Spiels', () => {
+  const r = playing();
+  const v = r.view('a');
+  assert.ok(typeof v.quizNextIn === 'number');
+  assert.ok(v.quizNextIn > 0);
+});

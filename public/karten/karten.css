@@ -1883,3 +1883,25 @@ body:has(#chat:not([hidden])) #audio-controls { visibility: hidden; }  /* Chat l
 #quiz-result b { display: block; color: #ffd23d; margin-bottom: 4px; }
 #quiz-result.show { animation: pop .3s ease-out; }
 body:has(#quiz:not([hidden])) #audio-controls { visibility: hidden; }
+
+/* ── Quiz Countdown Timer ── */
+.quiz-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(36, 26, 61, 0.88);
+  border: 1.5px solid rgba(255, 210, 61, 0.5);
+  border-radius: 99px;
+  padding: 4px 12px;
+  color: #ffd23d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  margin: 4px auto;
+  pointer-events: none;
+  animation: pop 0.25s ease-out;
+}
+.quiz-timer-pill[hidden] {
+  display: none !important;
+}
