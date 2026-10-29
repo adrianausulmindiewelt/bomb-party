@@ -236,7 +236,7 @@ export const PLAYER_CARDS = {
   },
   niclas_turbo: {
     name: 'Turbo-Abreise', title: 'Der Turbo (Niclas)', emoji: '🏎️', by: 'Niclas', ability: 'turboDash',
-    text: 'Aktiv: Niclas ist schon im Flugzeug! Überspringt sofort die nächsten 2 Personen am Tisch. Wer überholt wird, muss 1 Strafkarte ziehen (zu langsam!).',
+    text: 'Aktiv: Niclas ist schon im Flugzeug! Überspringt sofort die nächsten 2 Personen am Tisch (im 2er-Spiel: Gegner setzt aus, du bist dran). Wer überholt wird, muss 1 Strafkarte ziehen (zu langsam!).',
   },
   ruben_firework: {
     name: 'Pyrotechnik-Knall', title: 'Das Feuerwerk (Ruben)', emoji: '🎆', by: 'Ruben', ability: 'fireworkBlast',

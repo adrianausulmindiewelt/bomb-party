@@ -1319,3 +1319,29 @@ test('Ansage: Spezialkarte bringt den Satz mit, nur die legende Person kann übe
   q.play(c.id, ['rs2']);
   assert.equal(q.chainEvent.voice, null);
 });
+
+test('🏎️ Niclas / Turbo-Abreise im 2-Spieler-Modus: Überspringt Gegner, Spieler ist sofort wieder dran (kein Selbst-Aussetzen)', () => {
+  // 1. Charakterkarte niclas (effects: [{ type: 'skip', n: 2 }])
+  const r1 = table(2);
+  const p0 = r1.current();
+  const p1 = r1.players.find((pl) => pl !== p0);
+  const niclasCard = { id: 'niclas_' + Math.random(), kind: 'special', key: 'niclas', effects: [{ type: 'skip', n: 2 }] };
+  p0.hand = [niclasCard, num(5)];
+  p1.hand = [num(6), num(7)];
+  const res1 = r1.play(p0.id, [niclasCard.id]);
+  assert.equal(res1.ok, true);
+  assert.equal(r1.current().id, p0.id, 'p0 darf nicht sich selbst überspringen und muss im 2er-Spiel wieder dran sein');
+
+  // 2. Clubkarte niclas_turbo (ability: turboDash)
+  const r2 = table(2);
+  const pA = r2.current();
+  const pB = r2.players.find((pl) => pl !== pA);
+  const turboCard = sp('niclas_turbo');
+  pA.hand = [turboCard, num(5)];
+  pB.hand = [num(6), num(7)];
+  const pBHandBefore = pB.hand.length;
+  const res2 = r2.play(pA.id, [turboCard.id]);
+  assert.equal(res2.ok, true);
+  assert.equal(r2.current().id, pA.id, 'pA ist bei Turbo-Abreise im 2er-Spiel sofort wieder dran');
+  assert.equal(pB.hand.length, pBHandBefore + 1, 'Gegner pB kassiert 1 Strafkarte');
+});

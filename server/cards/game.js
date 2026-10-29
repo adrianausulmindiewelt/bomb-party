@@ -667,7 +667,8 @@ export class CardRoom {
         this.say(`   → 👀 Stille Beobachterin: Ayleen senkt den Tisch auf ${this.top}!`);
       }
     } else if (sp.ability === 'turboDash') {
-      ctx.skip += 2;
+      // Im 2-Spieler-Modus darf Niclas sich nicht selbst aussetzen: skip 1 bedeutet Gegner setzt aus, Niclas ist wieder dran
+      ctx.skip += (this.active().length < 3 ? 1 : 2);
       const s1 = this.seatFrom(p, 1);
       const s2 = this.seatFrom(p, 2);
       const skipped = [...new Set([s1, s2].filter((x) => x && x !== p))];
@@ -1129,7 +1130,10 @@ export class CardRoom {
       case 'reverse': this.dir *= -1; break;
       case 'again': ctx.again = true; break;
       case 'boss': this.top = RULES.maxValue + 1; this.lower = false; break;
-      case 'skip': ctx.skip += e.n; break;
+      case 'skip':
+        // Im 2-Spieler-Modus darf skip 2 nicht dazu führen, dass der Spieler sich selbst überspringt
+        ctx.skip += (e.n > 1 && this.active().length < 3 ? 1 : e.n);
+        break;
       case 'draw':
         for (const t of targets) this.draw(t, e.n, { from: p, global });
         break;
