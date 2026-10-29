@@ -2004,7 +2004,7 @@ export class CardRoom {
     this.quizRecent = [...recent, qi].slice(-Math.floor(QUIZ.length * 0.8));
     const [question, right, ...wrong] = QUIZ[qi];
     const options = [right, ...wrong].sort(() => Math.random() - 0.5);
-    this.quiz = { id: ++this.quizSeq, question, options, correct: options.indexOf(right), until: now + QUIZ_RULES.answerSeconds * 1000, answers: new Map() };
+    this.quiz = { id: ++this.quizSeq, question, options, correct: options.indexOf(right), totalDuration: QUIZ_RULES.answerSeconds * 1000, until: now + QUIZ_RULES.answerSeconds * 1000, answers: new Map() };
     this.quizResult = null;
     // Bots raten mit (60 % richtig), damit es auch gegen sie spannend ist
     for (const b of this.players.filter((p) => p.bot && p.inGame)) {
@@ -2020,8 +2020,9 @@ export class CardRoom {
     const p = this.players.find((o) => o.id === pid && o.inGame);
     if (!p) return { error: 'Du spielst gerade nicht mit.' };
     if (q.answers.has(pid)) return { error: 'Du hast schon geantwortet.' };
-    if (!Number.isInteger(idx) || idx < 0 || idx >= q.options.length) return { error: 'Ungültige Antwort.' };
-    q.answers.set(pid, idx);
+    const parsedIdx = typeof idx === 'string' ? parseInt(idx, 10) : idx;
+    if (!Number.isInteger(parsedIdx) || parsedIdx < 0 || parsedIdx >= q.options.length) return { error: 'Ungültige Antwort.' };
+    q.answers.set(pid, parsedIdx);
     if (this.quizTick()) return { ok: true };
     return { ok: true };
   }
@@ -2154,7 +2155,7 @@ export class CardRoom {
       winner: this.winner,
       ranking: this.ranking,
       stakes: this.stakeView(forId),
-      quiz: this.quiz ? { id: this.quiz.id, question: this.quiz.question, options: this.quiz.options, left: Math.max(0, this.quiz.until - Date.now()), mine: this.quiz.answers.get(forId) ?? null, answered: this.quiz.answers.size } : null,
+      quiz: this.quiz ? { id: this.quiz.id, question: this.quiz.question, options: this.quiz.options, left: Math.max(0, this.quiz.until - Date.now()), total: this.quiz.totalDuration || (QUIZ_RULES.answerSeconds * 1000), mine: this.quiz.answers.get(forId) ?? null, answered: this.quiz.answers.size } : null,
       quizNextIn: this.state === 'playing' && this.nextQuizAt ? Math.max(0, this.nextQuizAt - Math.max(Date.now(), this.introUntil || 0)) : null,
       quizResult: this.quizResult,
       stake: this.stake,

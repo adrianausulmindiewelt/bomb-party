@@ -196,7 +196,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   repeating-linear-gradient(45deg, #ff3d7f 0 5px, #c42a62 5px 10px); border: 2px solid #fff; }
 
 /* Mitte: Stapel auf dem Tisch */
-#center { position: absolute; z-index: 2; left: 50%; top: 47%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#center { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .table-stacks { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .deck-wrap, .pile-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .stack-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #a5a0c8; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
@@ -1846,7 +1846,7 @@ body:has(#stake-modal:not([hidden])) #audio-controls { visibility: hidden; }
 @keyframes clap { from { transform: translateX(0); } to { transform: translateX(var(--clap, 20px)); } }
 .seat .hand.r { --clap: -20px; }
 @keyframes cheer { to { transform: translateY(-12px); } }
-.seat .backs { margin-top: 0; }
+.seat .backs { margin-top: 4px; }
 @media (max-width: 700px) {
   .seat .figure { width: 70px; height: 80px; } .seat .figure .face { width: 44px; height: 44px; }
   .seat .torso { width: 66px; height: 42px; } .seat .hand { width: 16px; height: 12px; }

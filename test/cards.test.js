@@ -778,7 +778,8 @@ test('⛓️⚡ Farb-Überladung: 3x dieselbe Farbe in Folge zwingt den nächste
 
 test('⛓️⚡ Farb-Überladung: Gott reflektiert das Ziehen auf den Angreifer', () => {
   const r = table(2);
-  const p0 = r.current();
+  r.turn = 0;
+  const p0 = r.players[0];
   const p1 = r.seatFrom(p0, 1);
   p1.role = 'god'; // P1 ist Gott!
   const greenColor = '#5cff8a';

@@ -825,24 +825,39 @@ function renderQuiz(v) {
       void sound.memes.play('vine-boom', { priority: true });
       vibrate([40, 40, 40]);
       const end = Date.now() + q.left;
+      const totalDuration = q.total || (30 * 1000);
       clearInterval(quizTimer);
       quizTimer = setInterval(() => {
         const left = Math.max(0, end - Date.now());
         $('quiz-left').textContent = `${Math.ceil(left / 1000)} s`;
-        $('quiz-bar').style.width = `${left / 200}%`;
+        $('quiz-bar').style.width = `${Math.min(100, Math.max(0, (left / totalDuration) * 100))}%`;
         if (!left) clearInterval(quizTimer);
-      }, 200);
+      }, 150);
     }
     box.hidden = false;
     $('quiz-q').textContent = q.question;
     const opts = $('quiz-options');
     opts.innerHTML = '';
+    function submitQuizChoice(idx) {
+      if (q.mine !== null) return;
+      q.mine = idx;
+      vibrate([25]);
+      opts.querySelectorAll('.quiz-opt').forEach((btn, bi) => {
+        btn.disabled = true;
+        if (bi === idx) btn.classList.add('mine');
+      });
+      $('quiz-note').textContent = '✅ Abgegeben – Antwort wird übermittelt …';
+      act('quiz-answer', { id: q.id, idx });
+    }
     q.options.forEach((o, i) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'quiz-opt' + (q.mine === i ? ' mine' : '');
       b.textContent = `${'ABCDE'[i]} · ${o}`;
       b.disabled = q.mine !== null;
-      b.onclick = () => act('quiz-answer', { id: q.id, idx: i });
+      b.onclick = (e) => {
+        e.preventDefault();
+        submitQuizChoice(i);
+      };
       opts.append(b);
     });
     $('quiz-note').textContent = q.mine !== null ? '✅ Abgegeben – warte auf die anderen …' : 'Richtig = Zufallsbonus: Karten abwerfen, Spezialkarte oder jemanden strafziehen lassen.';
@@ -1690,6 +1705,16 @@ function initControls() {
 
   addEventListener('keydown', (e) => {
     if (!view || e.target.tagName === 'INPUT') return;
+    if (view.quiz && !$('quiz').hidden) {
+      const k = e.key.toUpperCase();
+      const map = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, 'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4 };
+      if (k in map && map[k] < view.quiz.options.length) {
+        e.preventDefault();
+        const btn = $('quiz-options')?.querySelectorAll('.quiz-opt')?.[map[k]];
+        if (btn && !btn.disabled) btn.click();
+        return;
+      }
+    }
     const n = view.hand.length;
     if (e.code === 'ArrowRight' || e.code === 'KeyD') { focus = (focus + 1) % n; usingPad = true; }
     else if (e.code === 'ArrowLeft' || e.code === 'KeyA') { focus = (focus - 1 + n) % n; usingPad = true; }
