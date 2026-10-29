@@ -1,9 +1,9 @@
 // Quiz-Fragen: etwa alle 2 Minuten bekommen alle am Tisch eine Allgemeinwissensfrage.
 // Format: [Frage, richtige Antwort, ...falsche Antworten] – gemischt wird auf dem Server.
 export const QUIZ_RULES = {
-  everySeconds: 120,     // Mittelwert
-  jitterSeconds: 25,     // ± Zufall, damit es nicht vorhersehbar ist
-  firstAfterSeconds: 75, // erste Frage etwas früher
+  everySeconds: 120,     // Exakt 2 Minuten
+  jitterSeconds: 0,      // Exakt ohne Jitter
+  firstAfterSeconds: 120, // Erste Frage beginnt genau nach 2 Minuten (02:00)
   answerSeconds: 20,
 };
 

@@ -1,14 +1,5 @@
 import { cardText, CHARACTERS, COLOR_ELEMENTS, BASIC_SPECIALS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
-import { stickerUrl } from './stickers.js';
-
-// Spezialkarten ohne eigenes Bild bekommen einen passenden Club-Sticker (WhatsApp-Gruppe „Coding“)
-const STICKER_ART = {
-  reset: '53', burn: '37', lower: '13', reverse: '06', skip: '54', kartoffel: '24', zwillinge: '57', spiegel: '18',
-  schwarzes_loch: '50', zeitstopp: '29', dieb: '23', gluecklich: '14', traurig: '49', gluecksspiel: '10', portal: '40',
-  phoenix: '05', himmelszorn: '22', zeitschleife: '09', erdbeben: '38', kettenfluch: '36', pizza_hunger: '17',
-  fee_trick: '35', cookie_chaos: '32',
-};
 
 export function cardEl(c, arts = {}) {
   if (!c) return document.createElement('div');
@@ -35,30 +26,38 @@ export function cardEl(c, arts = {}) {
   // Special-Karte: Bild oben, Name + Fähigkeit unten
   const isCustom = c.key === 'custom';
   const isChar = !!CHARACTERS[c.key];
+  if (c.fullArt) el.classList.add('full');
   if (isCustom) el.classList.add('custom');
   if (isChar) el.classList.add('character');
   const art = document.createElement('div');
   art.className = 'art';
+
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const sticker = !isCustom && !isChar && !c.art && STICKER_ART[c.key];
-  if (sticker) el.classList.add('sticker-art');
-  const src = sticker ? stickerUrl(sticker) : isCustom ? (arts[c.owner]?.art || c.art) : (typeof c.art === 'string' && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art));
+  const src = isCustom
+    ? (arts[c.owner]?.art || c.art)
+    : (typeof c.art === 'string' && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art));
+
   if (src) {
-    // Erst prüfen, ob das Bild existiert – erst bei erfolgreichem Laden auf Vollbild schalten
+    // Erst prüfen, ob das Bild existiert – bei Erfolg Text entfernen und Hintergrund setzen
     const probe = new Image();
     probe.onload = () => {
       art.style.backgroundImage = `url("${src}")`;
       art.textContent = '';
-      if (c.fullArt) el.classList.add('full');
+      el.classList.add('has-art');
     };
     probe.src = src;
   }
   art.textContent = c.emoji || (isCustom ? '🎨' : '✨');
+
   const label = document.createElement('div');
   label.className = 'label';
   label.innerHTML = `<b></b><i></i>`;
   label.querySelector('b').textContent = c.title ? `${c.name} · ${c.title}` : c.name;
-  label.querySelector('i').textContent = cardText(c);
+
+  // Bei Full-Art Karten kein sperriges "Passiv (aus der Hand): " auf die Karte drucken, um das Artwork nicht zu verdecken
+  const rawText = cardText(c);
+  const displayText = c.fullArt ? rawText.replace(/^Passiv\s*(\([^)]*\))?:\s*/i, '') : rawText;
+  label.querySelector('i').textContent = displayText;
   el.append(art, label);
 
   // 🏷️ Category-Corner oben rechts (dezent & kompakt, verdeckt kein Zentrums-Motiv)
@@ -73,13 +72,9 @@ export function cardEl(c, arts = {}) {
   cornerTr.innerHTML = `<span class="corner-icon">${categoryGlyph}</span>`;
   el.append(cornerTr);
 
-  if (['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability)) {
+  if (isPassive) {
     el.classList.add('passive-guard');
-    const badge = document.createElement('span');
-    badge.className = 'card-shield-badge';
-    badge.textContent = '🛡️ Passiv';
-    badge.title = 'Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus!';
-    el.append(badge);
+    // Kein störendes card-shield-badge mehr, damit das Artwork frei bleibt!
   }
 
   const desc = cardText(c);

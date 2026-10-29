@@ -192,10 +192,15 @@ function renderAlmanachTab(tab) {
         const catTitle = isChar ? 'Charakterkarte' : isPassive ? 'Passiver Schutz' : isBasic ? 'Aktionskarte' : 'Spezialkarte';
         const fullCard = SPECIAL_GROUPS.find((g) => g.key === c.group)?.cards[c.key] || c;
         return {
-          emoji: c.emoji || '✨', name: c.name,
-          title: SPECIAL_GROUPS.find((g) => g.key === c.group)?.name ?? 'Spezialkarte', by: '', text: c.short,
-          categoryGlyph: glyph, categoryTitle: catTitle,
-          card: { ...fullCard, key: c.key, kind: 'special' },
+          emoji: c.emoji || '✨',
+          art: fullCard.art || c.art || null,
+          name: c.name,
+          title: SPECIAL_GROUPS.find((g) => g.key === c.group)?.name ?? 'Spezialkarte',
+          by: fullCard.by || c.by ? `Urheber: ${fullCard.by || c.by}` : '',
+          text: c.short,
+          categoryGlyph: glyph,
+          categoryTitle: catTitle,
+          card: { ...fullCard, key: c.key, kind: 'special', art: fullCard.art || c.art || null, fullArt: !!fullCard.fullArt },
         };
       }),
       ...choice.roles.filter((k) => ROLES[k]).map((k) => ({
@@ -703,6 +708,9 @@ function showChainBanner(evt) {
   const banner = $('chain-banner');
   if (!banner) return;
 
+  banner.onclick = () => { stopVoice(); hideChainBanner(); };
+  banner.title = 'Klicken zum Schließen';
+
   const iconEl = $('chain-icon');
   const actorEl = $('chain-actor');
   const titleEl = $('chain-title');
@@ -716,7 +724,7 @@ function showChainBanner(evt) {
   $('chain-voice').hidden = !voice;
   $('chain-voice').textContent = voice ? `🗣️ ${voice.line}` : '';
   $('chain-skip').hidden = !(voice && voice.by === me);
-  $('chain-skip').onclick = () => { act('voice-skip', null); stopVoice(); clearTimeout(chainTimeout); hideChainBanner(); };
+  $('chain-skip').onclick = (e) => { e.stopPropagation(); act('voice-skip', null); stopVoice(); clearTimeout(chainTimeout); hideChainBanner(); };
 
   if (chainTimeout) clearTimeout(chainTimeout);
   banner.hidden = false;
@@ -725,11 +733,12 @@ function showChainBanner(evt) {
     vibrate([30, 40, 30]);
   });
 
-  const close = (ms) => { clearTimeout(chainTimeout); chainTimeout = setTimeout(hideChainBanner, ms); };
+  // Maximal 3.5 Sekunden anzeigen – blockiert niemals den Spieltisch!
+  const close = (ms) => { clearTimeout(chainTimeout); chainTimeout = setTimeout(hideChainBanner, Math.min(ms, 3500)); };
   if (voice) {
-    close(12000);                                     // Sicherheitsnetz, falls Audio hängt
+    close(3500);
     speak(voice, close);
-  } else close(3000);
+  } else close(2600);
 }
 
 // Sticker-Reaktionen: wer viele Karten aufnehmen muss, regt sich auf; der Sieger feiert
@@ -768,20 +777,31 @@ let quizNextEnd = 0, quizNextTimer = null;
 function updateQuizCountdown(v) {
   const pill = $('quiz-timer-pill');
   if (!pill) return;
-  if (!v || v.state !== 'playing' || v.quiz || !v.quizNextIn) {
+
+  // Erst bei tatsächlichem Spielbeginn (nach dem Intro) anzeigen – NIEMALS in der Lobby!
+  const isIntroActive = v?.introUntil && Date.now() < v.introUntil;
+  if (!v || v.state !== 'playing' || isIntroActive || (!v.quiz && !v.quizNextIn)) {
     pill.hidden = true;
     if (quizNextTimer) { clearInterval(quizNextTimer); quizNextTimer = null; }
     return;
   }
   pill.hidden = false;
+  const textEl = $('quiz-timer-text');
+  if (v.quiz) {
+    if (quizNextTimer) { clearInterval(quizNextTimer); quizNextTimer = null; }
+    pill.classList.add('active');
+    const leftSec = Math.ceil((v.quiz.left || 0) / 1000);
+    if (textEl) textEl.textContent = `🧠 Frage aktiv: ${leftSec}s`;
+    return;
+  }
+  pill.classList.remove('active');
   quizNextEnd = Date.now() + v.quizNextIn;
   const updateText = () => {
     const leftMs = Math.max(0, quizNextEnd - Date.now());
     const totalSec = Math.ceil(leftMs / 1000);
     const min = Math.floor(totalSec / 60);
     const sec = totalSec % 60;
-    const textEl = $('quiz-timer-text');
-    if (textEl) textEl.textContent = `Quiz in ${min}:${sec.toString().padStart(2, '0')}`;
+    if (textEl) textEl.textContent = `🧠 Quiz in ${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     if (leftMs <= 0 && quizNextTimer) {
       clearInterval(quizNextTimer);
       quizNextTimer = null;
@@ -1109,25 +1129,13 @@ socket.on('emote', ({ id, e }) => {
 });
 document.querySelectorAll('#emotes button').forEach((b) => { b.onclick = () => { socket.emit('emote', b.dataset.emote); vibrate(20); }; });
 
-// Leichte 3D-Perspektive: Maus (oder Ziehen auf dem Tisch) kippt die Szene ein paar Grad
-// – man kann sich umschauen, aber nicht vom Tisch weg.
+// 3D-Perspektive fixiert: Tisch bleibt absolut ruhig und wackelt nicht mehr mit der Maus.
 {
   const tbl = $('table');
-  let drag = null;
-  const set = (x, y) => {
-    tbl.style.setProperty('--px', Math.max(-1, Math.min(1, x)).toFixed(3));
-    tbl.style.setProperty('--py', Math.max(-1, Math.min(1, y)).toFixed(3));
-  };
-  addEventListener('pointermove', (e) => {
-    if (tbl.hidden) return;
-    if (e.pointerType === 'mouse') set((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
-    else if (drag) set(drag.x + (e.clientX - drag.cx) / 200, drag.y + (e.clientY - drag.cy) / 300);
-  }, { passive: true });
-  tbl.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' || e.target.closest('button, .card, input, #chat, #hand')) return;
-    drag = { cx: e.clientX, cy: e.clientY, x: Number(tbl.style.getPropertyValue('--px')) || 0, y: Number(tbl.style.getPropertyValue('--py')) || 0 };
-  });
-  addEventListener('pointerup', () => { drag = null; });
+  if (tbl) {
+    tbl.style.setProperty('--px', '0');
+    tbl.style.setProperty('--py', '0');
+  }
 }
 
 function render() {
@@ -1159,7 +1167,7 @@ function render() {
     }
     if (face) seat.querySelector('.face').style.backgroundImage = `url("${face}")`;
     else seat.querySelector('.face').textContent = p.name.slice(0, 2).toUpperCase();
-    seat.querySelector('.nm').textContent = p.name + (p.id === v.host ? ' 👑' : '');
+    seat.querySelector('.nm').textContent = `${p.name}${p.id === v.host ? ' 👑' : ''}${p.inGame ? ' (' + p.count + ' 🎴)' : ''}`;
     if (p.inGame) seat.querySelector('.nm').dataset.count = p.count;
     seat.querySelector('.role').textContent = p.role ? `${p.role.emoji} ${p.role.name}` : p.secret ? '❓ geheim' : (v.state === 'lobby' ? 'wartet …' : 'schaut zu');
     if (!p.connected) seat.querySelector('.role').textContent = '📵 weg …';

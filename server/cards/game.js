@@ -63,6 +63,12 @@ export class CardRoom {
   triggerChainEvent(evt) {
     this.chainEventId = (this.chainEventId || 0) + 1;
     this.chainEvent = { id: this.chainEventId, time: Date.now(), ...evt };
+    const curId = this.chainEventId;
+    setTimeout(() => {
+      if (this.chainEvent?.id === curId) {
+        this.chainEvent = null;
+      }
+    }, 4000);
   }
 
   // 🗣️ KI-Ansage für alle: was die gerade gelegte Spezialkarte macht (abschaltbar in der Kartenauswahl)
@@ -486,7 +492,7 @@ export class CardRoom {
     this.game++;
     this.log = [];
     this.introUntil = Date.now() + RULES.introSeconds * 1000;
-    this.nextQuizAt = this.introUntil + (Number(process.env.QUIZ_FIRST) || QUIZ_RULES.firstAfterSeconds) * 1000;   // QUIZ_FIRST nur zum Testen
+    this.nextQuizAt = (this.introUntil || Date.now()) + (Number(process.env.QUIZ_FIRST) || QUIZ_RULES.firstAfterSeconds) * 1000;   // QUIZ_FIRST nur zum Testen
 
     // Deck: nur Zahlenkarten (bei vielen Leuten doppelt). Specials gibt es nur über das Los.
     const copies = this.players.length > 4 ? 2 : 1;
@@ -1073,9 +1079,10 @@ export class CardRoom {
         this.say(`   → 👀 Stille Beobachterin: Ayleen senkt den Tisch auf ${this.top}!`);
       }
     } else if (sp.ability === 'turboDash') {
-      ctx.skip += 2;
+      const activeCount = this.active().length;
+      ctx.skip += (activeCount <= 2 ? 1 : 2);
       const s1 = this.seatFrom(p, 1);
-      const s2 = this.seatFrom(p, 2);
+      const s2 = activeCount <= 2 ? null : this.seatFrom(p, 2);
       const skipped = [...new Set([s1, s2].filter((x) => x && x !== p))];
       this.say(`   → 🏎️ Turbo-Abreise! Niclas überholt ${skipped.map((x) => x.name).join(' & ')} im Tiefflug!`);
       for (const s of skipped) {
@@ -1598,6 +1605,12 @@ export class CardRoom {
     for (let s = 0; s < steps; s++) {
       do { this.turn = (this.turn + this.dir + n) % n; } while (!this.players[this.turn].inGame);
       const curr = this.players[this.turn];
+      if (s < steps - 1 && fromPlayer && curr === fromPlayer) {
+        // Im 2-Spieler-Modus (oder wenn ein Überspringen bis zum Ausspieler zurückläuft):
+        // Die Person, die die Aussetzen-Karte gelegt hat, darf niemals durch den eigenen
+        // Effekt übersprungen werden. Der Zug stoppt bei ihr und sie ist sofort wieder dran!
+        break;
+      }
       if (s < steps - 1 && fromPlayer && curr !== fromPlayer) {
         if (this.blocksWithAegis(curr, fromPlayer)) {
           if (curr._lastAegisEcho) {
@@ -1733,7 +1746,11 @@ export class CardRoom {
       }
       case 'again': ctx.again = true; break;
       case 'boss': this.top = RULES.maxValue + 1; this.lower = false; break;
-      case 'skip': ctx.skip += e.n; break;
+      case 'skip': {
+        const activeCount = this.active().length;
+        ctx.skip += (activeCount <= 2 && e.n >= 2 ? 1 : e.n);
+        break;
+      }
       case 'draw':
         for (const t of targets) this.draw(t, e.n, { from: p, global });
         break;
@@ -2021,8 +2038,7 @@ export class CardRoom {
     }
     this.quizResult = { id: q.id, question: q.question, answer: q.options[q.correct], results, nobody: !winners.length };
     this.say(winners.length ? `🧠 Richtig: ${q.options[q.correct]} – ${results.map((r) => `${r.name} ${r.text}`).join(' · ')}` : `🧠 Niemand wusste es: ${q.options[q.correct]}`);
-    const j = QUIZ_RULES.jitterSeconds;
-    this.nextQuizAt = Date.now() + (QUIZ_RULES.everySeconds + Math.round((Math.random() * 2 - 1) * j)) * 1000;
+    this.nextQuizAt = Date.now() + QUIZ_RULES.everySeconds * 1000;
   }
 
   quizBonus(p) {
@@ -2139,7 +2155,7 @@ export class CardRoom {
       ranking: this.ranking,
       stakes: this.stakeView(forId),
       quiz: this.quiz ? { id: this.quiz.id, question: this.quiz.question, options: this.quiz.options, left: Math.max(0, this.quiz.until - Date.now()), mine: this.quiz.answers.get(forId) ?? null, answered: this.quiz.answers.size } : null,
-      quizNextIn: this.state === 'playing' && this.nextQuizAt ? Math.max(0, this.nextQuizAt - Date.now()) : null,
+      quizNextIn: this.state === 'playing' && this.nextQuizAt ? Math.max(0, this.nextQuizAt - Math.max(Date.now(), this.introUntil || 0)) : null,
       quizResult: this.quizResult,
       stake: this.stake,
       awards: this.awards ?? [],
