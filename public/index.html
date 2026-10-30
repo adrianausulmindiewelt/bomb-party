@@ -58,15 +58,15 @@
         <div class="hc hc2"><b>💣</b><i>Bombe</i></div>
         <div class="hc hc3"><b>K</b><i>♥</i></div>
       </div>
-      <a href="#step-you" class="cta">Karte bauen &amp; losspielen ↓</a>
+      <a href="#step-you" class="cta">Direkt losspielen ↓</a>
     </header>
 
     <section class="step" id="step-you">
       <div class="step-head"><span class="num">1</span><h2>Du</h2><span class="check">✓</span></div>
       <label class="avatar-pick">
         <canvas id="avatar-preview" width="160" height="160"></canvas>
-        <span>📸 Foto von dir</span>
-        <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
+        <span>📸 Foto machen oder 📁 Bild vom Gerät wählen</span>
+        <input id="avatar-input" type="file" accept="image/*" hidden />
       </label>
       <details class="avatar-sticker-pick">
         <summary>…oder einen Club-Sticker als Kopf nehmen 😜</summary>
@@ -76,18 +76,18 @@
     </section>
 
     <section class="step" id="step-card">
-      <div class="step-head"><span class="num">2</span><h2>Deine eigene Bomben-Karte 💣</h2><span class="check">✓</span></div>
-      <p class="hint">Pflicht für alle: Zeichne deine Bombe, gib ihr einen Namen und bau ihre Fähigkeit aus bis zu 2 Effekten. Beim Spielstart kommt sie in den großen Los-Topf.</p>
+      <div class="step-head"><span class="num">2</span><h2>Deine eigene Bomben-Karte 💣 <small style="font-size: 0.85rem; opacity: 0.75; font-weight: 700;">(optional)</small></h2><span class="check">✓</span></div>
+      <p class="hint">Freiwillig: Wenn du möchtest, zeichne deine eigene Bombe und gib ihr bis zu 2 Fähigkeiten. Lässt du das Feld frei, spielst du einfach direkt mit den offiziellen Club- und Charakterkarten mit!</p>
       <div class="builder">
         <div class="draw-wrap">
           <div class="draw-box">
             <canvas id="draw" width="300" height="300"></canvas>
-            <span class="draw-hint">✏️ Hier zeichnen</span>
+            <span class="draw-hint">✏️ Hier zeichnen oder Bild hochladen</span>
           </div>
           <div class="draw-tools">
             <span id="pens"></span>
             <button id="draw-clear" type="button">🧽</button>
-            <label class="btn-like">🖼️<input id="draw-upload" type="file" accept="image/*" hidden /></label>
+            <label class="btn-like btn-upload" title="Eigenes Bild, Logo oder Cover von deinem Gerät laden">🖼️ Bild / Cover laden<input id="draw-upload" type="file" accept="image/*" hidden /></label>
           </div>
         </div>
         <div class="fx">
@@ -187,13 +187,30 @@ Bevor du fertig bist:
     </div>
     <div id="felt-wrap"><div id="felt"></div></div>
     <div id="club-badge"><img src="/brand/wappen.svg" alt="" /><img src="/brand/vwbb-logo.png" alt="" class="wm-logo" /></div>
-    <div id="emotes" aria-label="Gesten">
+    <div id="quiz-timer-pill" class="quiz-timer-pill" hidden>
+      <span class="quiz-timer-icon">🧠</span>
+      <span id="quiz-timer-text">Quiz in 04:00</span>
+    </div>
+    <!-- ── Meta-Steuerung: Verlauf, Gesten, Audio/Setup, Chat ── -->
+    <nav id="top-quick-bar" aria-label="Schnellzugriff">
+      <button id="gamelog-toggle-btn" class="quick-btn" title="📜 Spielverlauf / Letzte Aktionen" aria-label="Spielverlauf" type="button">📜</button>
+      <button id="emotes-toggle-btn" class="quick-btn" title="🎭 Gesten & Emojis" aria-label="Gesten" type="button">🎭</button>
+      <button id="settings-toggle-btn" class="quick-btn" title="⚙️ Audio & Tisch-Einstellungen" aria-label="Einstellungen" type="button">⚙️</button>
+      <button id="chat-btn" class="quick-btn" title="💬 Tisch-Chat" aria-label="Chat" type="button">💬<span id="chat-unread" hidden></span></button>
+    </nav>
+    <div id="emotes" class="collapsible-tray" aria-label="Gesten" hidden>
       <button type="button" data-emote="wave" title="Winken">👋</button>
       <button type="button" data-emote="clap" title="Klatschen">👏</button>
       <button type="button" data-emote="cheer" title="Jubeln">🙌</button>
       <button type="button" data-emote="facepalm" title="Facepalm">🤦</button>
     </div>
-    <button id="chat-btn" aria-label="Chat">💬<span id="chat-unread" hidden></span></button>
+    <aside id="gamelog-drawer" class="gamelog-drawer" hidden>
+      <header class="drawer-header">
+        <b>📜 Spielverlauf</b>
+        <button id="gamelog-close" type="button" aria-label="Schließen" class="close-btn">✕</button>
+      </header>
+      <ol id="gamelog-list" class="gamelog-list"></ol>
+    </aside>
     <aside id="chat" hidden>
       <header><b>💬 Tisch-Chat</b><button id="chat-close" aria-label="Schließen">✕</button></header>
       <ol id="chat-list"></ol>
@@ -204,10 +221,6 @@ Bevor du fertig bist:
     <div id="fx-banner"></div>
     <div id="players"></div>
     <div id="center">
-      <div id="last-action-pill" class="last-action-pill" hidden>
-        <span class="last-action-icon" id="last-action-icon">🃏</span>
-        <span class="last-action-text" id="last-action-text"></span>
-      </div>
       <div class="table-stacks">
         <div id="deck-wrap" class="deck-wrap" title="Nachziehstapel">
           <div id="deck-card" class="card-stack-deck back-pattern">
@@ -220,6 +233,10 @@ Bevor du fertig bist:
           <span class="stack-label">Ablage</span>
         </div>
       </div>
+      <div id="last-action-pill" class="last-action-pill" hidden>
+        <span class="last-action-icon" id="last-action-icon">🃏</span>
+        <span class="last-action-text" id="last-action-text"></span>
+      </div>
       <div id="stake-banner" hidden></div>
       <div id="pile-info"></div>
       <div id="ticker"></div>
@@ -227,6 +244,7 @@ Bevor du fertig bist:
     <ol id="log"></ol>
     <div id="actions">
       <button id="my-role-badge" class="role-pill" type="button" title="Deine Rolle (Klicken für Details im Almanach)" hidden></button>
+      <div id="my-card-count" class="hand-count-pill" title="Deine Handkarten" hidden>🎴 <b>0</b></div>
       <button id="deck-btn" type="button" hidden>🎴 Karten</button>
       <button id="stake-btn" type="button" hidden>🎯 Einsatz</button>
       <button id="bot-add" class="funke-btn funke-btn--ghost funke-btn--sm" type="button" hidden>🤖 Bot hinzufügen</button>
@@ -236,6 +254,7 @@ Bevor du fertig bist:
       <button id="play" class="primary">Legen ⬆️</button>
     </div>
     <div id="pov">
+      <div id="pov-card-counter" class="pov-card-counter" hidden><b>0</b> Karten</div>
       <!-- Elegante Spieler-Arme & Handschuhe (hinter den Karten) -->
       <svg class="arm left" viewBox="0 0 340 340" aria-hidden="true">
         <defs>
@@ -328,6 +347,16 @@ Bevor du fertig bist:
           <h2>📖 Club-Almanach & Kartengalerie</h2>
           <button id="almanach-close" type="button" class="close-btn" title="Schließen">✕</button>
         </div>
+        <div class="almanach-legend">
+          <span class="almanach-legend-title">🏷️ Ecken-Symbole:</span>
+          <span class="legend-item" title="Spezialkarte / Clubkarte: Einzigartige taktische & magische Effekte"><span class="legend-icon">✨</span> Spezialkarte</span>
+          <span class="legend-item" title="Aktionskarte (Grundspiel): Tischkontrolle (Reset, Feuer, Unter, Wende, Stopp, Joker)"><span class="legend-icon">⚡</span> Aktionskarte</span>
+          <span class="legend-item" title="Passiver Schutz: Löst bei Gefahr automatisch aus deiner Hand aus"><span class="legend-icon">🛡️</span> Passiver Schutz</span>
+          <span class="legend-item" title="Charakterkarte: Club-Mitglieder mit Signature-Moves"><span class="legend-icon">🎭</span> Charakter</span>
+          <span class="legend-item" title="Spieler-Karte: Selbst gezeichnete & gebaute Karte"><span class="legend-icon">🎨</span> Spieler-Karte</span>
+          <span class="legend-item" title="Geheime Rolle: Persönliche passive Fähigkeit & Handkarten-Bonus"><span class="legend-icon">👑</span> Geheime Rolle</span>
+          <span class="legend-item" title="Farben & Resonanz: Edelsteine & Elemente (Rubin, Saphir, Topas, Smaragd)"><span class="legend-icon">💎</span> Farben / Resonanz</span>
+        </div>
         <div class="almanach-tabs">
           <button class="tab-btn active" data-tab="active">🎴 In diesem Spiel</button>
           <button class="tab-btn" data-tab="club">🏛️ Club & Specials</button>
@@ -335,7 +364,7 @@ Bevor du fertig bist:
           <button class="tab-btn" data-tab="specials">💣 Standard-Specials</button>
           <button class="tab-btn" data-tab="custom">🎨 Spieler-Karten</button>
           <button class="tab-btn" data-tab="roles">👑 Rollen & Passive</button>
-          <button class="tab-btn" data-tab="elements">⚡ Farb-Kräfte & Resonanz</button>
+          <button class="tab-btn" data-tab="elements">💎 Farbsynergien & Resonanz</button>
         </div>
         <div id="almanach-content" class="almanach-grid"></div>
       </div>

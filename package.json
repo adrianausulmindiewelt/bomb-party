@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/bots.test.js test/cards.test.js test/game.test.js test/meme-sounds.test.js test/quiz.test.js test/room-ui.test.js",
     "voices": "node tools/voice-lines.mjs"
   },
   "engines": {

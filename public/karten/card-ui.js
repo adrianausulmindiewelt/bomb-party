@@ -1,25 +1,16 @@
-import { cardText, CHARACTERS, COLOR_ELEMENTS } from '/shared/cards.js';
+import { cardText, CHARACTERS, COLOR_ELEMENTS, BASIC_SPECIALS } from '/shared/cards.js';
 import { SERVER } from '/js/net.js';
-import { stickerUrl } from './stickers.js';
-
-// Spezialkarten ohne eigenes Bild bekommen einen passenden Club-Sticker (WhatsApp-Gruppe „Coding“)
-const STICKER_ART = {
-  reset: '53', burn: '37', lower: '13', reverse: '06', skip: '54', kartoffel: '24', zwillinge: '57', spiegel: '18',
-  schwarzes_loch: '50', zeitstopp: '29', dieb: '23', gluecklich: '14', traurig: '49', gluecksspiel: '10', portal: '40',
-  phoenix: '05', himmelszorn: '22', zeitschleife: '09', erdbeben: '38', kettenfluch: '36', pizza_hunger: '17',
-  fee_trick: '35', cookie_chaos: '32',
-};
 
 export function cardEl(c, arts = {}) {
+  if (!c) return document.createElement('div');
   const el = document.createElement('div');
-  el.className = 'card ' + c.kind;
+  el.className = 'card ' + (c.kind || '');
   el.dataset.id = c.id;
-
   if (c.kind === 'number') {
-    const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '' };
+    const elem = COLOR_ELEMENTS?.[c.color] || { name: '', element: 'neutral', icon: '', gem: '', label: 'Zahlenkarte' };
     el.classList.add('element-' + (elem.element || 'neutral'));
-    el.style.setProperty('--c', c.color);
-    el.title = `${c.value} · ${elem.label || elem.name || c.color}`;
+    el.style.setProperty('--c', c.color || '#fff');
+    el.title = `${elem.icon ? elem.icon + ' ' : ''}${elem.label || elem.name || 'Zahlenkarte'} (${c.value})`;
     el.innerHTML = `
       <div class="corner tl"><span class="corner-val">${c.value}</span><span class="corner-icon">${elem.icon}</span></div>
       <div class="card-center">
@@ -40,23 +31,51 @@ export function cardEl(c, arts = {}) {
   if (isChar) el.classList.add('character');
   const art = document.createElement('div');
   art.className = 'art';
+
   // Mitgelieferte Bilder (/karten/…) kommen von der Webseite, hochgeladene vom Spielserver
-  const sticker = !isCustom && !isChar && !c.art && STICKER_ART[c.key];
-  if (sticker) el.classList.add('sticker-art');
-  const src = sticker ? stickerUrl(sticker) : isCustom ? (arts[c.owner]?.art || c.art) : c.art && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art);
+  const src = isCustom
+    ? (arts[c.owner]?.art || c.art)
+    : (typeof c.art === 'string' && (c.art.startsWith('/karten/') ? c.art : SERVER + c.art));
+
   if (src) {
-    // Erst prüfen, ob das Bild existiert – sonst bleibt das Emoji stehen
+    // Erst prüfen, ob das Bild existiert – bei Erfolg Text entfernen und Hintergrund setzen
     const probe = new Image();
-    probe.onload = () => { art.style.backgroundImage = `url("${src}")`; art.textContent = ''; };
+    probe.onload = () => {
+      art.style.backgroundImage = `url("${src}")`;
+      art.textContent = '';
+      el.classList.add('has-art');
+    };
     probe.src = src;
   }
-  art.textContent = c.emoji || (isCustom ? '💣' : '✨');
+  art.textContent = c.emoji || (isCustom ? '🎨' : '✨');
+
   const label = document.createElement('div');
   label.className = 'label';
   label.innerHTML = `<b></b><i></i>`;
   label.querySelector('b').textContent = c.title ? `${c.name} · ${c.title}` : c.name;
-  label.querySelector('i').textContent = cardText(c);
+
+  // Bei Full-Art Karten kein sperriges "Passiv (aus der Hand): " auf die Karte drucken, um das Artwork nicht zu verdecken
+  const rawText = cardText(c);
+  const displayText = c.fullArt ? rawText.replace(/^Passiv\s*(\([^)]*\))?:\s*/i, '') : rawText;
+  label.querySelector('i').textContent = displayText;
   el.append(art, label);
+
+  // 🏷️ Category-Corner oben rechts (dezent & kompakt, verdeckt kein Zentrums-Motiv)
+  const isPassive = ['aegis', 'mirror', 'phoenix', 'luckyJester'].includes(c.ability);
+  const isBasic = !!BASIC_SPECIALS?.[c.key];
+  const categoryGlyph = isCustom ? '🎨' : isChar ? '🎭' : isPassive ? '🛡️' : isBasic ? '⚡' : '✨';
+  const categoryTitle = isCustom ? 'Spieler-Karte' : isChar ? 'Charakterkarte' : isPassive ? 'Passiver Schutz' : isBasic ? 'Aktionskarte' : 'Spezialkarte';
+
+  const cornerTr = document.createElement('div');
+  cornerTr.className = 'corner tr special-corner';
+  cornerTr.title = categoryTitle;
+  cornerTr.innerHTML = `<span class="corner-icon">${categoryGlyph}</span>`;
+  el.append(cornerTr);
+
+  if (isPassive) {
+    el.classList.add('passive-guard');
+    // Kein störendes card-shield-badge mehr, damit das Artwork frei bleibt!
+  }
 
   const desc = cardText(c);
   const byText = c.by ? ` (von ${c.by})` : '';

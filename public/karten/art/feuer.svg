@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="55%" r="70%">
+      <stop offset="0%" stop-color="#2a0c10"/>
+      <stop offset="50%" stop-color="#120508"/>
+      <stop offset="100%" stop-color="#050204"/>
+    </radialGradient>
+    <filter id="flameGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="24" result="blur2"/>
+      <feGaussianBlur stdDeviation="8" result="blur1"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ff1a40"/>
+      <stop offset="35%" stop-color="#ff6b00"/>
+      <stop offset="70%" stop-color="#ffc300"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="coreGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ffaa00"/>
+      <stop offset="50%" stop-color="#fff066"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1120" fill="url(#bg)"/>
+
+  <!-- Warm ground reflection -->
+  <ellipse cx="400" cy="780" rx="160" ry="25" fill="#ff4500" opacity="0.18" filter="url(#flameGlow)"/>
+
+  <!-- Outer flame aura -->
+  <path d="M 400 320 C 340 460 260 560 260 670 C 260 760 320 810 400 810 C 480 810 540 760 540 670 C 540 560 460 460 400 320 Z" 
+        fill="#ff1a40" opacity="0.45" filter="url(#flameGlow)"/>
+
+  <!-- Main stylized flame body -->
+  <path d="M 400 350 C 350 480 290 570 290 670 C 290 745 340 790 400 790 C 460 790 510 745 510 670 C 510 570 450 480 400 350 Z" 
+        fill="url(#flameGrad)" filter="url(#flameGlow)"/>
+
+  <!-- Inner dynamic tongue -->
+  <path d="M 400 440 C 365 530 330 600 330 680 C 330 735 365 770 400 770 C 435 770 470 735 470 680 C 470 600 435 530 400 440 Z" 
+        fill="url(#coreGrad)"/>
+
+  <!-- Intense white-hot core -->
+  <path d="M 400 520 C 380 580 360 640 360 690 C 360 730 380 750 400 750 C 420 750 440 730 440 690 C 440 640 420 580 400 520 Z" 
+        fill="#ffffff" opacity="0.95"/>
+
+  <!-- Floating ember particles -->
+  <circle cx="395" cy="280" r="4" fill="#ffd23d" opacity="0.8" filter="url(#flameGlow)"/>
+  <circle cx="415" cy="240" r="3" fill="#ff9100" opacity="0.7"/>
+  <circle cx="380" cy="210" r="2.5" fill="#ffea00" opacity="0.9"/>
+  <circle cx="430" cy="300" r="3.5" fill="#ffd23d" opacity="0.6"/>
+</svg>

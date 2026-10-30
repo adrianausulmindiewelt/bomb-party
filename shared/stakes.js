@@ -10,6 +10,7 @@ export const STAKE_LIMITS = {
 
 export const STAKE_DEFAULTS = {
   reward: [
+    '🚫 Kein Einsatz (Reiner Spielspaß)',
     '👑 Trägt bis zum nächsten Spiel den Titel „Club-Champion“',
     '🎯 Sucht die Bestrafung für die nächste Runde aus',
     '🎤 Wählt das Thema für den Vortrag des Verlierers',
@@ -22,6 +23,7 @@ export const STAKE_DEFAULTS = {
     '🪑 Sucht sich beim nächsten Clubabend den besten Platz aus',
   ],
   punish: [
+    '🚫 Keine Strafe (Reiner Spielspaß)',
     '📱 1 Minute Brainrot gucken – ohne wegzuschauen',
     '📱 2 Minuten Brainrot gucken – ohne wegzuschauen',
     '🎓 Hält beim nächsten Clubabend einen Blitz-Workshop',
