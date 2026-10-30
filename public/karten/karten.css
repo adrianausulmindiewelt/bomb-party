@@ -1959,3 +1959,20 @@ body:has(#quiz:not([hidden])) #audio-controls { visibility: hidden; }
 .seat .backs { z-index: 17 !important; }
 .seat .backs b { z-index: 22 !important; box-shadow: 0 2px 6px #000c; }
 .chain-banner { pointer-events: auto; cursor: pointer; }
+
+.btn-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2b274c;
+  border: 1px solid rgba(255, 210, 61, 0.4);
+  color: #ffd23d;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: transform 0.15s, background 0.15s;
+}
+.btn-upload:hover {
+  background: #3c3666;
+  border-color: #ffd23d;
+  transform: scale(1.02);
+}

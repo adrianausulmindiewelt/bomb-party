@@ -65,8 +65,8 @@
       <div class="step-head"><span class="num">1</span><h2>Du</h2><span class="check">✓</span></div>
       <label class="avatar-pick">
         <canvas id="avatar-preview" width="160" height="160"></canvas>
-        <span>📸 Foto von dir</span>
-        <input id="avatar-input" type="file" accept="image/*" capture="user" hidden />
+        <span>📸 Foto machen oder 📁 Bild vom Gerät wählen</span>
+        <input id="avatar-input" type="file" accept="image/*" hidden />
       </label>
       <details class="avatar-sticker-pick">
         <summary>…oder einen Club-Sticker als Kopf nehmen 😜</summary>
@@ -82,12 +82,12 @@
         <div class="draw-wrap">
           <div class="draw-box">
             <canvas id="draw" width="300" height="300"></canvas>
-            <span class="draw-hint">✏️ Hier zeichnen</span>
+            <span class="draw-hint">✏️ Hier zeichnen oder Bild hochladen</span>
           </div>
           <div class="draw-tools">
             <span id="pens"></span>
             <button id="draw-clear" type="button">🧽</button>
-            <label class="btn-like">🖼️<input id="draw-upload" type="file" accept="image/*" hidden /></label>
+            <label class="btn-like btn-upload" title="Eigenes Bild, Logo oder Cover von deinem Gerät laden">🖼️ Bild / Cover laden<input id="draw-upload" type="file" accept="image/*" hidden /></label>
           </div>
         </div>
         <div class="fx">

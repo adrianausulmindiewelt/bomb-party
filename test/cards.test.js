@@ -923,7 +923,8 @@ test('🧘‍♀️ Džanas Zen-Gong (Club-Karte): Wirft zwingend die 2 niedrigs
 
 test('🧘‍♀️ Džanas Zen-Gong: Kann durch Abwurf nicht auf 0 Karten reduzieren (Sieg-Sperre: mind. 1 Karte bleibt)', () => {
   const r = table(2);
-  const p0 = r.current();
+  r.turn = 0;
+  const p0 = r.players[0];
   const zen = sp('dzana_zen');
 
   // Fall A: Spieler hat 3 Karten (Zen + 2 Zahlen). Er wirft Zen, darf aber nur 1 Zahl abwerfen, damit 1 bleibt!
