@@ -53,3 +53,20 @@ test('Quiz: view liefert quizNextIn Countdown während des Spiels', () => {
   assert.ok(typeof v.quizNextIn === 'number');
   assert.ok(v.quizNextIn > 0);
 });
+
+test('Quiz: Spezialkarten-Bonus wirft bis zu 2 Karten ab und schenkt 1 Spezialkarte (Netto -1 Handkarte)', () => {
+  const r = playing();
+  const p = r.players[0];
+  // 5 Zahlenkarten
+  p.hand = [
+    { id: 101, kind: 'number', value: 3, color: 'rubin' },
+    { id: 102, kind: 'number', value: 7, color: 'rubin' },
+    { id: 103, kind: 'number', value: 11, color: 'rubin' },
+    { id: 104, kind: 'number', value: 12, color: 'rubin' },
+    { id: 105, kind: 'number', value: 5, color: 'rubin' },
+  ];
+  const res = r.quizBonus(p, 'special');
+  assert.equal(p.hand.length, 4); // 5 - 2 + 1 = 4 (Netto -1)
+  assert.ok(p.hand.some((c) => c.kind === 'special'));
+  assert.ok(res.text.includes('-1 Handkarte'));
+});

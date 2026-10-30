@@ -1142,7 +1142,16 @@ socket.on('emote', ({ id, e }) => {
   if (view) render();
   setTimeout(() => view && render(), 2700);
 });
-document.querySelectorAll('#emotes button').forEach((b) => { b.onclick = () => { socket.emit('emote', b.dataset.emote); vibrate(20); }; });
+document.querySelectorAll('#emotes button').forEach((b) => {
+  b.onclick = () => {
+    socket.emit('emote', b.dataset.emote);
+    vibrate(20);
+    if (window.innerWidth <= 700 || window.innerHeight <= 560) {
+      $('emotes').hidden = true;
+      $('emotes-toggle-btn')?.classList.remove('active');
+    }
+  };
+});
 
 // 3D-Perspektive fixiert: Tisch bleibt absolut ruhig und wackelt nicht mehr mit der Maus.
 {
@@ -1279,10 +1288,22 @@ function render() {
     }
   }
 
-  // Log (+ Ticker mit der letzten Aktion fürs Handy)
+  // Log (+ Ticker mit der letzten Aktion fürs Handy + Collapsible Gamelog Drawer)
   $('ticker').textContent = v.log[v.log.length - 1] ?? '';
   $('log').innerHTML = '';
-  for (const l of v.log) { const li = document.createElement('li'); li.textContent = l; $('log').append(li); }
+  const glList = $('gamelog-list');
+  if (glList) glList.innerHTML = '';
+  for (const l of v.log) {
+    const li = document.createElement('li');
+    li.textContent = l;
+    $('log').append(li);
+    if (glList) {
+      const gLi = document.createElement('li');
+      gLi.textContent = l;
+      glList.append(gLi);
+    }
+  }
+  if (glList) glList.scrollTop = glList.scrollHeight;
 
   // Hand: Fächer zwischen deinen Händen
   const myTurn = v.turn === me && v.state === 'playing';
@@ -2004,8 +2025,110 @@ for (const q of QUICK) {
   }
   $('sticker-toggle').onclick = () => { tray.hidden = !tray.hidden; };
 }
-$('chat-btn').onclick = () => { $('chat').hidden = !$('chat').hidden; if (!$('chat').hidden) { unread = 0; showUnread(); $('chat-input').focus(); scrollChat(); } };
-$('chat-close').onclick = () => { $('chat').hidden = true; };
+// Quick-Bar Toggles & Popovers
+const glBtn = $('gamelog-toggle-btn');
+const glDrawer = $('gamelog-drawer');
+const glClose = $('gamelog-close');
+if (glBtn && glDrawer) {
+  glBtn.onclick = (e) => {
+    e.stopPropagation();
+    const willOpen = glDrawer.hidden;
+    glDrawer.hidden = !willOpen;
+    glBtn.classList.toggle('active', willOpen);
+    if (willOpen) {
+      $('chat').hidden = true;
+      $('chat-btn')?.classList.remove('active');
+      $('emotes').hidden = true;
+      $('emotes-toggle-btn')?.classList.remove('active');
+      $('audio-controls')?.classList.remove('open');
+      $('settings-toggle-btn')?.classList.remove('active');
+      const glList = $('gamelog-list');
+      if (glList) glList.scrollTop = glList.scrollHeight;
+    }
+  };
+}
+if (glClose && glDrawer) {
+  glClose.onclick = () => {
+    glDrawer.hidden = true;
+    glBtn?.classList.remove('active');
+  };
+}
+
+const emBtn = $('emotes-toggle-btn');
+const emTray = $('emotes');
+if (emBtn && emTray) {
+  emBtn.onclick = (e) => {
+    e.stopPropagation();
+    const willOpen = emTray.hidden;
+    emTray.hidden = !willOpen;
+    emBtn.classList.toggle('active', willOpen);
+    if (willOpen) {
+      $('chat').hidden = true;
+      $('chat-btn')?.classList.remove('active');
+      if (glDrawer) glDrawer.hidden = true;
+      glBtn?.classList.remove('active');
+      $('audio-controls')?.classList.remove('open');
+      $('settings-toggle-btn')?.classList.remove('active');
+    }
+  };
+}
+
+const setBtn = $('settings-toggle-btn');
+const audioCtrl = $('audio-controls');
+if (setBtn && audioCtrl) {
+  setBtn.onclick = (e) => {
+    e.stopPropagation();
+    const willOpen = !audioCtrl.classList.contains('open');
+    audioCtrl.classList.toggle('open', willOpen);
+    setBtn.classList.toggle('active', willOpen);
+    if (willOpen) {
+      $('chat').hidden = true;
+      $('chat-btn')?.classList.remove('active');
+      if (glDrawer) glDrawer.hidden = true;
+      glBtn?.classList.remove('active');
+      emTray.hidden = true;
+      emBtn?.classList.remove('active');
+    }
+  };
+}
+
+$('chat-btn').onclick = (e) => {
+  e.stopPropagation();
+  const willOpen = $('chat').hidden;
+  $('chat').hidden = !willOpen;
+  $('chat-btn').classList.toggle('active', willOpen);
+  if (willOpen) {
+    unread = 0;
+    showUnread();
+    $('chat-input').focus();
+    scrollChat();
+    if (glDrawer) glDrawer.hidden = true;
+    glBtn?.classList.remove('active');
+    emTray.hidden = true;
+    emBtn?.classList.remove('active');
+    audioCtrl?.classList.remove('open');
+    setBtn?.classList.remove('active');
+  }
+};
+$('chat-close').onclick = () => {
+  $('chat').hidden = true;
+  $('chat-btn').classList.remove('active');
+};
+
+// Outside pointerdown handler to close transient trays on mobile
+document.addEventListener('pointerdown', (e) => {
+  const isMobile = window.innerWidth <= 700 || window.innerHeight <= 560;
+  if (!e.target.closest('#top-quick-bar, #emotes, #audio-controls, #gamelog-drawer, #chat, #volume-pop')) {
+    if (emTray && !emTray.hidden && isMobile) {
+      emTray.hidden = true;
+      emBtn?.classList.remove('active');
+    }
+    if (audioCtrl && audioCtrl.classList.contains('open')) {
+      audioCtrl.classList.remove('open');
+      setBtn?.classList.remove('active');
+    }
+  }
+});
 $('chat-form').onsubmit = (e) => {
   e.preventDefault();
   const t = $('chat-input').value.trim();

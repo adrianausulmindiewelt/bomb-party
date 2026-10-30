@@ -1976,3 +1976,365 @@ body:has(#quiz:not([hidden])) #audio-controls { visibility: hidden; }
   border-color: #ffd23d;
   transform: scale(1.02);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   TOP QUICK-BAR & MOBILE COLLAPSIBLE OVERHAUL (NoRevanell UX)
+   ══════════════════════════════════════════════════════════════════ */
+
+#top-quick-bar {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  background: rgba(35, 33, 58, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+
+.quick-btn:hover, .quick-btn.active {
+  background: rgba(58, 55, 96, 0.98);
+  border-color: #ffd23d;
+  box-shadow: 0 0 14px rgba(255, 210, 61, 0.45);
+  transform: scale(1.08);
+}
+
+.quick-btn:active {
+  transform: scale(0.94);
+}
+
+#top-quick-bar #chat-btn {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: 42px !important;
+  height: 42px !important;
+  font-size: 1.25rem !important;
+}
+
+#chat-unread {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #ff3d7f;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 99px;
+  padding: 1px 6px;
+  box-shadow: 0 2px 6px #000c;
+  pointer-events: none;
+}
+
+/* ── Gesten-Leiste als Popover-Tray ── */
+#emotes {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  z-index: 36;
+  display: flex;
+  gap: 8px;
+  background: rgba(20, 18, 34, 0.94);
+  backdrop-filter: blur(12px);
+  padding: 6px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 210, 61, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+  animation: popDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#emotes[hidden] {
+  display: none !important;
+}
+
+#emotes button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 1.25rem;
+  background: rgba(43, 42, 69, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+#emotes button:hover {
+  transform: scale(1.15);
+  background: rgba(65, 60, 105, 0.95);
+  border-color: #ffd23d;
+}
+
+#emotes button:active {
+  transform: scale(0.9);
+}
+
+/* ── Audio- & Tisch-Einstellungen Popover-Tray ── */
+body:has(#table:not([hidden])) #audio-controls {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  z-index: 36;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(20, 18, 34, 0.94);
+  backdrop-filter: blur(12px);
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 210, 61, 0.35);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+  animation: popDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body:has(#table:not([hidden])) #audio-controls.open {
+  display: flex !important;
+}
+
+/* ── Collapsible Gamelog Drawer ── */
+.gamelog-drawer {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: min(340px, 86vw);
+  max-height: calc(100vh - 20px);
+  background: rgba(18, 16, 30, 0.96);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 210, 61, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideInLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gamelog-drawer[hidden] {
+  display: none !important;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(30, 27, 46, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffd23d;
+  font-size: 0.95rem;
+}
+
+.drawer-header .close-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.drawer-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.gamelog-list {
+  list-style: none;
+  padding: 10px 14px;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.gamelog-list li {
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 2px solid rgba(255, 210, 61, 0.35);
+  color: #e2e0f0;
+}
+
+.gamelog-list li:last-child {
+  background: rgba(255, 210, 61, 0.12);
+  border-left-color: #ffd23d;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ── Ausgewählte Handkarte: Unverwechselbare Hervorhebung (Checkmark + Aura) ── */
+#hand .card.selected {
+  box-shadow: 0 0 0 3.5px #ffd23d, 0 0 24px rgba(255, 210, 61, 0.7), 0 16px 36px rgba(0, 0, 0, 0.7) !important;
+}
+
+#hand .card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  background: #ffd23d;
+  color: #14121f;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  z-index: 25;
+  border: 1.5px solid #14121f;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE & LANDSCAPE OVERRIDES (Responsiv & Entrümpelt)
+   ══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 700px), (max-height: 560px) {
+  #top-quick-bar {
+    top: 6px;
+    right: 8px;
+    gap: 6px;
+  }
+  .quick-btn, #top-quick-bar #chat-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.05rem !important;
+  }
+  #emotes {
+    top: 48px;
+    right: 8px;
+    padding: 4px 8px;
+    gap: 6px;
+  }
+  #emotes button {
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+  }
+  body:has(#table:not([hidden])) #audio-controls {
+    top: 48px;
+    right: 8px;
+    padding: 6px;
+    gap: 6px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  body:has(#table:not([hidden])) #audio-controls button {
+    width: 34px;
+    height: 34px;
+    font-size: 0.95rem;
+  }
+  /* Riesiges gelbes 'Du bist dran'-Banner auf Handy komplett ausblenden */
+  #turn-banner {
+    display: none !important;
+  }
+  /* Klobiges Einsatz-Banner auf dem Tisch auf Handy komplett ausblenden */
+  #stake-banner {
+    display: none !important;
+  }
+}
+
+/* Handy Querformat: Ergonomie für Knöpfe und Stacks */
+@media (max-height: 560px) and (orientation: landscape) {
+  .table-stacks {
+    gap: 10px !important;
+  }
+  #deck-wrap .card-stack-deck {
+    width: 52px !important;
+    height: 74px !important;
+  }
+  #pile {
+    width: 60px !important;
+    height: 84px !important;
+  }
+  #pile .card {
+    --card-w: 60px !important;
+  }
+  .stack-label {
+    font-size: 0.6rem !important;
+    margin-top: 2px !important;
+  }
+  #hand .card.selected {
+    --lift: 36px !important;
+    --s: 1.22 !important;
+    --r: 0deg !important;
+    z-index: 100 !important;
+  }
+  #actions {
+    position: absolute !important;
+    top: 52% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    right: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    z-index: 20 !important;
+    max-width: 140px !important;
+    padding: 0 !important;
+  }
+  #actions button {
+    padding: 9px 12px !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+  }
+  #play {
+    order: 1 !important;
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    border: 1px solid #34d399 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+    font-size: 0.92rem !important;
+  }
+  #take {
+    order: 2 !important;
+    background: rgba(30, 27, 46, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+  #my-role-badge {
+    order: 3 !important;
+    font-size: 0.72rem !important;
+    padding: 5px 8px !important;
+  }
+  #my-card-count {
+    order: 4 !important;
+    font-size: 0.72rem !important;
+    padding: 4px 6px !important;
+    text-align: center !important;
+  }
+}
+
+@keyframes popDown {
+  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}

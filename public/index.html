@@ -191,13 +191,26 @@ Bevor du fertig bist:
       <span class="quiz-timer-icon">🧠</span>
       <span id="quiz-timer-text">Quiz in 04:00</span>
     </div>
-    <div id="emotes" aria-label="Gesten">
+    <!-- ── Meta-Steuerung: Verlauf, Gesten, Audio/Setup, Chat ── -->
+    <nav id="top-quick-bar" aria-label="Schnellzugriff">
+      <button id="gamelog-toggle-btn" class="quick-btn" title="📜 Spielverlauf / Letzte Aktionen" aria-label="Spielverlauf" type="button">📜</button>
+      <button id="emotes-toggle-btn" class="quick-btn" title="🎭 Gesten & Emojis" aria-label="Gesten" type="button">🎭</button>
+      <button id="settings-toggle-btn" class="quick-btn" title="⚙️ Audio & Tisch-Einstellungen" aria-label="Einstellungen" type="button">⚙️</button>
+      <button id="chat-btn" class="quick-btn" title="💬 Tisch-Chat" aria-label="Chat" type="button">💬<span id="chat-unread" hidden></span></button>
+    </nav>
+    <div id="emotes" class="collapsible-tray" aria-label="Gesten" hidden>
       <button type="button" data-emote="wave" title="Winken">👋</button>
       <button type="button" data-emote="clap" title="Klatschen">👏</button>
       <button type="button" data-emote="cheer" title="Jubeln">🙌</button>
       <button type="button" data-emote="facepalm" title="Facepalm">🤦</button>
     </div>
-    <button id="chat-btn" aria-label="Chat">💬<span id="chat-unread" hidden></span></button>
+    <aside id="gamelog-drawer" class="gamelog-drawer" hidden>
+      <header class="drawer-header">
+        <b>📜 Spielverlauf</b>
+        <button id="gamelog-close" type="button" aria-label="Schließen" class="close-btn">✕</button>
+      </header>
+      <ol id="gamelog-list" class="gamelog-list"></ol>
+    </aside>
     <aside id="chat" hidden>
       <header><b>💬 Tisch-Chat</b><button id="chat-close" aria-label="Schließen">✕</button></header>
       <ol id="chat-list"></ol>

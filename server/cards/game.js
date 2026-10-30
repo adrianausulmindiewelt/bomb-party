@@ -2042,12 +2042,12 @@ export class CardRoom {
     this.nextQuizAt = Date.now() + QUIZ_RULES.everySeconds * 1000;
   }
 
-  quizBonus(p) {
+  quizBonus(p, forcedKind = null) {
     const others = this.active().filter((o) => o !== p);
     const kinds = ['drop3', 'special', 'punish'];
     if (p.hand.length <= 1) kinds.splice(0, 1);                  // sonst gewinnt man per Quiz
     if (!others.length) kinds.splice(kinds.indexOf('punish'), 1);
-    const kind = kinds[Math.floor(Math.random() * kinds.length)] ?? 'special';
+    const kind = forcedKind ?? (kinds[Math.floor(Math.random() * kinds.length)] ?? 'special');
     if (kind === 'drop3') {
       const n = Math.min(3, p.hand.length - 1);
       const nums = p.hand.filter((c) => c.kind === 'number').sort((a, b) => b.value - a.value);
@@ -2062,8 +2062,21 @@ export class CardRoom {
         ...Object.entries(PLAYER_CARDS).map(([key, c]) => card({ kind: 'special', key, effects: [], ...c })),
       ];
       const c = pool[Math.floor(Math.random() * pool.length)];
+      // Belohnung: 2 Karten (höchste Zahlen) abwerfen und 1 mächtige Spezialkarte erhalten -> Netto -1 Handkarte!
+      const dropCount = Math.min(2, Math.max(0, p.hand.length - 1));
+      if (dropCount > 0) {
+        const nums = p.hand.filter((x) => x.kind === 'number').sort((a, b) => b.value - a.value);
+        const gone = (nums.length >= dropCount ? nums : p.hand).slice(0, dropCount);
+        p.hand = p.hand.filter((x) => !gone.includes(x));
+        this.deck.unshift(...gone);
+      }
       p.hand.push(c);
-      return { kind, text: `bekommt ${c.emoji ?? '✨'} ${c.name}` };
+      return {
+        kind,
+        text: dropCount > 0
+          ? `wirft ${dropCount} Karten ab und bekommt ${c.emoji ?? '✨'} ${c.name} (-1 Handkarte) 💎`
+          : `bekommt ${c.emoji ?? '✨'} ${c.name} 💎`
+      };
     }
     // Strafe: wer am wenigsten Karten hat (also führt), zieht 3
     const target = others.sort((a, b) => a.hand.length - b.hand.length)[0];
