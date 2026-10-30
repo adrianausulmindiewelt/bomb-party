@@ -1191,7 +1191,7 @@ function render() {
     }
     if (face) seat.querySelector('.face').style.backgroundImage = `url("${face}")`;
     else seat.querySelector('.face').textContent = p.name.slice(0, 2).toUpperCase();
-    seat.querySelector('.nm').textContent = `${p.name}${p.id === v.host ? ' 👑' : ''}${p.inGame ? ' (' + p.count + ' 🎴)' : ''}`;
+    seat.querySelector('.nm').textContent = `${p.name}${p.id === v.host ? ' 👑' : ''}`;
     if (p.inGame) seat.querySelector('.nm').dataset.count = p.count;
     seat.querySelector('.role').textContent = p.role ? `${p.role.emoji} ${p.role.name}` : p.secret ? '❓ geheim' : (v.state === 'lobby' ? 'wartet …' : 'schaut zu');
     if (!p.connected) seat.querySelector('.role').textContent = '📵 weg …';
