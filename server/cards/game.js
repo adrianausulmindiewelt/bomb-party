@@ -2048,13 +2048,25 @@ export class CardRoom {
     if (p.hand.length <= 1) kinds.splice(0, 1);                  // sonst gewinnt man per Quiz
     if (!others.length) kinds.splice(kinds.indexOf('punish'), 1);
     const kind = forcedKind ?? (kinds[Math.floor(Math.random() * kinds.length)] ?? 'special');
+
+    // Wählt bis zu count Karten zum Abwerfen – bevorzugt ZUFÄLLIGE Zahlenkarten (nicht gezielt die höchsten!),
+    // damit wertvolle hohe Karten zum Überbieten nicht automatisch vernichtet werden.
+    const pickRandomDrop = (count) => {
+      const maxDrop = Math.min(count, Math.max(0, p.hand.length - 1));
+      if (maxDrop <= 0) return [];
+      const nums = p.hand.filter((x) => x.kind === 'number').sort(() => Math.random() - 0.5);
+      const rest = p.hand.filter((x) => x.kind !== 'number').sort(() => Math.random() - 0.5);
+      const candidates = [...nums, ...rest];
+      return candidates.slice(0, maxDrop);
+    };
+
     if (kind === 'drop3') {
-      const n = Math.min(3, p.hand.length - 1);
-      const nums = p.hand.filter((c) => c.kind === 'number').sort((a, b) => b.value - a.value);
-      const gone = (nums.length >= n ? nums : p.hand).slice(0, n);
-      p.hand = p.hand.filter((c) => !gone.includes(c));
-      this.deck.unshift(...gone);
-      return { kind, text: `wirft ${n} Karte${n === 1 ? '' : 'n'} ab 🗑️` };
+      const gone = pickRandomDrop(3);
+      if (gone.length > 0) {
+        p.hand = p.hand.filter((x) => !gone.includes(x));
+        this.deck.unshift(...gone);
+      }
+      return { kind, text: `wirft ${gone.length} zufällige Zahlenkarte${gone.length === 1 ? '' : 'n'} ab 🗑️` };
     }
     if (kind === 'special') {
       const pool = [
@@ -2062,19 +2074,17 @@ export class CardRoom {
         ...Object.entries(PLAYER_CARDS).map(([key, c]) => card({ kind: 'special', key, effects: [], ...c })),
       ];
       const c = pool[Math.floor(Math.random() * pool.length)];
-      // Belohnung: 2 Karten (höchste Zahlen) abwerfen und 1 mächtige Spezialkarte erhalten -> Netto -1 Handkarte!
-      const dropCount = Math.min(2, Math.max(0, p.hand.length - 1));
-      if (dropCount > 0) {
-        const nums = p.hand.filter((x) => x.kind === 'number').sort((a, b) => b.value - a.value);
-        const gone = (nums.length >= dropCount ? nums : p.hand).slice(0, dropCount);
+      // Belohnung: 2 zufällige Zahlenkarten abwerfen und 1 mächtige Spezialkarte erhalten -> Netto -1 Handkarte!
+      const gone = pickRandomDrop(2);
+      if (gone.length > 0) {
         p.hand = p.hand.filter((x) => !gone.includes(x));
         this.deck.unshift(...gone);
       }
       p.hand.push(c);
       return {
         kind,
-        text: dropCount > 0
-          ? `wirft ${dropCount} Karten ab und bekommt ${c.emoji ?? '✨'} ${c.name} (-1 Handkarte) 💎`
+        text: gone.length > 0
+          ? `wirft ${gone.length} zufällige Zahlenkarte${gone.length === 1 ? '' : 'n'} ab und bekommt ${c.emoji ?? '✨'} ${c.name} (-1 Handkarte) 💎`
           : `bekommt ${c.emoji ?? '✨'} ${c.name} 💎`
       };
     }
