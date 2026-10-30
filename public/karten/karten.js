@@ -1007,6 +1007,18 @@ function renderDeckModal(force = false) {
     </section>`;
   const catalog = specialCatalog();
   const own = v.customCards?.length ?? 0;
+
+  const specSet = new Set(choice.specials);
+  const roleSet = new Set(choice.roles);
+  const matchesPreset = (preset) => {
+    if (choice.specials.length !== preset.specials.length) return false;
+    if (choice.roles.length !== preset.roles.length) return false;
+    return preset.specials.every((k) => specSet.has(k)) && preset.roles.every((r) => roleSet.has(r));
+  };
+  const isDefault = matchesPreset(DEFAULT_DECK);
+  const isPlus = matchesPreset(DEFAULT_DECK_PLUS);
+  const isEverything = choice.specials.length === catalog.length && choice.roles.length === Object.keys(ROLES).length;
+
   box.innerHTML = `
     <p class="deck-summary">Im Spiel: <b>${choice.specials.length} Spezialkarten</b>${own ? ` + <b>${own} eigene Bomben</b>` : ''} · <b>${choice.roles.length} Rollen</b>.
       Jede*r bekommt zum Start 2 Spezialkarten, der Rest liegt im Stapel.</p>
@@ -1018,7 +1030,11 @@ function renderDeckModal(force = false) {
       </label>
     </div>
     ${canEdit
-      ? `<div class="deck-quick deck-presets"><button type="button" id="deck-default">↺ Grundspiel</button><button type="button" id="deck-plus">✨ Grundspiel Plus</button><button type="button" id="deck-everything">Alles rein</button></div>`
+      ? `<div class="deck-quick deck-presets">
+           <button type="button" id="deck-default" class="${isDefault ? 'active' : ''}">↺ Grundspiel</button>
+           <button type="button" id="deck-plus" class="${isPlus ? 'active' : ''}">✨ Grundspiel Plus</button>
+           <button type="button" id="deck-everything" class="${isEverything ? 'active' : ''}">Alles rein</button>
+         </div>`
       : '<p class="deck-note">👑 Nur der Host kann die Auswahl ändern.</p>'}
     ${SPECIAL_GROUPS.map((g) => {
       const list = catalog.filter((c) => c.group === g.key);
@@ -1032,7 +1048,11 @@ function renderDeckModal(force = false) {
   box.scrollTop = scroll;
   if (!canEdit) return;
 
-  const send = (next) => act('configure', next);
+  const send = (next) => {
+    if (v) v.deckChoice = next;
+    renderDeckModal(true);
+    act('configure', next);
+  };
   const groupKeys = (type, gkey) => type === 'roles' ? Object.keys(ROLES) : catalog.filter((c) => c.group === gkey).map((c) => c.key);
   box.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.onchange = () => {
@@ -1054,9 +1074,9 @@ function renderDeckModal(force = false) {
     };
   });
   $('deck-voice').onchange = (e) => send({ ...choice, voice: e.target.checked });
-  $('deck-default').onclick = () => send(DEFAULT_DECK);
-  $('deck-plus').onclick = () => send(DEFAULT_DECK_PLUS);
-  $('deck-everything').onclick = () => send({ specials: catalog.map((c) => c.key), roles: Object.keys(ROLES) });
+  $('deck-default').onclick = () => send({ ...choice, specials: [...DEFAULT_DECK.specials], roles: [...DEFAULT_DECK.roles] });
+  $('deck-plus').onclick = () => send({ ...choice, specials: [...DEFAULT_DECK_PLUS.specials], roles: [...DEFAULT_DECK_PLUS.roles] });
+  $('deck-everything').onclick = () => send({ ...choice, specials: catalog.map((c) => c.key), roles: Object.keys(ROLES) });
 }
 $('deck-btn').onclick = () => { $('deck-modal').hidden = false; renderDeckModal(true); };
 

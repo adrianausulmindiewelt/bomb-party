@@ -1614,16 +1614,38 @@ body:has(#lobby:not([hidden])) .hero { padding-top: 56px; }
 .deck-note { margin: 0 0 12px; color: #ffd23d; font-size: .9rem; }
 .deck-quick { display: flex; gap: 6px; flex-wrap: wrap; }
 .deck-quick button { background: #2b2a45; border-radius: 99px; padding: 6px 12px; font-size: .82rem; font-weight: 700; }
-.deck-presets { margin-bottom: 14px; }
-.deck-presets button:first-child { background: var(--accent); }
-#deck-plus {
-  background: linear-gradient(135deg, #262142, #392b57);
-  border: 1px solid rgba(255, 210, 61, 0.45);
+.deck-presets {
+  margin-bottom: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.deck-presets button {
+  background: #2b2a45;
+  color: #d6d3eb;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 99px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.deck-presets button:hover {
+  background: #3c3a60;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+#deck-plus:not(.active) {
+  border-color: rgba(255, 210, 61, 0.45);
   color: #ffd23d;
 }
-#deck-plus:hover {
-  background: linear-gradient(135deg, #392b57, #533980);
-  box-shadow: 0 0 10px rgba(255, 210, 61, 0.35);
+/* Wenn ausgewählt: Weiß auf Rot unterlegt (exakt wie der rote Haken bei den Karten) */
+.deck-presets button.active {
+  background: var(--accent, #ff3d7f) !important;
+  color: #fff !important;
+  border-color: var(--accent, #ff3d7f) !important;
+  box-shadow: 0 4px 14px rgba(255, 61, 127, 0.5), 0 0 10px rgba(255, 61, 127, 0.3) !important;
+  transform: scale(1.02);
 }
 .deck-group { margin-bottom: 18px; }
 .deck-group header { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap;
